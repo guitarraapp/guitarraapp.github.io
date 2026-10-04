@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Medicación</title>
+<style>
+:root{--bg:#f1f4f2;--c:#fff;--t:#1d2a2c;--m:#5f6f72;--a:#0f6b6b;--ok:#1f8a4c;--w:#b45309;--bad:#b42318;--b:#d9e0de}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1617;--c:#172123;--t:#e6eeee;--m:#98a9ab;--a:#4fb3b3;--ok:#4cc27f;--w:#f0a050;--bad:#f27a70;--b:#27363a}}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--t);padding:12px 12px 84px}
+small{color:var(--m)}
+.hd{font-size:20px;font-weight:700;margin:6px 2px 12px}.hd::first-letter{text-transform:uppercase}.hd small{font-weight:400;font-size:14px}
+.card{background:var(--c);border:1px solid var(--b);border-left:5px solid var(--b);border-radius:10px;padding:12px;margin-bottom:10px}
+.card.taken{border-left-color:var(--ok)}.card.late{border-left-color:var(--w)}.card.now{border-left-color:var(--a)}.card.missed{border-left-color:var(--bad)}.card.skipped{opacity:.7}
+.row{display:flex;gap:10px;align-items:center;margin-top:8px}.row:first-child{margin-top:0}.g{flex:1}
+.tm{font-size:26px;font-weight:700;min-width:70px;font-variant-numeric:tabular-nums}
+.nf{margin-top:6px;color:var(--a);font-size:14px}.wn{margin-top:6px;color:var(--w);font-size:14px;font-weight:600}
+.bd{font-size:14px;color:var(--m)}
+button{font:inherit;border:1px solid var(--b);background:var(--c);color:var(--t);border-radius:8px;padding:10px 14px;min-height:44px}
+button.ok{background:var(--a);color:#fff;border-color:var(--a);flex:1;font-weight:600}
+button.bad{color:var(--bad)}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--c);border-top:1px solid var(--b);padding-bottom:env(safe-area-inset-bottom,0)}
+nav button{flex:1;border:0;border-radius:0;background:none;color:var(--m);font-size:14px;min-height:56px}
+nav button.on{color:var(--a);font-weight:700;box-shadow:inset 0 3px var(--a)}
+label{display:block;margin:10px 0 0;font-size:14px;color:var(--m)}
+input,select,textarea{font:inherit;width:100%;padding:10px;border:1px solid var(--b);border-radius:8px;background:var(--bg);color:var(--t);margin-top:4px}
+textarea{min-height:80px}
+.dw{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px}.dw label{margin:0;display:flex;align-items:center;color:var(--t)}
+input[type=checkbox]{width:auto;margin:0 6px 0 0}
+.rule{border:1px dashed var(--b);border-radius:8px;padding:8px;margin:8px 0}
+.inl{display:flex;gap:8px}.inl>*{flex:1}
+#mod{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;overflow:auto;padding:12px;z-index:9}
+#mod>div{background:var(--c);border-radius:12px;padding:14px;max-width:560px;margin:0 auto}
+#v{max-width:600px;margin:0 auto}
+</style></head><body>
+<div id="v"></div><div id="mod"><div id="mf"></div></div>
+<nav><button data-a="tab" data-k="hoy">Hoy</button><button data-a="tab" data-k="med">Medicación</button><button data-a="tab" data-k="his">Historial</button><button data-a="tab" data-k="aju">Ajustes</button></nav>
+<script>
+// ===== MEDICACIÓN v1 — un solo archivo, datos en el navegador (localStorage + window.name como respaldo) =====
+// Modelo: S.set = horas de referencia (levantarse, comidas...). S.meds[] = {id,name,dose,tol,note,on,rules[]}
+// med: f='d'|'w'|'m'|'n' (diaria / días de semana en days[] 0=dom / día del mes dom / cada n días), start,end (AAAA-MM-DD), cy: ciclo cOn meses sí + cOff meses descanso (cuenta desde start)
+// regla = {a:referencia, t:hora fija, o:minutos (+después/-antes), w:minutos sin comer después, n:veces ese día, e:cada cuántas horas}
+// S.log["AAAA-MM-DD|idMed.nRegla"] = {s:'taken'|'skipped', at:'HH:MM'} · S.notes[] = {id,ts,txt,med}
+var ANC={wake:'Levantarse',breakfast:'Desayuno',midmorning:'Media mañana',lunch:'Comida',snack:'Merienda',dinner:'Cena',bed:'Acostarse',fixed:'Hora fija'};
+var SETK=['wake','breakfast','midmorning','lunch','snack','dinner','bed'],DAYS=['D','L','M','X','J','V','S'];
+var $=function(s){return document.querySelector(s)};
+var S,tab='hoy',LS=true;
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function m2(t){var p=t.split(':');return +p[0]*60+ +p[1]}
+function f2(n){n=((n%1440)+1440)%1440;return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')}
+function fm(n){return n%60===0?(n/60)+' h':n>60?Math.floor(n/60)+' h '+n%60+' min':n+' min'}
+function dk(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function uid(){return Math.random().toString(36).slice(2,9)}
+function DEF(){return{set:{wake:'07:00',breakfast:'08:00',midmorning:'11:00',lunch:'14:00',snack:'17:30',dinner:'21:00',bed:'23:00'},meds:[],log:{},notes:[],start:dk(new Date())}}
+function load(){var r=null;try{r=localStorage.getItem('med1')}catch(e){LS=false}
+ if(!r){try{if(window.name.indexOf('med1:')===0)r=window.name.slice(5)}catch(e){}}
+ try{S=r?JSON.parse(r):DEF()}catch(e){S=DEF()}norm()}
+function norm(){var D=DEF();S.set=S.set||{};if(S.set.coffee){S.set.midmorning=S.set.midmorning||S.set.coffee;delete S.set.coffee}
+ SETK.forEach(function(k){if(!S.set[k])S.set[k]=D.set[k]});S.meds=S.meds||[];S.log=S.log||{};S.notes=S.notes||[];S.start=S.start||D.start;
+ S.meds.forEach(function(m){m.f=m.f||'d';m.days=m.days||[];m.dom=m.dom||1;m.n=m.n||2;m.start=m.start||S.start;m.end=m.end||'';m.cy=!!m.cy;m.cOn=m.cOn||3;m.cOff=m.cOff||1;
+  m.rules.forEach(function(r){if(r.a==='coffee')r.a='midmorning';r.n=r.n||1;r.e=r.e||3})})}
+function save(){var j=JSON.stringify(S);try{localStorage.setItem('med1',j)}catch(e){LS=false}try{window.name='med1:'+j}catch(e){}}
+function nowMin(){var n=new Date();return n.getHours()*60+n.getMinutes()}
+
+// ---- cálculo de tomas del día a partir de las reglas ----
+function dn(k){var p=k.split('-');return Math.round(Date.UTC(+p[0],+p[1]-1,+p[2])/864e5)}
+function why(m,k){if(!m.on)return'pausa';if(k<m.start||(m.end&&k>m.end))return'fechas';
+ var p=k.split('-'),y=+p[0],mo=+p[1],d=+p[2];
+ if(m.cy){var q=m.start.split('-'),mm=(y-q[0])*12+(mo-q[1])-(d<+q[2]?1:0),on=Math.max(1,+m.cOn||1),P=on+(+m.cOff||0);if(((mm%P)+P)%P>=on)return'descanso'}
+ if(m.f==='w'&&m.days.indexOf(new Date(y,mo-1,d).getDay())<0)return'hoy no';
+ if(m.f==='m'&&d!==Math.min(+m.dom||1,new Date(y,mo,0).getDate()))return'hoy no';
+ if(m.f==='n'&&(dn(k)-dn(m.start))%Math.max(1,+m.n||1)!==0)return'hoy no';
+ return''}
+function doses(k){k=k||dk(new Date());var o=[];S.meds.forEach(function(md){if(why(md,k))return;md.rules.forEach(function(r,i){
+ var b=r.a==='fixed'?m2(r.t||'08:00'):m2(S.set[r.a])+(+r.o||0),n=Math.max(1,+r.n||1),ev=Math.round((+r.e||3)*60);
+ for(var j=0;j<n;j++)o.push({md:md,i:i,t:b+j*ev,w:+r.w||0,key:md.id+'.'+i+(j?'.'+j:''),r:r})})});
+ return o.sort(function(a,b){return a.t-b.t})}
+function desc(r){var s,o=+r.o||0;if(r.a==='fixed')s='A las '+r.t;else s=o===0?'A las '+f2(m2(S.set[r.a]))+' ('+ANC[r.a].toLowerCase()+')':fm(Math.abs(o))+(o<0?' antes de ':' después de ')+ANC[r.a].toLowerCase();
+ if((+r.n||1)>1)s+=' · '+r.n+' veces, cada '+fm(Math.round((+r.e||3)*60));return s}
+function sdesc(m){var s={d:'Todos los días',w:'Días: '+m.days.slice().sort(function(a,b){return(a||7)-(b||7)}).map(function(x){return DAYS[x]}).join(' '),m:'Día '+m.dom+' de cada mes',n:'Cada '+m.n+' días'}[m.f];
+ if(m.cy)s+=' · '+m.cOn+' meses sí, '+m.cOff+' de descanso';if(m.end)s+=' · hasta '+m.end;return s}
+function warn(d){if(!d.w)return'';var M=['breakfast','midmorning','lunch','snack','dinner'];
+ for(var i=0;i<M.length;i++){if(d.r.a===M[i])continue;var mt=m2(S.set[M[i]]);if(mt>=d.t&&mt<d.t+d.w)return'Choca con '+ANC[M[i]].toLowerCase()+' ('+S.set[M[i]]+')'}return''}
+function due(d,k){var td=dk(new Date());return k<td||(k===td&&nowMin()>d.t+(+d.md.tol||60))}
+function st(d,k){var L=S.log[k+'|'+d.key];if(L)return L.s;var td=dk(new Date());
+ if(k<td)return'missed';if(k>td)return'up';var n=nowMin(),tol=+d.md.tol||60;return n>d.t+tol?'late':n>=d.t-15?'now':'up'}
+
+// ---- vistas ----
+function vHoy(){var k=dk(new Date()),D=doses(k),n=new Date();
+ if(!S.meds.length)return'<div class="card">Aún no hay medicación. Ve a <b>Medicación</b> y añade la primera.</div>';
+ var done=D.filter(function(d){var L=S.log[k+'|'+d.key];return L&&L.s==='taken'}).length;
+ var h='<div class="hd">'+n.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})+'<br><small>'+done+' de '+D.length+' tomas hechas</small></div>';
+ if(!D.length)h+='<div class="card">Hoy no hay tomas programadas.</div>';
+ D.forEach(function(d){var L=S.log[k+'|'+d.key],s=st(d,k),w=warn(d);
+  h+='<div class="card '+s+'"><div class="row"><span class="tm">'+f2(d.t)+'</span><div class="g"><b>'+esc(d.md.name)+'</b> '+esc(d.md.dose)+'<br><small>'+desc(d.r)+'</small></div></div>';
+  if(d.w)h+='<div class="nf">No comer hasta las '+f2(d.t+d.w)+'</div>';
+  if(w)h+='<div class="wn">⚠ '+w+'</div>';
+  if(d.md.note)h+='<div><small>'+esc(d.md.note)+'</small></div>';
+  h+=L?'<div class="row"><span class="bd g">'+(L.s==='taken'?'Tomada a las '+L.at:'Omitida')+'</span><button data-a="undo" data-k="'+d.key+'">Deshacer</button></div>'
+   :'<div class="row"><button class="ok" data-a="take" data-k="'+d.key+'">Tomada</button><button data-a="skip" data-k="'+d.key+'">Omitir</button></div>'+(s==='late'?'<div class="wn">Retrasada: pasó el margen de '+fm(+d.md.tol||60)+'</div>':'');
+  h+='</div>'});
+ var off=S.meds.filter(function(m){var w=why(m,k);return w==='descanso'||w==='hoy no'});
+ if(off.length)h+='<div class="card skipped"><small>Hoy no toca: '+off.map(function(m){return esc(m.name)+(why(m,k)==='descanso'?' (descanso)':'')}).join(', ')+'</small></div>';
+ return h}
+
+function vMed(){var h='<div class="hd">Medicación</div><button class="ok" style="width:100%" data-a="new">+ Añadir medicamento</button><div style="height:10px"></div>';
+ S.meds.forEach(function(m){h+='<div class="card'+(m.on?'':' skipped')+'"><b>'+esc(m.name)+'</b> '+esc(m.dose)+(m.on?'':' <small>(en pausa)</small>')+'<br><small>'+sdesc(m)+'</small><br>';
+  m.rules.forEach(function(r){h+='<small>• '+desc(r)+(+r.w?' · sin comer '+fm(+r.w)+' después':'')+'</small><br>'});
+  h+='<div class="row"><button data-a="edit" data-k="'+m.id+'">Editar</button><button data-a="pause" data-k="'+m.id+'">'+(m.on?'Pausar':'Reanudar')+'</button><button class="bad" data-a="del" data-k="'+m.id+'">Borrar</button></div></div>'});
+ return h}
+
+function eachDay(n,fn){for(var i=0;i<n;i++){var d=new Date();d.setDate(d.getDate()-i);var k=dk(d);if(k>=S.start)fn(k,d)}}
+function vHis(){var h='<div class="hd">Historial</div><div class="card"><b>Anotar síntoma o suceso</b><textarea id="nt" placeholder="Mareo, náuseas, olvido, cambio de pauta…"></textarea>'
+ +'<label>Relacionado con<select id="nm"><option value="">— nada concreto —</option>'+S.meds.map(function(m){return'<option>'+esc(m.name)+'</option>'}).join('')+'</select></label><div class="row"><button class="ok" data-a="addnote">Guardar nota</button></div></div>';
+ h+='<div class="card"><b>Últimos 14 días</b><br><small>Según la medicación actual</small>';
+ eachDay(14,function(k,d){var t=0,ok=0,miss=[];doses(k).forEach(function(x){var L=S.log[k+'|'+x.key];if(L&&L.s==='taken')ok++;if(L||due(x,k)){t++;if(!L)miss.push(x.md.name+' '+f2(x.t))}});
+  h+='<div class="row"><span class="g">'+d.toLocaleDateString('es-ES',{weekday:'short',day:'numeric',month:'short'})+'</span><b style="color:var(--'+(miss.length?'bad':'ok')+')">'+ok+'/'+t+'</b></div>'+(miss.length?'<small>Faltan: '+esc(miss.join(', '))+'</small>':'')});
+ h+='</div><div class="card"><b>Notas</b>';
+ if(!S.notes.length)h+='<br><small>Aún no hay notas.</small>';
+ S.notes.slice().reverse().forEach(function(n){h+='<div class="row"><div class="g"><small>'+new Date(n.ts).toLocaleString('es-ES',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+(n.med?' · '+esc(n.med):'')+'</small><br>'+esc(n.txt)+'</div><button class="bad" data-a="delnote" data-k="'+n.id+'">✕</button></div>'});
+ h+='</div><div class="card"><b>Informe para el médico</b><div class="row"><button class="ok" data-a="rep">Generar informe (30 días)</button></div><textarea id="rp" style="min-height:160px" placeholder="Aquí aparecerá el informe; cópialo y envíalo."></textarea></div>';
+ return h}
+function report(){var L=['INFORME DE TOMAS — '+new Date().toLocaleDateString('es-ES'),''],c={};
+ S.meds.forEach(function(m){c[m.id]={m:m,t:0,ok:0,sk:0}});
+ eachDay(30,function(k){doses(k).forEach(function(x){var l=S.log[k+'|'+x.key];if(l||due(x,k)){var z=c[x.md.id];z.t++;if(l&&l.s==='taken')z.ok++;if(l&&l.s==='skipped')z.sk++}})});
+ L.push('Cumplimiento (desde '+S.start+', máx. 30 días):');
+ Object.keys(c).forEach(function(i){var z=c[i];if(z.t)L.push('- '+z.m.name+': '+z.ok+'/'+z.t+' ('+Math.round(100*z.ok/z.t)+'%), omitidas '+z.sk+', olvidadas '+(z.t-z.ok-z.sk)+(z.m.on?'':' [en pausa]'))});
+ var lim=Date.now()-30*864e5,N=S.notes.filter(function(n){return n.ts>=lim});L.push('','Síntomas y sucesos:');
+ if(!N.length)L.push('- (ninguno)');N.forEach(function(n){L.push('- '+new Date(n.ts).toLocaleString('es-ES')+(n.med?' ['+n.med+']':'')+': '+n.txt)});
+ return L.join('\n')}
+
+function vAju(){var h='<div class="hd">Ajustes</div><div class="card"><b>Horas de referencia</b><br><small>Las tomas con reglas se calculan a partir de estas horas. Si cambias una, el plan de hoy se recalcula.</small>';
+ SETK.forEach(function(k){h+='<label>'+ANC[k]+'<input type="time" data-s="'+k+'" value="'+S.set[k]+'"></label>'});
+ h+='</div><div class="card"><b>Copia de seguridad</b><br><small>'+(LS?'Los datos se guardan en este navegador.':'⚠ Este navegador no permite guardar: los datos duran solo mientras no cierres la pestaña.')+' Haz copia de vez en cuando.</small>'
+  +'<textarea id="bk" placeholder="Pulsa «Mostrar copia» o pega aquí una copia para restaurar"></textarea>'
+  +'<div class="row"><button data-a="bshow">Mostrar copia</button><button data-a="bcopy">Copiar</button><button data-a="brest">Restaurar</button></div></div>'
+  +'<div class="card"><b>Reiniciar</b><div class="row"><button class="bad" data-a="rlog">Borrar solo el registro de tomas</button></div></div>';
+ return h}
+
+function render(){$('#v').innerHTML={hoy:vHoy,med:vMed,his:vHis,aju:vAju}[tab]();
+ [].forEach.call(document.querySelectorAll('nav button'),function(b){b.className=b.dataset.k===tab?'on':''})}
+
+// ---- formulario de medicamento y reglas ----
+var ed=null;
+function ropt(v){return Object.keys(ANC).map(function(k){return'<option value="'+k+'"'+(k===v?' selected':'')+'>'+ANC[k]+'</option>'}).join('')}
+function showForm(m){ed=m;var h='<h3 style="margin:0">'+(m.name?'Editar':'Nuevo')+' medicamento</h3>'
+ +'<label>Nombre<input id="fn" value="'+esc(m.name)+'"></label><label>Dosis<input id="fd" value="'+esc(m.dose)+'" placeholder="1 comprimido"></label>'
+ +'<label>Margen para tomarla con retraso (min)<input id="ft" type="number" value="'+m.tol+'"></label><label>Notas<input id="fo" value="'+esc(m.note)+'" placeholder="Con agua, no masticar…"></label>'
+ +'<p><b>Qué días se toma</b></p><div class="inl"><label>Desde<input id="fs" type="date" value="'+m.start+'"></label><label>Hasta (opcional)<input id="fe" type="date" value="'+m.end+'"></label></div>'
+ +'<label>Frecuencia<select id="ff" class="fq">'+[['d','Todos los días'],['w','Algunos días de la semana'],['m','Un día al mes'],['n','Cada cierto número de días']].map(function(x){return'<option value="'+x[0]+'"'+(x[0]===m.f?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select></label>';
+ if(m.f==='w')h+='<div class="dw">'+[1,2,3,4,5,6,0].map(function(d){return'<label><input type="checkbox" class="dd" value="'+d+'"'+(m.days.indexOf(d)>=0?' checked':'')+'>'+DAYS[d]+'</label>'}).join('')+'</div>';
+ if(m.f==='m')h+='<label>Día del mes<input id="fm" type="number" min="1" max="31" value="'+m.dom+'"></label>';
+ if(m.f==='n')h+='<label>Cada cuántos días (cuenta desde la fecha de inicio)<input id="fnn" type="number" min="1" value="'+m.n+'"></label>';
+ h+='<label><input type="checkbox" id="fc"'+(m.cy?' checked':'')+'>Con meses de descanso</label>';
+ if(m.cy)h+='<div class="inl"><label>Meses tomándola<input id="fon" type="number" min="1" value="'+m.cOn+'"></label><label>Meses de descanso<input id="fof" type="number" min="1" value="'+m.cOff+'"></label></div><small>El ciclo cuenta desde la fecha de inicio.</small>';
+ h+='<p><b>A qué hora se toma</b></p>';
+ m.rules.forEach(function(r,i){var fx=r.a==='fixed',o=+r.o||0;
+  h+='<div class="rule"><label>Referencia<select class="ra">'+ropt(r.a)+'</select></label>'
+  +(fx?'<label>Hora<input class="rt" type="time" value="'+(r.t||'08:00')+'"></label>'
+   :'<div class="inl"><label>Respecto a la referencia<select class="rd"><option value="a"'+(o>=0?' selected':'')+'>después</option><option value="b"'+(o<0?' selected':'')+'>antes</option></select></label><label>Minutos<input class="rm" type="number" min="0" value="'+Math.abs(o)+'"></label></div>')
+  +'<label>Sin comer después de tomarla (min, 0 = sin restricción)<input class="rw" type="number" min="0" value="'+(+r.w||0)+'"></label>'
+  +'<div class="inl"><label>Veces ese día<input class="rn" type="number" min="1" value="'+(+r.n||1)+'"></label><label>Repetir cada (horas)<input class="re" type="number" min="0.5" step="0.5" value="'+(+r.e||3)+'"></label></div>'
+  +'<div class="bd" style="margin-top:6px">→ '+desc(r)+'</div>'
+  +(m.rules.length>1?'<div class="row"><button class="bad" data-a="rdel" data-k="'+i+'">Quitar esta toma</button></div>':'')+'</div>'});
+ h+='<button data-a="radd" style="width:100%">+ Añadir otra toma al día</button><div class="row"><button class="ok" data-a="fsave">Guardar</button><button data-a="fclose">Cancelar</button></div>';
+ $('#mf').innerHTML=h;$('#mod').style.display='block'}
+function readForm(){var m=ed;m.name=$('#fn').value;m.dose=$('#fd').value;m.tol=+$('#ft').value||60;m.note=$('#fo').value;
+ m.start=$('#fs').value||dk(new Date());m.end=$('#fe').value;m.f=$('#ff').value;
+ var dd=document.querySelectorAll('.dd');if(m.f==='w'&&dd.length)m.days=[].filter.call(dd,function(x){return x.checked}).map(function(x){return +x.value});
+ if($('#fm'))m.dom=+$('#fm').value||1;if($('#fnn'))m.n=+$('#fnn').value||2;
+ m.cy=$('#fc').checked;if($('#fon')){m.cOn=+$('#fon').value||3;m.cOff=+$('#fof').value||1}
+ m.rules=[].map.call(document.querySelectorAll('.rule'),function(e){var a=e.querySelector('.ra').value,r={a:a,t:'08:00',o:0,w:+e.querySelector('.rw').value||0,n:Math.max(1,+e.querySelector('.rn').value||1),e:+e.querySelector('.re').value||3};
+  if(a==='fixed'){var t=e.querySelector('.rt');r.t=t?t.value:'08:00'}else{var mm=e.querySelector('.rm'),dd=e.querySelector('.rd');r.o=(dd&&dd.value==='b'?-1:1)*(mm?+mm.value||0:0)}return r});return m}
+function newMed(){return{id:uid(),name:'',dose:'',tol:60,note:'',on:true,f:'d',days:[],dom:1,n:2,start:dk(new Date()),end:'',cy:false,cOn:3,cOff:1,rules:[{a:'breakfast',t:'08:00',o:0,w:0,n:1,e:3}]}}
+
+// ---- eventos ----
+document.addEventListener('click',function(e){var b=e.target.closest('[data-a]');if(!b)return;var a=b.dataset.a,k=b.dataset.k,day=dk(new Date()),m;
+ if(a==='tab'){tab=k;render();window.scrollTo(0,0);return}
+ if(a==='take'){S.log[day+'|'+k]={s:'taken',at:f2(nowMin())}}
+ else if(a==='skip'){S.log[day+'|'+k]={s:'skipped',at:f2(nowMin())}}
+ else if(a==='undo'){delete S.log[day+'|'+k]}
+ else if(a==='new'){showForm(newMed());return}
+ else if(a==='edit'){showForm(JSON.parse(JSON.stringify(S.meds.filter(function(x){return x.id===k})[0])));return}
+ else if(a==='pause'){m=S.meds.filter(function(x){return x.id===k})[0];m.on=!m.on}
+ else if(a==='del'){if(!confirm('¿Borrar este medicamento? El historial de sus tomas dejará de contar.'))return;S.meds=S.meds.filter(function(x){return x.id!==k})}
+ else if(a==='radd'){readForm().rules.push({a:'lunch',t:'14:00',o:0,w:0,n:1,e:3});showForm(ed);return}
+ else if(a==='rdel'){readForm().rules.splice(+k,1);showForm(ed);return}
+ else if(a==='fclose'){$('#mod').style.display='none';return}
+ else if(a==='fsave'){m=readForm();if(!m.name.trim()){alert('Escribe el nombre');return}
+  var i=S.meds.map(function(x){return x.id}).indexOf(m.id);if(i<0)S.meds.push(m);else S.meds[i]=m;$('#mod').style.display='none'}
+ else if(a==='addnote'){var t=$('#nt').value.trim();if(!t)return;S.notes.push({id:uid(),ts:Date.now(),txt:t,med:$('#nm').value})}
+ else if(a==='delnote'){S.notes=S.notes.filter(function(x){return x.id!==k})}
+ else if(a==='rep'){$('#rp').value=report();return}
+ else if(a==='bshow'){$('#bk').value=JSON.stringify(S);return}
+ else if(a==='bcopy'){var x=$('#bk');if(!x.value)x.value=JSON.stringify(S);x.select();try{document.execCommand('copy')}catch(er){}return}
+ else if(a==='brest'){try{var o=JSON.parse($('#bk').value);if(!o.meds||!o.set)throw 0;if(!confirm('Esto sustituye todos los datos actuales. ¿Continuar?'))return;S=o;norm()}catch(er){alert('La copia no es válida');return}}
+ else if(a==='rlog'){if(!confirm('¿Borrar todo el registro de tomas? La medicación y las notas se conservan.'))return;S.log={};S.start=dk(new Date())}
+ save();render()});
+document.addEventListener('change',function(e){var t=e.target;
+ if(t.dataset&&t.dataset.s){S.set[t.dataset.s]=t.value;save();return}
+ if(t.classList.contains('ra')||t.classList.contains('fq')||t.id==='fc'){readForm();showForm(ed)}});
+load();save();render();
+setInterval(function(){if(tab==='hoy'&&$('#mod').style.display!=='block')render()},60000);
+</script></body></html>
