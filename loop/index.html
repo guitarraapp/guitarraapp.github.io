@@ -15,6 +15,10 @@ a{color:var(--ac)}
 .vbox{max-width:calc(50vh*16/9);width:100%;margin:0 auto}
 .vwrap{position:relative;width:100%;aspect-ratio:16/9;margin:0 auto;background:#000;border-radius:10px;overflow:hidden}
 .vwrap iframe,.vwrap>div{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vwrap video{position:absolute;inset:0;width:100%;height:100%;background:#000;display:none}
+.vwrap.local video{display:block}
+.vwrap.local iframe,.vwrap.local #yt-player{display:none}
+body.islocal #qg{display:none}
 input,select,button{background:var(--cell);color:#fff;border:1px solid var(--bd);padding:8px 10px;border-radius:6px;font:inherit;font-size:.9rem}
 input{width:84px}
 button{cursor:pointer;min-height:40px}
@@ -50,7 +54,7 @@ body:not(.listen) .ls{display:none!important}
 <body>
 <div class="container">
  <div id="piece-name"></div>
- <div class="vbox"><div class="vwrap" id="vwrap"><div id="yt-player"></div></div></div>
+ <div class="vbox"><div class="vwrap" id="vwrap"><div id="yt-player"></div><video id="lv" controls playsinline preload="metadata"></video></div></div>
  <div class="status" id="status"></div>
 
  <div class="row pr">
@@ -63,24 +67,26 @@ body:not(.listen) .ls{display:none!important}
  </div>
 
  <details id="settings"><summary>⚙ Ajustes</summary>
-  <div class="row pr">
-   <div class="g"><label for="chain">Encadenar loops</label><input type="number" id="chain" value="1" min="1" step="1"></div>
-   <div class="g"><label for="delay">Delay inicio (s)</label><input type="number" id="delay" value="0" step="1"></div>
-   <div class="g"><label>Ajuste fino (±0,5 s)</label>
+  <div class="row">
+   <div class="g"><label for="start">Inicio (mm:ss)</label><input id="start" value="0:00" inputmode="numeric"></div>
+   <div class="g pr"><label for="delay">Delay inicio (s)</label><input type="number" id="delay" value="0" step="1"></div>
+   <div class="g pr"><label>Ajuste fino (±0,5 s)</label>
     <div class="seg"><button id="nm">−</button><button id="nv" title="Poner a cero">0</button><button id="np">+</button></div></div>
+  </div>
+  <div class="row pr">
+   <div class="g"><label for="dur">Duración loop (s)</label><input type="number" id="dur" value="5" min="0.5" step="0.5"></div>
+   <div class="g"><label for="chain">Encadenar loops</label><input type="number" id="chain" value="1" min="1" step="1"></div>
+   <div class="g"><label for="pause">Pausa entre repeticiones (s)</label><input type="number" id="pause" value="0" min="0" step="0.5"></div>
   </div>
   <div class="row">
    <div class="g"><label for="speed">Velocidad</label><select id="speed"></select></div>
-   <div class="g"><label for="quality">Calidad</label><select id="quality"><option value="0">Normal</option><option value="1">Baja (50 %)</option><option value="2">Mínima (25 %)</option></select></div>
-  </div>
-  <div class="row">
-   <div class="g"><label for="start">Inicio (mm:ss)</label><input id="start" value="0:00" inputmode="numeric"></div>
-   <div class="g pr"><label for="dur">Duración loop (s)</label><input type="number" id="dur" value="5" min="0.5" step="0.5"></div>
-   <div class="g pr"><label for="pause">Pausa entre repeticiones (s)</label><input type="number" id="pause" value="0" min="0" step="0.5"></div>
+   <div class="g" id="qg"><label for="quality">Calidad</label><select id="quality"><option value="0">Normal</option><option value="1">Baja (50 %)</option><option value="2">Mínima (25 %)</option></select></div>
   </div>
   <div class="row">
    <input id="video-url" style="flex:1 1 220px;width:auto" placeholder="https://www.youtube.com/watch?v=...">
    <button class="ac" id="load-video">Cargar</button>
+   <button id="load-local" title="Elegir un vídeo de este dispositivo">📁 Vídeo local</button>
+   <input type="file" id="lf" accept="video/*" hidden>
   </div>
   <div class="row"><button id="mode-btn"></button></div>
  </details>
@@ -96,6 +102,7 @@ body:not(.listen) .ls{display:none!important}
   <b>m</b> = modo música: con <code>m=1</code> o <code>m=si</code> se abre en modo escuchar (sin loops). Si no se pone, se abre en modo practicar.</p>
   <p>Práctica: <code>loop/?v=https://youtu.be/go4TRHa1sKM&amp;t=3:45&amp;n=Cavatina</code><br>
   Concierto: <code>loop/?v=https://youtu.be/go4TRHa1sKM&amp;t=2:10&amp;n=Concierto&amp;m=1</code></p>
+  <p><b>Vídeo local:</b> en Ajustes, el botón «Vídeo local» permite elegir un vídeo de tu móvil u ordenador (no se sube a ningún sitio). Funciona igual que con YouTube, salvo que no hay selector de calidad y, al recargar la página, hay que volver a elegir el archivo.</p>
   <p>No se guarda nada en el navegador: solo cuentan los datos de la URL y lo que escribas en los formularios. La calidad empieza siempre en Normal.</p>
  </details>
 </div>
@@ -106,8 +113,9 @@ const RATES = [0.25, 0.3, 0.4, 0.5, 0.7, 0.8, 1, 1.25, 1.5, 1.6, 1.8, 2];
 const QUAL = [{ w: '100%', q: 'default' }, { w: '50%', q: 'medium' }, { w: '25%', q: 'small' }];
 const $ = id => document.getElementById(id);
 
-let player, D = 0, loops = [], mon = null, cur = null, tS = 0, tE = 0;
+let player, ytp, D = 0, loops = [], mon = null, cur = null, tS = 0, tE = 0;
 let mode = 'idle', waiting = false, vid = '', nudge = 0, listen = false, lastMsg = '';
+let isLocal = false, lurl = '', paramName = '';
 
 // ===== Utilidades =====
 function ptime(s) {
@@ -159,7 +167,7 @@ function applyParams() {
   const t = p.get('t') || p.get('tiempo');
   if (t) $('start').value = t;
   const n = (p.get('n') || p.get('nombre') || p.get('name') || '').trim();
-  $('piece-name').textContent = n;
+  paramName = n; $('piece-name').textContent = n;
   document.title = n || 'Bucles de práctica';
   const m = (p.get('m') || p.get('musica') || '').toLowerCase();
   listen = ['1', 'si', 'sí', 's', 'true', 'yes', 'y'].includes(m);
@@ -191,6 +199,23 @@ function applyQ() {
   try { player.setPlaybackQuality(q.q); } catch (e) {}
 }
 
+// ===== Reproductor local (<video>) con los mismos métodos que usa el de YouTube =====
+const V = $('lv');
+const localP = {
+  getCurrentTime: () => V.currentTime,
+  getDuration: () => V.duration || 0,
+  getPlayerState: () => V.ended ? 0 : !V.paused ? 1 : V.readyState === 0 ? -1 : 2,
+  seekTo: t => { const e = V.ended; V.currentTime = t; if (e) V.play().catch(() => {}); },
+  playVideo: () => { V.play().catch(() => {}); },
+  pauseVideo: () => V.pause(),
+  setPlaybackRate: r => { V.defaultPlaybackRate = r; V.playbackRate = r; },
+  getPlaybackRate: () => V.playbackRate,
+  getAvailablePlaybackRates: () => [0.25, 2],
+  setPlaybackQuality: () => {}
+};
+V.addEventListener('loadedmetadata', () => { D = V.duration || 0; localP.setPlaybackRate(speed()); build(); setStatus('Vídeo local cargado.'); });
+V.addEventListener('error', () => { if (V.getAttribute('src')) setStatus('No se pudo reproducir este archivo (formato no compatible).'); });
+
 // ===== YouTube API =====
 applyParams();
 const yt = document.createElement('script');
@@ -198,7 +223,7 @@ yt.src = 'https://www.youtube.com/iframe_api';
 document.head.appendChild(yt);
 
 function onYouTubeIframeAPIReady() {
-  player = new YT.Player('yt-player', {
+  ytp = player = new YT.Player('yt-player', {
     height: '100%', width: '100%', videoId: vid,
     playerVars: { playsinline: 1, controls: 1, rel: 0, start: Math.floor(base()) },   // vídeo preparado en t
     events: { onReady: initApp, onError: onErr, onStateChange: onState }
@@ -228,6 +253,8 @@ function initApp() {
   $('speed').addEventListener('change', () => { player.setPlaybackRate(speed()); setTimeout(checkRate, 600); });
   $('quality').addEventListener('change', applyQ);
   $('load-video').onclick = loadFromField;
+  $('load-local').onclick = () => $('lf').click();
+  $('lf').addEventListener('change', e => { loadLocal(e.target.files[0]); e.target.value = ''; });
   $('video-url').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); loadFromField(); } });
   $('mode-btn').onclick = () => setMode(!listen);
   $('nm').onclick = () => applyNudge(-STEP);
@@ -267,12 +294,36 @@ function onParam() {
 function loadFromField() {
   const id = extractId($('video-url').value);
   if (!id) { setStatus('Introduce una URL de YouTube válida.'); return; }
+  if (isLocal) leaveLocal();
   clearInterval(mon); waiting = false; cur = null; mode = listen ? 'listen' : 'idle';
   vid = id; D = 0;
   $('start').value = '0:00';
   player.cueVideoById({ videoId: id, startSeconds: 0 });
   build(); pollDur(0);
   setStatus('Vídeo cargado.');
+}
+function leaveLocal() {
+  V.pause(); V.removeAttribute('src'); V.load();
+  if (lurl) { URL.revokeObjectURL(lurl); lurl = ''; }
+  isLocal = false; player = ytp;
+  $('vwrap').classList.remove('local'); document.body.classList.remove('islocal');
+  $('piece-name').textContent = paramName; document.title = paramName || 'Bucles de práctica';
+  applyQ(); buildSpeeds();
+}
+function loadLocal(f) {
+  if (!f) return;
+  if (!isLocal) { try { ytp.pauseVideo(); } catch (x) {} }
+  if (lurl) URL.revokeObjectURL(lurl);
+  clearInterval(mon); waiting = false; cur = null; mode = listen ? 'listen' : 'idle';
+  isLocal = true; player = localP; vid = ''; D = 0; lurl = URL.createObjectURL(f);
+  $('vwrap').classList.add('local'); document.body.classList.add('islocal');
+  $('vwrap').style.width = '100%';
+  const nm = paramName || f.name.replace(/\.[^.]+$/, '');
+  $('piece-name').textContent = nm; document.title = nm;
+  $('start').value = '0:00';
+  buildSpeeds(); localP.setPlaybackRate(speed());
+  V.src = lurl;
+  build(); setStatus('Cargando vídeo local…');
 }
 function pollDur(n) {
   const d = player && player.getDuration ? player.getDuration() : 0;
