@@ -12,7 +12,7 @@ h2{font-size:16px;margin:18px 0 6px}.m{color:var(--m);font-size:13px}
 .r{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
 .tag{font-size:12px;color:var(--ok)}.tag.pend{color:var(--pe)}.tag.opc{color:var(--op)}
 button,select,input,textarea{font:inherit;color:var(--t);background:var(--c);border:1px solid var(--b);border-radius:6px;padding:5px 9px}
-button{cursor:pointer}.mini{padding:2px 8px;font-size:12px}body.edit header{border-bottom:3px solid var(--pe)}.nt{color:var(--m);font-size:13px;white-space:pre-wrap}.nt.cl{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#f_n{min-height:140px}#ts{position:fixed;left:12px;right:12px;bottom:70px;background:var(--t);color:var(--bg);padding:10px 12px;border-radius:8px;display:none;gap:10px;align-items:center;justify-content:space-between;z-index:9}button:disabled{opacity:.4}dialog input[type=checkbox]{width:auto}button.p{background:var(--a);color:#fff;border-color:var(--a)}
+button{cursor:pointer}#rp{position:fixed;inset:0;z-index:20;background:#fff;color:#000;overflow:auto;padding:12px;font-size:15px}#rp.big{font-size:19px}#rp .tb{position:sticky;top:0;background:#fff;padding:6px 0;display:flex;gap:8px;border-bottom:1px solid #ccc}#rp button{background:#eee;color:#000;border-color:#999}#rp a{color:#000}#rp h1{font-size:1.5em;margin:10px 0 2px}#rp h2{font-size:1.15em;border-bottom:1px solid #999;margin:18px 0 6px}#rp h3{font-size:1em;margin:12px 0 4px}#rp .li{margin:5px 0}#rp .s{font-size:.85em;color:#333;white-space:pre-wrap;word-break:break-word;padding-left:14px}@media print{body>*:not(#rp){display:none!important}#rp{position:static;overflow:visible;padding:0}#rp .tb{display:none}#rp .pg{break-before:page}#rp .li{break-inside:avoid}}.mini{padding:2px 8px;font-size:12px}body.edit header{border-bottom:3px solid var(--pe)}.nt{color:var(--m);font-size:13px;white-space:pre-wrap}.nt.cl{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#f_n{min-height:140px}#ts{position:fixed;left:12px;right:12px;bottom:70px;background:var(--t);color:var(--bg);padding:10px 12px;border-radius:8px;display:none;gap:10px;align-items:center;justify-content:space-between;z-index:9}button:disabled{opacity:.4}dialog input[type=checkbox]{width:auto}button.p{background:var(--a);color:#fff;border-color:var(--a)}
 a{color:var(--a)}label{display:flex;gap:8px;align-items:center;padding:4px 0}
 nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--c);border-top:1px solid var(--b)}
 nav button{flex:1;border:0;border-radius:0;padding:12px 2px;background:none;font-size:13px}nav button.on{color:var(--a);font-weight:700;box-shadow:inset 0 3px var(--a)}
@@ -26,7 +26,7 @@ dialog input,dialog select,dialog textarea{width:100%;margin:3px 0}textarea{min-
 <nav><button data-t="it" onclick="go('it')">Itinerario</button><button data-t="gs" onclick="go('gs')">Gastos</button><button data-t="id" onclick="go('id')">Ideas</button><button data-t="li" onclick="go('li')">Listas</button><button data-t="en" onclick="go('en')">Enlaces</button><button data-t="da" onclick="go('da')">Datos</button></nav>
 <dialog id="dlg"><input id="f_t" placeholder="Hora (ej. 09:30)"><select id="f_ty"></select><input id="f_ti" placeholder="Qué es"><select id="f_st"></select><input id="f_pl" placeholder="Dirección o lugar (genera enlace de Maps)"><input id="f_u" placeholder="Enlace web"><textarea id="f_n" placeholder="Notas"></textarea><select id="f_d"></select>
 <div class="r"><button class="p" onclick="sv()">Guardar</button><button onclick="dlg.close()">Cancelar</button><button id="del" onclick="rm()">Borrar</button></div></dialog>
-<dialog id="dg"></dialog>
+<dialog id="dg"></dialog><div id="rp" hidden></div>
 <script>
 const $=s=>document.querySelector(s),uid=()=>Math.random().toString(36).slice(2,9);
 const TY={transporte:'🚆',alojamiento:'🏨',comida:'🍽️',visita:'🏛️',paseo:'🚶',otro:'📌'},ST={ok:'Confirmado',pend:'Pendiente',opc:'Opcional'};
@@ -40,11 +40,11 @@ function load(){try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 function save(z){try{const t=T();if(t&&z!==2){t.ch=z===0?0:(t.ch||0)+1;stamp(t);bk(t)}localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('⚠️ No se pudo guardar (almacenamiento lleno). Exporta una copia.')}}
 const T=()=>S.trips.find(t=>t.id==S.cur)||S.trips[0],ro=()=>T().mode=='view';
 function go(t){tab=t;render();scrollTo(0,0)}
-function render(){if(!S.trips.length)return empty();const t=T();S.cur=t.id;if(lc!==t.id){lc=t.id;vw=undefined}if(ro()&&tab=='gs')tab='it';
+function render(){if(!S.trips.length)return empty();const t=T();S.cur=t.id;if(lc!==t.id){lc=t.id;vw=undefined}if(ro()&&(tab=='gs'||tab=='li'))tab='it';
  $('#sel').innerHTML=S.trips.map(x=>`<option value="${x.id}" ${x.id==t.id?'selected':''}>${esc(x.name)}</option>`).join('');
  $('#mode').textContent=ro()?'Solo consulta':'';em.hidden=ro();em.textContent=EM?'✏️ Edición':'🔒 Consulta';document.body.classList.toggle('edit',ce());
  $('#main').innerHTML=bn(t)+{it:vIt,gs:vGs,id:vId,li:vLi,en:vEn,da:vDa}[tab](t);
- document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==tab));document.querySelector('[data-t=gs]').hidden=ro()}
+ document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==tab));document.querySelector('[data-t=gs]').hidden=ro();document.querySelector('[data-t=li]').hidden=ro()}
 function find(id){for(const d of T().days){const k=d.it.findIndex(i=>i.id==id);if(k>=0)return{d,k,i:d.it[k]}}}
 function vDays(t,days){return days.map(d=>`<h2>${esc(dl(d))}</h2>${d.it.map(i=>`<div class="card ${i.st}"><div class="r"><b>${esc(i.t)||'sin hora'}</b> ${TY[i.ty]||''} <span class="tag ${i.st}">${ST[i.st]}</span></div><div>${esc(i.ti)}</div>${nt(i)}<div class="r">${i.pl?`<a href="${mapU(i.pl)}" target="_blank" rel="noopener">Mapa</a><a href="${dirU(i.pl)}" target="_blank" rel="noopener">Cómo llegar</a>`:''}${i.u?`<a href="${esc(i.u)}" target="_blank" rel="noopener">Enlace</a>`:''}</div>${!ce()?'':`<div class="r"><button onclick="mv('${i.id}',-1)" aria-label="Subir">↑</button><button onclick="mv('${i.id}',1)" aria-label="Bajar">↓</button><button onclick="ed('${d.id}','${i.id}')">Editar</button><select onchange="toDay('${i.id}',this.value)"><option value="">Mover a…</option>${t.days.map(x=>`<option value="${x.id}">${esc(dl(x))}</option>`).join('')}<option value="ideas">Bolsa de ideas</option></select></div>`}</div>`).join('')}${!ce()?'':`<button onclick="ed('${d.id}')">Añadir actividad</button>`}`).join('')}
 function mv(id,s){const f=find(id),j=f.k+s;if(j<0||j>=f.d.it.length)return;[f.d.it[f.k],f.d.it[j]]=[f.d.it[j],f.d.it[f.k]];save();render()}
@@ -69,13 +69,13 @@ function vEn(t){const a=[];t.days.forEach(d=>d.it.forEach(i=>{if(i.u)a.push(`<a 
 function lnAdd(){const u=prompt('URL');if(!u)return;T().links.push({l:prompt('Nombre')||u,u});save();render()}
 function lnDel(k){U('Enlace quitado');T().links.splice(k,1);save();render()}
 function vDa(t){return`<h2>${esc(t.name)}</h2><p class="m">Versión ${t.v||1}${t.xt?' · exportada '+new Date(t.xt).toLocaleString('es'):''}</p>
-${ro()?'<p class="m">Este viaje es de solo consulta. Para actualizarlo, importa el archivo nuevo que te envíen.</p>':`<div class="r"><button class="p" onclick="ex(0)">Exportar completo</button><button class="p" onclick="ex(1)">Exportar para acompañantes (.txt)</button></div><p class="m">El archivo de acompañantes (.txt) no incluye costes ni gastos y se abre en modo consulta.</p>`}
+<div class="r"><button class="p" onclick="repUI()">Crear informe (PDF o texto)</button></div>
+${ro()?'<p class="m">Este viaje es de solo consulta. Para actualizarlo, importa el archivo nuevo que te envíen.</p>':`<div class="r"><button class="p" onclick="ex(0)">Exportar completo</button><button class="p" onclick="ex(1)">Exportar para acompañantes (.txt)</button></div><p class="m">El archivo de acompañantes (.txt) no incluye costes, gastos ni listas y se abre en modo consulta.</p>`}
 ${ce()?bkUI(t):''}${ce()||ro()?IMP:''}
 ${!ce()?'':'<h2>Viajes</h2><div class="r"><button onclick="nw()">Nuevo viaje</button><button onclick="dup()">Duplicar</button><button onclick="rn()">Renombrar</button></div>'}${ce()?'<div class="r"><button onclick="delT()">Borrar este viaje</button></div>':''}`}
-function pack(sh){const t=JSON.parse(JSON.stringify(T()));t.xt=new Date().toISOString();if(sh){t.mode='view';['gs','pays','groups','meth','me','bud'].forEach(k=>delete t[k]);t.days.forEach(d=>d.it.forEach(i=>delete i.c))}return JSON.stringify({app:'viajes',fmt:2,trip:t})}
+function pack(sh){const t=JSON.parse(JSON.stringify(T()));t.xt=new Date().toISOString();if(sh){t.mode='view';['gs','pays','groups','meth','me','bud','lists'].forEach(k=>delete t[k]);t.days.forEach(d=>d.it.forEach(i=>delete i.c))}return JSON.stringify({app:'viajes',fmt:2,trip:t})}
 async function ex(sh){const t=T();t.v=(t.v||1)+1;t.xt=new Date().toISOString();save(0);render();const s=pack(sh),n=t.name.replace(/\W+/g,'_')+(sh?'_acompanantes':'')+'_v'+t.v+(sh?'.txt':'.json'),f=new File([s],n,{type:sh?'text/plain':'application/json'});
- if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:t.name});return}catch(e){if(e.name=='AbortError')return}}
- const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=n;a.click();try{await navigator.clipboard.writeText(s);alert('Archivo descargado y contenido copiado al portapapeles.')}catch(e){}}
+ await sendF(f,t.name)}
 function imF(f){if(f)f.text().then(im)}
 function im(s){let o;try{o=JSON.parse(s)}catch(e){return alert('El texto no es un JSON válido.')}
  const t=o&&o.trip;if(!o||o.app!='viajes'||!t||!Array.isArray(t.days)||!t.name||!t.days.every(d=>Array.isArray(d.it)&&d.it.every(i=>i.id&&i.ti)))return alert('El archivo no tiene el formato de esta app.');
@@ -155,5 +155,24 @@ const bn=t=>!ro()&&(t.ch||0)>=25?`<div class="card pend">⚠️ ${t.ch} cambios 
 function U(m){const t=T();UD={j:JSON.stringify(t)};toast(m,1)}
 function toast(m,u){let e=$('#ts');if(!e){e=document.createElement('div');e.id='ts';document.body.appendChild(e)}e.innerHTML='<span>'+esc(m)+'</span>'+(u?'<button onclick="undo()">Deshacer</button>':'');e.style.display='flex';clearTimeout(utm);utm=setTimeout(()=>e.style.display='none',9000)}
 function undo(){if(!UD)return;const t=JSON.parse(UD.j),k=S.trips.findIndex(x=>x.id==t.id);k<0?S.trips.push(t):S.trips[k]=t;S.cur=t.id;stamp(t,1);UD=null;$('#ts').style.display='none';save();render()}
+
+async function sendF(f,ti){if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:ti});return}catch(e){if(e.name=='AbortError')return}}const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;a.click()}
+function repUI(){const t=T(),r=ro(),ck=(i,l,v)=>`<label><input type="checkbox" id="${i}" ${v?'checked':''}>${l}</label>`;
+ dg.innerHTML=`<h2 style="margin-top:0">Crear informe</h2>${ck('r_it','Itinerario',1)}<select id="r_day"><option value="all">Todo el viaje</option>${t.days.map(d=>`<option value="${d.id}">${esc(dl(d))}</option>`).join('')}</select>${ck('r_en','Enlaces',1)}${r?'':ck('r_li','Pendientes y listas',1)+ck('r_gs','Cuentas')}${ck('r_n','Incluir notas',1)}${ck('r_u','Incluir enlaces web completos',1)}${ck('r_pk','Formato de bolsillo (solo horas y lugares, letra grande)')}<div class="r"><button class="p" onclick="repGo(0)">Ver / PDF</button><button onclick="repGo(1)">Texto (.txt)</button><button onclick="dg.close()">Cancelar</button></div>`;dg.showModal()}
+function repGo(m){const g=i=>!!$('#'+i)&&$('#'+i).checked,o={it:g('r_it'),day:$('#r_day').value,en:g('r_en'),li:g('r_li'),gs:g('r_gs'),n:g('r_n'),u:g('r_u'),pk:g('r_pk')},B=repB(o);dg.close();
+ if(m)return sendF(new File([repT(B)],T().name.replace(/\W+/g,'_')+'_informe.txt',{type:'text/plain'}),T().name);
+ rp.className=o.pk?'big':'';rp.innerHTML='<div class="tb"><button onclick="print()">Imprimir / Guardar PDF</button><button onclick="rp.hidden=true">Cerrar</button></div>'+repH(B);rp.hidden=false;rp.scrollTop=0}
+function repB(o){const t=T(),B=[],n=o.n&&!o.pk,u=o.u&&!o.pk;B.push({k:'h1',t:t.name},{k:'p',t:'Informe del '+new Date().toLocaleDateString('es')+' · versión '+(t.v||1)});
+ if(o.it){(o.day=='all'?t.days:t.days.filter(d=>d.id==o.day)).forEach(d=>{B.push({k:'h2',t:dl(d),pg:1});d.it.forEach(i=>{const s=[];if(i.pl)s.push('Lugar: '+i.pl);if(n&&i.n)s.push(i.n);if(u&&i.u)s.push('Web: '+i.u);B.push({k:'li',t:(i.t||'--:--')+'  '+i.ti+(i.st!='ok'?' ('+ST[i.st].toLowerCase()+')':''),s:s.join('\n')})})});
+  if(o.day=='all'&&t.ideas.length){B.push({k:'h2',t:'Bolsa de ideas',pg:1});t.ideas.forEach(x=>B.push({k:'li',t:x.ti,s:n?x.n:''}))}}
+ if(o.en){B.push({k:'h2',t:'Enlaces',pg:1});t.links.forEach(x=>B.push({k:'li',t:x.l,s:x.u}));const a=[];t.days.forEach(d=>d.it.forEach(i=>{const s=[];if(i.u)s.push(i.u);if(i.pl)s.push('Lugar: '+i.pl);if(s.length)a.push({k:'li',t:i.ti+' ('+dl(d)+')',s:s.join('\n')})}));if(a.length)B.push({k:'h3',t:'Del itinerario'},...a)}
+ if(o.li&&!ro()){B.push({k:'h2',t:'Pendientes y listas',pg:1});const p=[];t.days.forEach(d=>d.it.filter(i=>i.st=='pend').forEach(i=>p.push({k:'li',t:i.ti,s:dl(d)})));B.push({k:'h3',t:'Por confirmar ('+p.length+')'},...p);[['Lista del viaje',t.lists.t],['Lista genérica',t.lists.g]].forEach(([h,l])=>B.push({k:'h3',t:h},...l.map(x=>({k:'li',t:(S.local[x.id]?'[x] ':'[ ] ')+x.ti}))))}
+ if(o.gs&&!ro()){const k=calc(t),mu=t.groups.length>1,me=k.sp[t.me]||0,P=(a,b)=>B.push({k:'li',t:a+': '+eur(b)});B.push({k:'h2',t:'Cuentas',pg:1},{k:'h3',t:'Resumen'});P('Total del viaje',k.tot);if(mu)P('Tu parte',me);P('Pendiente de pagar',mu?k.mePend:k.pend);if(t.bud)P('Presupuesto restante',t.bud*100-me);
+  B.push({k:'h3',t:'Por categoría'});Object.entries(k.cat).forEach(([c,v])=>P(c,v));
+  if(mu){B.push({k:'h3',t:'Cuentas entre grupos'});const st=settle(k.net);if(!st.length)B.push({k:'p',t:'Todo saldado.'});st.forEach(([a,b,m])=>B.push({k:'li',t:gn(t,a)+' debe '+eur(m)+' a '+gn(t,b)}))}
+  B.push({k:'h3',t:'Gastos'});t.gs.forEach(e=>B.push({k:'li',t:e.ti+' — '+eur(Math.round(e.amt*100)),s:[e.cat,mu?'paga '+gn(t,e.pay):'',e.met,e.st=='pend'?'pendiente'+(e.due?' hasta '+e.due:''):''].filter(Boolean).join(' · ')}))}
+ return B}
+const repT=B=>B.map(b=>b.k=='h1'?b.t.toUpperCase()+'\n':b.k=='h2'?'\n=== '+b.t+' ===':b.k=='h3'?'\n-- '+b.t:b.k=='p'?b.t:'- '+b.t+(b.s?'\n'+b.s.split('\n').map(x=>'    '+x).join('\n'):'')).join('\n');
+function repH(B){let c=0;return B.map(b=>{const t=esc(b.t).replace(/^\[x\] /,'☑ ').replace(/^\[ \] /,'☐ ');return b.k=='h1'?`<h1>${t}</h1>`:b.k=='h2'?`<h2 class="${c++&&b.pg?'pg':''}">${t}</h2>`:b.k=='h3'?`<h3>${t}</h3>`:b.k=='p'?`<p>${t}</p>`:`<div class="li"><b>${t}</b>${b.s?`<div class="s">${esc(b.s).replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)]/g,u=>`<a href="${u}">${u}</a>`)}</div>`:''}</div>`}).join('')}
 load();render();
 </script></body></html>
