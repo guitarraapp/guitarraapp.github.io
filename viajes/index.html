@@ -1,1 +1,101 @@
-
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mis viajes</title>
+<style>
+:root{--bg:#eef1f4;--c:#fff;--t:#1b2430;--m:#66707c;--a:#2457c5;--b:#d5dbe2;--ok:#2f855a;--pe:#b7791f;--op:#7a8794}
+@media(prefers-color-scheme:dark){:root{--bg:#12161b;--c:#1b2129;--t:#e6eaee;--m:#98a2ad;--a:#7ea4ff;--b:#2c3540;--ok:#5fc08c;--pe:#e3a947;--op:#8a97a5}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--t);padding-bottom:64px}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 12px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--b)}
+header select{flex:1;font-weight:600}#mode{color:var(--pe);font-size:13px}
+main{max-width:640px;margin:0 auto;padding:8px 12px}
+h2{font-size:16px;margin:18px 0 6px}.m{color:var(--m);font-size:13px}
+.card{background:var(--c);border:1px solid var(--b);border-left:4px solid var(--ok);border-radius:6px;padding:8px 10px;margin:6px 0}
+.card.pend{border-left-color:var(--pe)}.card.opc{border-left-color:var(--op);border-left-style:dashed}
+.r{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
+.tag{font-size:12px;color:var(--ok)}.tag.pend{color:var(--pe)}.tag.opc{color:var(--op)}
+button,select,input,textarea{font:inherit;color:var(--t);background:var(--c);border:1px solid var(--b);border-radius:6px;padding:5px 9px}
+button{cursor:pointer}button.p{background:var(--a);color:#fff;border-color:var(--a)}
+a{color:var(--a)}label{display:flex;gap:8px;align-items:center;padding:4px 0}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--c);border-top:1px solid var(--b)}
+nav button{flex:1;border:0;border-radius:0;padding:12px 2px;background:none;font-size:13px}nav button.on{color:var(--a);font-weight:700;box-shadow:inset 0 3px var(--a)}
+dialog{width:min(92vw,460px);border:1px solid var(--b);border-radius:8px;background:var(--bg);color:var(--t)}
+dialog input,dialog select,dialog textarea{width:100%;margin:3px 0}textarea{min-height:60px}
+.done{text-decoration:line-through;color:var(--m)}
+:focus-visible{outline:2px solid var(--a);outline-offset:1px}
+</style></head><body>
+<header><select id="sel" onchange="S.cur=this.value;save();render()"></select><span id="mode"></span></header>
+<main id="main"></main>
+<nav><button data-t="it" onclick="go('it')">Itinerario</button><button data-t="id" onclick="go('id')">Ideas</button><button data-t="li" onclick="go('li')">Listas</button><button data-t="en" onclick="go('en')">Enlaces</button><button data-t="da" onclick="go('da')">Datos</button></nav>
+<dialog id="dlg"><input id="f_t" placeholder="Hora (ej. 09:30)"><select id="f_ty"></select><input id="f_ti" placeholder="Qué es"><select id="f_st"></select><input id="f_pl" placeholder="Dirección o lugar (genera enlace de Maps)"><input id="f_u" placeholder="Enlace web"><textarea id="f_n" placeholder="Notas"></textarea><input id="f_c" type="number" placeholder="Coste estimado (no se comparte)">
+<div class="r"><button class="p" onclick="sv()">Guardar</button><button onclick="dlg.close()">Cancelar</button><button id="del" onclick="rm()">Borrar</button></div></dialog>
+<script>
+const $=s=>document.querySelector(s),uid=()=>Math.random().toString(36).slice(2,9);
+const TY={transporte:'🚆',alojamiento:'🏨',comida:'🍽️',visita:'🏛️',paseo:'🚶',otro:'📌'},ST={ok:'Confirmado',pend:'Pendiente',opc:'Opcional'};
+const KEY='viajes_v1',esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mapU=p=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p),dirU=p=>'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(p);
+let S,tab='it',ed_={};
+f_ty.innerHTML=Object.keys(TY).map(k=>`<option value="${k}">${TY[k]} ${k}</option>`).join('');
+f_st.innerHTML=Object.keys(ST).map(k=>`<option value="${k}">${ST[k]}</option>`).join('');
+function sample(){
+ const I=(t,ty,ti,st,pl,n)=>({id:uid(),t,ty,ti,st:st||'ok',pl:pl||'',n:n||'',u:'',c:0}),D=(ti,it)=>({id:uid(),ti,it}),L=ti=>({id:uid(),ti});
+ return{id:uid(),name:'Nantes y el Loira',mode:'plan',v:1,days:[
+ D('Vie 11 dic · Llegada a Nantes',[I('04:20','transporte','Salida de casa'),I('','transporte','Parking larga estancia','pend','','Falta contratar'),I('06:55','transporte','Vuelo VY1303 a Barcelona'),I('09:05','transporte','Vuelo VY8138 Barcelona → Nantes'),I('10:45','transporte','Llegada a Nantes (NTE)'),I('','transporte','Traslado aeropuerto → hotel','pend','','Taxi 30-35 € (20 min) o lanzadera 9 € (25 min). Falta decidir'),I('11:45','alojamiento','Check-in Hôtel de la Cité','ok','9 Rue de Rieux, 44000 Nantes','Entrada a las 15:00. Dejar maletas en recepción'),I('13:00','comida','Comida en La Cigale','pend','La Cigale, Nantes','Falta reservar'),I('14:30','visita','Free tour Civitatis','pend','','Falta punto de encuentro'),I('16:45','visita','Castillo de los Duques de Bretaña','ok','Château des ducs de Bretagne, Nantes','8:30-19:00 · 9 € por persona'),I('19:00','comida','Mercadillo navideño y cena','ok','Marché de Noël, Nantes','Vino caliente, raclette, tartiflette, tablas, gofres, crepes')]),
+ D('Sáb 12 · Angers y Saumur',[I('08:00','transporte','Tren Nantes → Angers','ok','','Llegada ~08:45'),I('08:45','paseo','Café y paseo hasta el castillo'),I('10:00','visita','Castillo de Angers y Tapiz del Apocalipsis','ok','Château d\'Angers','Abre a las 10:00; hasta ~12:15'),I('12:30','comida','Bocadillo o panadería de camino a la estación'),I('13:00','transporte','Tren Angers → Saumur','ok','','Llegada ~13:40'),I('13:50','comida','Comida en Saumur','ok','','El castillo cierra de 13:00 a 14:00'),I('14:45','visita','Castillo de Saumur','pend','Château de Saumur','Comprobar última entrada e interiores abiertos'),I('16:30','paseo','Casco antiguo de Saumur'),I('18:00','transporte','Tren de vuelta a Nantes')]),
+ D('Dom 13 · Blois y Chambord',[I('','transporte','Tren Nantes → Blois','pend','','Llegar antes de las 11:30; tarda 2h15-3h, sale muy temprano'),I('','visita','Castillo Real de Blois','ok','Château royal de Blois','Abre a las 9:00'),I('12:20','transporte','Bus Rémi línea 2 a Chambord','pend','','Parada Château (Place Victor Hugo) o estación, andén 3'),I('13:00','visita','Castillo de Chambord','pend','Château de Chambord','9:00-17:00. Animaciones navideñas 12 y 13: confirmar'),I('16:45','transporte','Bus de vuelta a Blois','ok','','Último del día'),I('18:30','transporte','Tren a Nantes','ok','','Llegada ~21:00')]),
+ D('Lun 14 · Chenonceau y Tours',[I('07:00','transporte','Tren Nantes → Tours'),I('09:29','transporte','TER Tours → Chenonceaux','ok','','Llegada 9:55; 10-15 min a pie al castillo'),I('10:10','visita','Castillo de Chenonceau','ok','Château de Chenonceau','Abre 9:30, cierra ~16:30-17:00'),I('13:15','comida','Comida en el pueblo'),I('14:15','paseo','Jardines y granja'),I('16:28','transporte','Tren Chenonceaux → Tours'),I('17:05','paseo','Tours: Place Plumereau, catedral y mercadillo','ok','Place Plumereau, Tours'),I('19:00','transporte','Tren Tours → Nantes')]),
+ D('Mar 15 · Regreso',[I('07:10','transporte','Salir del hotel hacia Gare Sud','ok','Gare Sud, Nantes','10 min a pie'),I('07:30','transporte','Navette Aéroport','ok','','Llegada ~07:55. 20 € para dos'),I('09:55','transporte','Vuelo de regreso')])],
+ ideas:[{id:uid(),ti:'Lunes: tren de las 14:03 desde Chenonceaux para mantener el free tour de las 16:00 en Tours',n:'Chenonceau queda más justo'},{id:uid(),ti:'VTC Allocab para el traslado',n:'Anuncian ~30 € fijos, sin comprobar'}],
+ lists:{g:[L('DNI o pasaporte'),L('Cargadores y adaptador'),L('Botiquín'),L('Neceser'),L('Tarjetas y efectivo'),L('Billetes y reservas descargados')],t:[L('Contratar parking larga estancia'),L('Enlace de Maps del hotel'),L('Mapa personalizado con todos los sitios'),L('Segundo mapa con pueblos y castillos')]},
+ links:[{l:'SNCF Connect (trenes)',u:'https://www.sncf-connect.com'},{l:'TER Pays de la Loire',u:'https://www.ter.sncf.com/pays-de-la-loire'},{l:'TER Centre-Val de Loire',u:'https://www.ter.sncf.com/centre-val-de-loire'},{l:'Bus Rémi a Chambord',u:'https://www.remi-centrevaldeloire.fr/tourisme/chateau-de-chambord/'},{l:'Navette aeropuerto Nantes',u:'https://naolib.fr/fr/fiche-horaires-navette-aeroport'},{l:'Chambord: horarios',u:'https://www.chambord.org/en/plan-your-visit/opening-hours/'},{l:'Chenonceau',u:'https://www.chenonceau.com'},{l:'Castillo de Blois',u:'https://www.chateaudeblois.fr'},{l:'Castillo de Angers',u:'https://www.chateau-angers.fr'},{l:'Castillo de Saumur',u:'https://chateau-saumur.fr'},{l:'Castillo de Nantes',u:'https://www.chateaunantes.fr'},{l:'Free tours Civitatis Nantes',u:'https://www.civitatis.com/es/nantes/'},{l:'Turismo de Tours',u:'https://www.tours-tourisme.fr'}]}}
+function load(){try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+ if(!S||!S.trips||!S.trips.length)S={trips:[sample()],local:{}};S.local=S.local||{};S.cur=S.cur||S.trips[0].id}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const T=()=>S.trips.find(t=>t.id==S.cur)||S.trips[0],ro=()=>T().mode=='view';
+function go(t){tab=t;render();scrollTo(0,0)}
+function render(){const t=T();S.cur=t.id;
+ $('#sel').innerHTML=S.trips.map(x=>`<option value="${x.id}" ${x.id==t.id?'selected':''}>${esc(x.name)}</option>`).join('');
+ $('#mode').textContent=ro()?'Solo consulta':'';
+ $('#main').innerHTML={it:vIt,id:vId,li:vLi,en:vEn,da:vDa}[tab](t);
+ document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==tab))}
+function find(id){for(const d of T().days){const k=d.it.findIndex(i=>i.id==id);if(k>=0)return{d,k,i:d.it[k]}}}
+function vIt(t){return t.days.map(d=>`<h2>${esc(d.ti)}</h2>${d.it.map(i=>`<div class="card ${i.st}"><div class="r"><b>${esc(i.t)||'sin hora'}</b> ${TY[i.ty]||''} <span class="tag ${i.st}">${ST[i.st]}</span></div><div>${esc(i.ti)}</div>${i.n?`<div class="m">${esc(i.n)}</div>`:''}<div class="r">${i.pl?`<a href="${mapU(i.pl)}" target="_blank" rel="noopener">Mapa</a><a href="${dirU(i.pl)}" target="_blank" rel="noopener">Cómo llegar</a>`:''}${i.u?`<a href="${esc(i.u)}" target="_blank" rel="noopener">Enlace</a>`:''}</div>${ro()?'':`<div class="r"><button onclick="mv('${i.id}',-1)" aria-label="Subir">↑</button><button onclick="mv('${i.id}',1)" aria-label="Bajar">↓</button><button onclick="ed('${d.id}','${i.id}')">Editar</button><select onchange="toDay('${i.id}',this.value)"><option value="">Mover a…</option>${t.days.map(x=>`<option value="${x.id}">${esc(x.ti)}</option>`).join('')}<option value="ideas">Bolsa de ideas</option></select></div>`}</div>`).join('')}${ro()?'':`<button onclick="ed('${d.id}')">Añadir actividad</button>`}`).join('')}
+function mv(id,s){const f=find(id),j=f.k+s;if(j<0||j>=f.d.it.length)return;[f.d.it[f.k],f.d.it[j]]=[f.d.it[j],f.d.it[f.k]];save();render()}
+function toDay(id,to){if(!to)return;const f=find(id);f.d.it.splice(f.k,1);if(to=='ideas')T().ideas.push({id:uid(),ti:f.i.ti,n:f.i.n});else T().days.find(d=>d.id==to).it.push(f.i);save();render()}
+function ed(did,iid){const i=iid?find(iid).i:{t:'',ty:'visita',ti:'',st:'ok',pl:'',u:'',n:'',c:''};ed_={did,iid};
+ f_t.value=i.t;f_ty.value=i.ty;f_ti.value=i.ti;f_st.value=i.st;f_pl.value=i.pl;f_u.value=i.u;f_n.value=i.n;f_c.value=i.c||'';del.style.display=iid?'':'none';dlg.showModal()}
+function sv(){if(!f_ti.value.trim())return f_ti.focus();const o={t:f_t.value.trim(),ty:f_ty.value,ti:f_ti.value.trim(),st:f_st.value,pl:f_pl.value.trim(),u:f_u.value.trim(),n:f_n.value.trim(),c:+f_c.value||0};
+ if(ed_.iid)Object.assign(find(ed_.iid).i,o);else T().days.find(d=>d.id==ed_.did).it.push({id:uid(),...o});dlg.close();save();render()}
+function rm(){if(!confirm('¿Borrar esta actividad?'))return;const f=find(ed_.iid);f.d.it.splice(f.k,1);dlg.close();save();render()}
+function vId(t){return`<h2>Bolsa de ideas</h2><p class="m">Cosas sin día asignado, para cuando sobre tiempo o cambie el plan.</p>${t.ideas.map(x=>`<div class="card opc"><div>${esc(x.ti)}</div>${x.n?`<div class="m">${esc(x.n)}</div>`:''}${ro()?'':`<div class="r"><select onchange="ideaTo('${x.id}',this.value)"><option value="">Pasar al día…</option>${t.days.map(d=>`<option value="${d.id}">${esc(d.ti)}</option>`).join('')}</select><button onclick="ideaDel('${x.id}')">Quitar</button></div>`}</div>`).join('')||'<p class="m">Vacía.</p>'}${ro()?'':'<button onclick="ideaAdd()">Añadir idea</button>'}`}
+function ideaAdd(){const ti=prompt('Idea');if(!ti)return;T().ideas.push({id:uid(),ti,n:prompt('Nota (opcional)')||''});save();render()}
+function ideaDel(id){T().ideas=T().ideas.filter(x=>x.id!=id);save();render()}
+function ideaTo(id,to){if(!to)return;const x=T().ideas.find(y=>y.id==id);T().days.find(d=>d.id==to).it.push({id:uid(),t:'',ty:'visita',ti:x.ti,st:'opc',pl:'',u:'',n:x.n,c:0});ideaDel(id)}
+function chk(l){return l.map(x=>`<label><input type="checkbox" ${S.local[x.id]?'checked':''} onchange="S.local['${x.id}']=this.checked;save();render()"><span class="${S.local[x.id]?'done':''}">${esc(x.ti)}</span>${ro()?'':`<button onclick="listDel('${x.id}')" aria-label="Quitar">×</button>`}</label>`).join('')||'<p class="m">Vacía.</p>'}
+function vLi(t){const p=[];t.days.forEach(d=>d.it.filter(i=>i.st=='pend').forEach(i=>p.push(`<div class="card pend"><b>${esc(i.ti)}</b><div class="m">${esc(d.ti)}${i.n?' · '+esc(i.n):''}</div></div>`)));
+ return`<h2>Por confirmar (${p.length})</h2>${p.join('')||'<p class="m">Nada pendiente.</p>'}<h2>Lista del viaje</h2>${chk(t.lists.t)}${ro()?'':'<button onclick="listAdd(\'t\')">Añadir</button>'}<h2>Lista genérica</h2>${chk(t.lists.g)}${ro()?'':'<button onclick="listAdd(\'g\')">Añadir</button> <button onclick="listCopy()">Copiar genérica al viaje</button>'}`}
+function listAdd(k){const ti=prompt('Elemento');if(!ti)return;T().lists[k].push({id:uid(),ti});save();render()}
+function listDel(id){const l=T().lists;l.g=l.g.filter(x=>x.id!=id);l.t=l.t.filter(x=>x.id!=id);save();render()}
+function listCopy(){const l=T().lists;l.g.forEach(x=>l.t.push({id:uid(),ti:x.ti}));save();render()}
+function vEn(t){const a=[];t.days.forEach(d=>d.it.forEach(i=>{if(i.u)a.push(`<a href="${esc(i.u)}" target="_blank" rel="noopener">${esc(i.ti)}</a>`);if(i.pl)a.push(`<a href="${mapU(i.pl)}" target="_blank" rel="noopener">Mapa: ${esc(i.ti)}</a>`)}));
+ return`<h2>Consulta y reservas</h2>${t.links.map((x,k)=>`<div class="r"><a href="${esc(x.u)}" target="_blank" rel="noopener">${esc(x.l)}</a>${ro()?'':`<button onclick="lnDel(${k})" aria-label="Quitar">×</button>`}</div>`).join('')}${ro()?'':'<button onclick="lnAdd()">Añadir enlace</button>'}<h2>Del itinerario</h2>${a.map(x=>`<div>${x}</div>`).join('')||'<p class="m">Ninguno.</p>'}`}
+function lnAdd(){const u=prompt('URL');if(!u)return;T().links.push({l:prompt('Nombre')||u,u});save();render()}
+function lnDel(k){T().links.splice(k,1);save();render()}
+function vDa(t){return`<h2>${esc(t.name)}</h2><p class="m">Versión ${t.v||1}${t.exp?' · exportada '+new Date(t.exp).toLocaleString('es'):''}</p>
+${ro()?'<p class="m">Este viaje es de solo consulta. Para actualizarlo, importa el archivo nuevo que te envíen.</p>':`<div class="r"><button class="p" onclick="ex(0)">Exportar completo</button><button class="p" onclick="ex(1)">Exportar para acompañantes</button></div><p class="m">El archivo de acompañantes no incluye costes y se abre en modo consulta.</p>`}
+<h2>Importar</h2><input type="file" accept=".json,.txt,application/json,text/plain" onchange="imF(this.files[0])"><textarea id="pas" placeholder="O pega aquí el contenido del archivo" style="width:100%;margin-top:6px"></textarea><button onclick="im(pas.value)">Importar y reemplazar</button>
+${ro()?'':'<h2>Viajes</h2><div class="r"><button onclick="nw()">Nuevo viaje</button><button onclick="dup()">Duplicar</button><button onclick="rn()">Renombrar</button></div>'}<div class="r"><button onclick="delT()">Borrar este viaje</button></div>`}
+function pack(sh){const t=JSON.parse(JSON.stringify(T()));t.exp=new Date().toISOString();if(sh){t.mode='view';t.days.forEach(d=>d.it.forEach(i=>delete i.c))}return JSON.stringify({app:'viajes',fmt:1,trip:t})}
+async function ex(sh){const t=T();t.v=(t.v||1)+1;t.exp=new Date().toISOString();save();render();const s=pack(sh),n=t.name.replace(/\W+/g,'_')+(sh?'_acompanantes':'')+'_v'+t.v+'.json',f=new File([s],n,{type:'application/json'});
+ if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:t.name});return}catch(e){if(e.name=='AbortError')return}}
+ const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=n;a.click();try{await navigator.clipboard.writeText(s);alert('Archivo descargado y contenido copiado al portapapeles.')}catch(e){}}
+function imF(f){if(f)f.text().then(im)}
+function im(s){let o;try{o=JSON.parse(s)}catch(e){return alert('El texto no es un JSON válido.')}
+ const t=o&&o.trip;if(!o||o.app!='viajes'||!t||!Array.isArray(t.days)||!t.name||!t.days.every(d=>Array.isArray(d.it)&&d.it.every(i=>i.id&&i.ti)))return alert('El archivo no tiene el formato de esta app.');
+ t.ideas=t.ideas||[];t.links=t.links||[];t.lists=t.lists||{g:[],t:[]};const old=S.trips.find(x=>x.id==t.id),ids=x=>new Set(x.days.flatMap(d=>d.it.map(i=>i.id))),n=ids(t),p=old?ids(old):new Set();
+ const add=[...n].filter(x=>!p.has(x)).length,del=[...p].filter(x=>!n.has(x)).length;
+ if(!confirm(old?`Reemplazar "${t.name}" (versión ${old.v||1} → ${t.v||1}).\nActividades nuevas: ${add}. Eliminadas: ${del}.`:`Añadir el viaje "${t.name}" (versión ${t.v||1}).`))return;
+ old?S.trips[S.trips.indexOf(old)]=t:S.trips.push(t);S.cur=t.id;save();tab='it';render()}
+function nw(){const name=prompt('Nombre del viaje');if(!name)return;const t={id:uid(),name,mode:'plan',v:1,days:[{id:uid(),ti:'Día 1',it:[]}],ideas:[],lists:{g:T().lists.g.map(x=>({id:uid(),ti:x.ti})),t:[]},links:[]};S.trips.push(t);S.cur=t.id;save();render()}
+function dup(){const t=JSON.parse(JSON.stringify(T())),r=o=>{if(o&&typeof o=='object'){if(o.id)o.id=uid();Object.values(o).forEach(r)}};r(t);t.name+=' (copia)';t.v=1;S.trips.push(t);S.cur=t.id;save();render()}
+function rn(){const n=prompt('Nuevo nombre',T().name);if(n){T().name=n;save();render()}}
+function delT(){if(S.trips.length<2)return alert('Debe quedar al menos un viaje.');if(!confirm('¿Borrar "'+T().name+'"? No se puede deshacer.'))return;S.trips=S.trips.filter(x=>x.id!=S.cur);S.cur=S.trips[0].id;save();render()}
+load();render();
+</script></body></html>
