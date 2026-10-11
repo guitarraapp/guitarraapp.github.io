@@ -23,6 +23,7 @@ summary{cursor:pointer}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:cent
   <label class="btn">Importar PDF o JSON<input id="file" type="file" accept=".pdf,.json,application/pdf,application/json" multiple></label>
   <button class="sec" id="exp">Exportar copia (JSON)</button>
 </div>
+<div id="aviso"></div>
 <div id="msg"></div>
 <div id="pend"></div>
 
@@ -41,12 +42,32 @@ summary{cursor:pointer}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:cent
   <div id="tSup"></div>
 </div>
 
+<h2>Precios</h2>
+<p class="mut" id="prempty">Para ver subidas hace falta comprar el mismo producto en dos fechas distintas (en el mismo súper).</p>
+<div id="prbody" style="display:none">
+  <h2 style="font-size:1rem">Los que más suben</h2><div id="tUp"></div>
+  <h2 style="font-size:1rem">Los que bajan</h2><div id="tDown"></div>
+  <h2 style="font-size:1rem">Evolución de un producto</h2>
+  <select id="ps" style="max-width:100%"></select>
+  <div class="card"><div style="position:relative;height:220px"><canvas id="cPre"></canvas></div></div>
+</div>
+<div id="mmbody" style="display:none">
+  <h2 style="font-size:1rem">Categorías mes a mes</h2>
+  <div id="tMes" style="overflow-x:auto"></div>
+</div>
+
 <h2>Tickets guardados <span class="mut" id="count"></span></h2>
 <div id="list"></div>
 
 <h2>Productos y categorías <span class="mut" id="dcount"></span></h2>
 <p class="mut">Pon la misma categoría a cada producto. Si dos productos (o de dos súper) tienen el mismo <b>nombre legible</b>, la app los tratará como el mismo producto.</p>
 <div id="dic"></div>
+
+<details class="card" style="margin-top:24px"><summary><b>Zona de riesgo</b>: restaurar o borrar todo</summary>
+  <p class="mut">El botón principal de importar <b>suma</b>. Aquí, <b>Restaurar</b> sustituye todo lo que tienes por el contenido de una copia. Antes de cualquier cambio se descarga una copia de lo actual y se te pide escribir una palabra para confirmar.</p>
+  <div class="row"><button class="sec" id="restb">Restaurar copia (reemplaza todo)</button><input id="rest" type="file" accept=".json,application/json">
+  <button class="sec" id="wipe" style="color:var(--err)">Borrar todos los datos</button></div>
+</details>
 
 <script>
 //#core
@@ -119,6 +140,31 @@ function resumen(T,D,mes){
     t.lineas.forEach(l=>{const k=(D[l.producto]||{}).categoria||'Sin categoría';cat[k]=(cat[k]||0)+c(l.importe)})});
   return{n:S.length,tot,cat,sup,m};
 }
+// Series de precio: mismo nombre legible + mismo tipo (kg/ud) + mismo supermercado
+function precios(T,D){
+  const S={};
+  T.forEach(t=>t.lineas.forEach(l=>{
+    const nom=(D[l.producto]||{}).nombre||l.producto,tipo=l.peso_kg!=null?'kg':'ud',k=[nom,tipo,t.supermercado].join('|');
+    (S[k]=S[k]||{k,nom,tipo,sup:t.supermercado,p:[]}).p.push({f:t.fecha+' '+(t.hora||''),fecha:t.fecha,v:l.precio_ref});
+  }));
+  Object.values(S).forEach(s=>s.p.sort((a,b)=>a.f.localeCompare(b.f)));
+  return Object.values(S);
+}
+// Variación primera -> última compra (solo series con compras en 2+ fechas distintas)
+function variaciones(S){
+  return S.filter(s=>new Set(s.p.map(x=>x.fecha)).size>=2).map(s=>{
+    const a=s.p[0],b=s.p[s.p.length-1];return{...s,a,b,pct:(b.v-a.v)/a.v*100,dif:b.v-a.v}}).filter(x=>isFinite(x.pct));
+}
+function catMes(T,D){
+  const m={},cat={};
+  T.forEach(t=>{const k=t.fecha.slice(0,7);m[k]=1;t.lineas.forEach(l=>{const c=(D[l.producto]||{}).categoria||'Sin categoría';(cat[c]=cat[c]||{})[k]=(cat[c][k]||0)+Math.round(l.importe*100)})});
+  return{meses:Object.keys(m).sort(),cat};
+}
+const hash=s=>{let h=5381;for(let i=0;i<s.length;i++)h=(h*33^s.charCodeAt(i))>>>0;return h};
+// Firma del estado (tickets + diccionario): si cambia, hay datos sin copiar
+const firma=(T,D)=>hash(JSON.stringify([T.map(huella).sort(),D.map(x=>[x.producto,x.nombre||'',x.categoria]).sort((a,b)=>a[0].localeCompare(b[0]))]));
+function resumenCopia(d){const u=new Map();(d.tickets||[]).forEach(t=>u.set(huella(t),t));
+  return{n:u.size,tot:[...u.values()].reduce((a,t)=>a+Math.round(t.total*100),0),dic:new Set((d.diccionario||[]).map(x=>x.producto)).size}}
 //#endcore
 
 // ---------- Almacenamiento (IndexedDB) ----------
@@ -181,11 +227,6 @@ async function render(){
   renderDic();$('count').textContent=T.length?`(${T.length})`:'';
   $('list').innerHTML=T.length?T.map(ticketHTML).join(''):'<p class="mut">Aún no hay tickets. Importa un PDF de ticket digital.</p>';
 }
-$('exp').onclick=async()=>{
-  const T=(await all()).map(({id,...t})=>t);
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({version:1,tickets:T,diccionario:(await allDic()).map(x=>({producto:x.producto,nombre:x.nombre,categoria:x.categoria}))},null,1)],{type:'application/json'}));
-  a.download=`copia-compras-${new Date().toISOString().slice(0,10)}.json`;a.click();
-};
 // ---------- Diccionario (fase 3) ----------
 const CATS=['Frutas y verduras','Carne','Pescado','Lácteos y huevos','Panadería y bollería','Despensa','Bebidas','Congelados','Snacks y dulces','Higiene y belleza','Limpieza y hogar','Otros'];
 const SUG=[
@@ -200,7 +241,7 @@ const SUG=[
  [/PEPINO|TOMATE|MANZ|MELOCOT|PL[AÁ]TANO|CALABAC|PIMIENTO|NARANJ|LIM[OÓ]N|CEBOLLA|ZANAH|LECHUGA|SETAS|^ESP |FRESA/i,'Frutas y verduras']];
 const suggest=(p,sec)=>sec&&/PESCADO/i.test(sec)?'Pescado':((SUG.find(([r])=>r.test(p))||[])[1]||'');
 
-async function renderDic(){renderPanel();
+async function renderDic(){renderPanel();renderCopia();
   const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),P={};
   T.forEach(t=>t.lineas.forEach(l=>{const p=P[l.producto]=P[l.producto]||{sec:l.seccion};}));
   const names=Object.keys(P).sort((a,b)=>(!D[a]-!D[b])||a.localeCompare(b)),unk=names.filter(p=>!D[p]).length;
@@ -230,7 +271,7 @@ function draw(id,cfg){if(typeof Chart==='undefined')return false;if(ch[id])ch[id
 const sorted=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);
 const tabla=(R,tot)=>'<table><tr><th></th><th>Importe</th><th>%</th></tr>'+R.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${eur(v/100)}</td><td>${(tot?v/tot*100:0).toFixed(1).replace('.',',')} %</td></tr>`).join('')+'</table>';
 $('per').onchange=()=>renderPanel();
-async function renderPanel(){
+async function renderPanel(){renderPrecios();
   const T=await all();
   $('pempty').style.display=T.length?'none':'';$('pbody').style.display=T.length?'':'none';
   if(!T.length)return;
@@ -250,5 +291,83 @@ async function renderPanel(){
   if(!ok)$('pnote').innerHTML+='<p class="mut">Las gráficas necesitan internet la primera vez; las tablas funcionan sin ella.</p>';
   $('tCat').innerHTML=tabla(C,R.tot);$('tSup').innerHTML=tabla(S,R.tot);
 }
+// ---------- Precios (fase 5) ----------
+$('ps').onchange=()=>renderPrecios();
+const pct=x=>(x>0?'+':'')+x.toFixed(1).replace('.',',')+' %';
+const filas=a=>a.length?'<table><tr><th>Producto</th><th>Antes</th><th>Ahora</th><th>Cambio</th></tr>'+a.map(x=>`<tr><td>${esc(x.nom)} <span class="mut">· ${esc(x.sup)}</span></td><td>${eur(x.a.v)}/${x.tipo}<br><span class="mut">${x.a.fecha}</span></td><td>${eur(x.b.v)}/${x.tipo}<br><span class="mut">${x.b.fecha}</span></td><td class="${x.pct>0?'err':'ok'}"><b>${pct(x.pct)}</b></td></tr>`).join('')+'</table>':'<p class="mut">Ninguno por ahora.</p>';
+async function renderPrecios(){
+  const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x]));
+  const S=precios(T,D),V=variaciones(S),cur=$('ps').value;
+  $('prempty').style.display=V.length?'none':'';$('prbody').style.display=V.length?'':'none';
+  if(V.length){
+    $('tUp').innerHTML=filas(V.filter(x=>x.pct>=0.5).sort((a,b)=>b.pct-a.pct).slice(0,10));
+    $('tDown').innerHTML=filas(V.filter(x=>x.pct<=-0.5).sort((a,b)=>a.pct-b.pct).slice(0,5));
+    const O=[...V].sort((a,b)=>a.nom.localeCompare(b.nom));
+    $('ps').innerHTML=O.map(x=>`<option value="${esc(x.k)}"${x.k===cur?' selected':''}>${esc(x.nom)} · ${esc(x.sup)} (${x.tipo})</option>`).join('');
+    const sel=O.find(x=>x.k===$('ps').value)||O[0];
+    const ax={ticks:{color:css('--fg')},grid:{color:css('--bd')}};
+    draw('cPre',{type:'line',data:{labels:sel.p.map(x=>x.fecha),datasets:[{data:sel.p.map(x=>x.v),borderColor:css('--ac'),backgroundColor:css('--ac'),tension:.2}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:ax,y:{...ax,title:{display:true,text:'€/'+sel.tipo,color:css('--fg')}}}}});
+  }
+  const M=catMes(T,D),ms=M.meses.slice(-6);
+  $('mmbody').style.display=ms.length?'':'none';
+  if(ms.length){
+    const lab=m=>{const[y,k]=m.split('-');return new Date(y,k-1).toLocaleDateString('es-ES',{month:'short',year:'2-digit'})},last=ms[ms.length-1],prev=ms[ms.length-2];
+    const R=Object.entries(M.cat).sort((a,b)=>(b[1][last]||0)-(a[1][last]||0));
+    const tot=m=>R.reduce((a,[,v])=>a+(v[m]||0),0);
+    const d=(v)=>prev&&v[prev]?`<td class="${v[last]>v[prev]?'err':'ok'}"><b>${pct(((v[last]||0)-v[prev])/v[prev]*100)}</b></td>`:'<td class="mut">—</td>';
+    $('tMes').innerHTML=`<table><tr><th></th>${ms.map(m=>`<th>${lab(m)}</th>`).join('')}${prev?`<th>${lab(prev)}→${lab(last)}</th>`:''}</tr>`+
+      R.map(([c,v])=>`<tr><td>${esc(c)}</td>${ms.map(m=>`<td>${v[m]?eur(v[m]/100):'—'}</td>`).join('')}${prev?d(v):''}</tr>`).join('')+
+      `<tr><td><b>Total</b></td>${ms.map(m=>`<td><b>${eur(tot(m)/100)}</b></td>`).join('')}${prev?d(Object.fromEntries(ms.map(m=>[m,tot(m)]))):''}</tr></table><p class="mut">El mes en curso puede estar incompleto. La comparación usa los dos últimos meses con datos.</p>`;
+  }
+}
+// ---------- Copias de seguridad (fase 6) ----------
+const meta=()=>{try{return JSON.parse(localStorage.getItem('compras_copia'))}catch(e){return null}};
+const setMeta=m=>{try{localStorage.setItem('compras_copia',JSON.stringify(m))}catch(e){}};
+async function crearCopia(){
+  const T=(await all()).map(({id,...t})=>t),D=(await allDic()).map(x=>({producto:x.producto,nombre:x.nombre,categoria:x.categoria}));
+  return{version:1,tickets:T,diccionario:D};
+}
+function bajar(d,pre){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,1)],{type:'application/json'}));a.download=`${pre}-${new Date().toISOString().slice(0,10)}.json`;a.click()}
+const vaciar=async()=>{await tx('readwrite',s=>s.clear());await tx('readwrite',s=>s.clear(),'dic')};
+const marcar=d=>setMeta({f:new Date().toISOString(),n:d.tickets.length,s:firma(d.tickets,d.diccionario)});
+
+async function renderCopia(){
+  const T=await all(),D=await allDic(),m=meta(),el=$('aviso');
+  if(!T.length&&!D.length){el.innerHTML='';return}
+  const cambios=!m||m.s!==firma(T,D),dias=m?Math.floor((Date.now()-new Date(m.f))/864e5):0,nuevos=m?Math.max(0,T.length-m.n):T.length;
+  const cuando=m?(dias<1?'hoy':`hace ${dias} día${dias>1?'s':''}`):'';
+  el.innerHTML=!m?`<p class="warn">⚠ Aún no has hecho ninguna copia de seguridad. Si limpias los datos del navegador, lo perderías todo.</p>`
+   :cambios?`<p class="${dias>=7?'warn':'mut'}">${dias>=7?'⚠ ':''}Última copia ${cuando}. Desde entonces hay cambios sin copiar${nuevos?` (${nuevos} ticket${nuevos>1?'s':''} nuevo${nuevos>1?'s':''})`:''}.</p>`
+   :`<p class="ok">✓ Copia al día (${cuando}).</p>`;
+}
+$('exp').onclick=async()=>{
+  const d=await crearCopia();
+  if(!d.tickets.length){say('No hay tickets que exportar.');return}
+  bajar(d,'copia-compras');marcar(d);const r=resumenCopia(d);
+  say(`Copia descargada: ${r.n} tickets (${eur(r.tot/100)}) y ${r.dic} productos en el diccionario. Muévela a tu carpeta de copias.`,'ok');renderCopia();
+};
+$('restb').onclick=()=>$('rest').click();
+$('rest').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  let d;try{d=JSON.parse(await f.text())}catch(x){say('El archivo no es un JSON válido. No se ha cambiado nada.','err');return}
+  const E=validate(d);if(E.length){say('<b>Copia rechazada. No se ha cambiado nada.</b><br>'+E.map(esc).join('<br>'),'err');return}
+  const r=resumenCopia(d),act=await crearCopia(),a=resumenCopia(act);
+  const w=prompt(`Esta copia tiene ${r.n} tickets (${eur(r.tot/100)}) y ${r.dic} entradas de diccionario.\nAhora tienes ${a.n} tickets (${eur(a.tot/100)}).\n\nSe BORRARÁ todo lo actual y se sustituirá por la copia. Antes se descargará una copia de lo actual.\n\nEscribe REEMPLAZAR para continuar:`);
+  if(w!=='REEMPLAZAR'){say('Cancelado. No se ha cambiado nada.');return}
+  if(act.tickets.length)bajar(act,'copia-previa');
+  await vaciar();await addTickets(d.tickets);await addDic(d.diccionario||[]);
+  const nuevo=await crearCopia(),v=resumenCopia(nuevo),ok=v.n===r.n&&v.tot===r.tot&&v.dic===r.dic;
+  marcar(nuevo);
+  say(ok?`✓ Restauración verificada: ${v.n} tickets, ${eur(v.tot/100)} y ${v.dic} entradas de diccionario. Coincide con la copia.`
+        :`⚠ La restauración no coincide con la copia. Copia: ${r.n} tickets / ${eur(r.tot/100)} / ${r.dic}. Ahora: ${v.n} / ${eur(v.tot/100)} / ${v.dic}.`,ok?'ok':'err');
+  render();
+};
+$('wipe').onclick=async()=>{
+  const d=await crearCopia();
+  if(!d.tickets.length&&!d.diccionario.length){say('No hay nada que borrar.');return}
+  if(prompt(`Se borrarán ${d.tickets.length} tickets y todo el diccionario de este navegador.\nAntes se descargará una copia.\n\nEscribe BORRAR para continuar:`)!=='BORRAR'){say('Cancelado. No se ha cambiado nada.');return}
+  bajar(d,'copia-previa');await vaciar();render();
+  say('Datos borrados. Tienes la copia descargada: restáurala desde “Zona de riesgo”.','warn');
+};
 render();
 </script></body></html>
