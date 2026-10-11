@@ -45,22 +45,26 @@ a{color:var(--ac);cursor:pointer;text-decoration:none;font-weight:600}.del{color
 .acts{display:flex;gap:16px;font-size:14px;margin-top:4px}
 label{font-size:13px;color:var(--mu);display:block;margin-top:8px}
 .note{background:var(--card);border:1px dashed var(--o);border-radius:12px;padding:10px;margin-bottom:12px;font-size:14px;cursor:pointer}
-.hb{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 14px}
+.hb{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:36px 0 14px}
 .hb button{padding:14px 8px;border-radius:14px;font-weight:700;font-size:15px;display:flex;flex-direction:column;align-items:center;gap:4px;background:linear-gradient(160deg,var(--card),color-mix(in srgb,var(--ac) 12%,var(--card)))}
 .hb i{font-style:normal;font-size:24px}
 .lk{display:flex;justify-content:space-around;margin:14px 0;font-size:15px}
 .dn{text-decoration:line-through;color:var(--mu)}
 #t{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:20px;display:none;z-index:9}
-textarea{min-height:70px}
+textarea{min-height:70px;resize:vertical}
+textarea.ta{min-height:44px;overflow:hidden;resize:none;line-height:1.35}
+.nl{white-space:pre-wrap}
+.idea{padding:10px 12px}.idea textarea{margin:0 0 4px}
 @media print{.top,.fab,button{display:none}}
 </style></head><body><div id="app"></div><div id="t"></div>
 <script>
 const CATS=[['desa','🥐','Desayuno'],['cena','🍽️','Comida/Cena'],['copas','🍸','Copas'],['helado','🍦','Helados/cafés'],['cult','🎟️','Entradas/cultura'],['comp','🛍️','Compras'],['parking','🅿️','Parking'],['gasolina','⛽','Gasolina'],['otro','✨','Otros']];
 const PL={u:'Nosotros',t:'Ellos',h:'A medias',p:'Privado'};
 const NOS={id:'nos',name:'Nosotros'};
+const DEF_TITLE='Això ho pague jo';
 const cn=k=>{const c=CATS.find(x=>x[0]===k)||CATS[8];return c[1]+' '+c[2]};
 const ci=k=>(CATS.find(x=>x[0]===k)||CATS[8])[1];
-function load(){try{const s=JSON.parse(localStorage.getItem('qp'));if(s&&s.friends){s.ideas=s.ideas||[];if(s.names===undefined)s.names=true;return s}}catch(e){}return{friends:[],outings:[],peace:[],tol:5,bk:0,ideas:[],names:true}}
+function load(){try{const s=JSON.parse(localStorage.getItem('qp'));if(s&&s.friends){s.ideas=s.ideas||[];if(s.names===undefined)s.names=true;if(!s.title)s.title=DEF_TITLE;return s}}catch(e){}return{friends:[],outings:[],peace:[],tol:5,bk:0,ideas:[],names:true,title:DEF_TITLE}}
 let S=load(),V={n:'home'},D=null,arm=null,peaceOpen=false,Q='',repMode='f',E={sc:'all',per:'0',from:'',to:''};
 function save(){try{localStorage.setItem('qp',JSON.stringify(S))}catch(e){}}
 const $=s=>document.querySelector(s),uid=()=>Math.random().toString(36).slice(2,9);
@@ -89,8 +93,8 @@ return{last,nx,tu:n(all,'u'),tt:n(all,'t'),ru:n(r,'u'),rt:n(r,'t')}}
 const carCard=k=>`<div class="card cc"><b>🚗 Coche</b>${k.nx?`<div class="mid ${CL[k.nx][1]}">${CL[k.nx][2]} ${CL[k.nx][0]}</div>`:'<div class="mid mu">Sin datos todavía</div>'}<div class="mu">${k.last?`Último: ${PL[k.last.car].toLowerCase()} (${fd(k.last.date)})<br>`:''}Total: nosotros ${k.tu} · ellos ${k.tt}<br>Últimos 6 meses: nosotros ${k.ru} · ellos ${k.rt}</div></div>`;
 // ---- navegación
 function go(n,id){V={n,id};arm=null;peaceOpen=false;render();window.scrollTo(0,0)}
-const open=id=>id==='nos'?go('nos'):go('friend',id);
-function render(){const a=$('#app');({home:vHome,am:vAm,friend:vFriend,nos:vNos,rep:vRep,eco:vEco,ideas:vIdeas,set:vSet,form:vForm})[V.n](a)}
+const openF=id=>id==='nos'?go('nos'):go('friend',id);
+function render(){document.title=S.title||DEF_TITLE;const a=$('#app');({home:vHome,am:vAm,friend:vFriend,nos:vNos,rep:vRep,eco:vEco,ideas:vIdeas,set:vSet,form:vForm})[V.n](a)}
 function dbtn(k,id){return `<a class="del" onclick="del('${k}','${id}')">${arm===k+id?'¿Seguro? Púlsalo otra vez':'Borrar'}</a>`}
 function del(k,id){if(arm!==k+id){arm=k+id;return render()}arm=null;
 if(k==='o')S.outings=S.outings.filter(o=>o.id!==id);
@@ -109,10 +113,10 @@ S.outings.forEach(o=>{const f=fr(o.f);if(!f)return;[o.note,...o.exps.map(e=>e.n)
 S.peace.forEach(p=>{const f=fr(p.f);if(f&&p.note&&nz(p.note).includes(q))r.push({f,d:p.date,t:p.note})});
 r.sort((a,b)=>a.d<b.d?1:-1);
 if(!fs.length&&!r.length)return'<p class="mu c">Sin resultados.</p>';
-return(fs.length?'<div class="mu">👤 Personas</div>'+fs.map(f=>`<div class="ev hit" onclick="open('${f.id}')"><b>${esc(f.name)}</b></div>`).join(''):'')+(r.length?'<div class="mu">💬 Comentarios</div>'+r.slice(0,30).map(x=>`<div class="ev hit" onclick="open('${x.f.id}')"><b>${esc(x.f.name)}</b> · ${fd(x.d)}<div class="mu">${esc(x.t)}</div></div>`).join(''):'')}
+return(fs.length?'<div class="mu">👤 Personas</div>'+fs.map(f=>`<div class="ev hit" onclick="openF('${f.id}')"><b>${esc(f.name)}</b></div>`).join(''):'')+(r.length?'<div class="mu">💬 Comentarios</div>'+r.slice(0,30).map(x=>`<div class="ev hit" onclick="openF('${x.f.id}')"><b>${esc(x.f.name)}</b> · ${fd(x.d)}<div class="mu nl">${esc(x.t)}</div></div>`).join(''):'')}
 const sBox=()=>`<input type="search" placeholder="🔍 Buscar persona o comentario…" value="${esc(Q)}" oninput="Q=this.value;$('#res').innerHTML=srch()"><div id="res">${srch()}</div>`;
 // ---- vistas
-function vHome(a){let h='<div class="sp"><h1>¿Quién paga?</h1></div>';
+function vHome(a){let h=`<h1 class="c">${esc(S.title)}</h1>`;
 if(S.outings.length&&Date.now()-S.bk>30*864e5)h+='<div class="note" onclick="go(\'set\')">💾 Hace tiempo que no haces copia de seguridad. Toca para hacerla.</div>';
 h+=`<div class="hb"><button onclick="go('nos')"><i>💑</i>Nosotros</button><button onclick="go('am')"><i>👥</i>Con amigos</button></div>${sBox()}<div class="lk"><a onclick="go('eco')">📊 Mis gastos</a><a onclick="go('ideas')">💡 Ideas</a><a onclick="go('set')">⚙️ Ajustes</a></div>`;a.innerHTML=h}
 function vAm(a){const n=S.friends.length;let h=`<div class="top"><a onclick="go('home')">← Inicio</a>${n?`<a onclick="S.names=!S.names;save();render()">${S.names?'🙈 Ocultar nombres':'👁️ Ver nombres'}</a>`:''}</div><h1>Con amigos</h1>${sBox()}`;
@@ -122,9 +126,9 @@ else h+='<div class="card">Empieza añadiendo con quién salís habitualmente.</
 function tl(f,n){const nos=f==='nos';return evs(f).reverse().slice(0,n).map(x=>{if(x.t==='p'){const p=x.p,l=[];
 if(p.m!==false)l.push(p.mb==null?'💶 Dinero a cero':`💶 Dinero a cero (${Math.abs(p.mb)<.01?'sin diferencia':p.mb>0?'a nuestro favor':'a su favor'}): nosotros ${sg(p.mb)} · ellos ${sg(-p.mb)}`);
 if(p.cz)l.push('🚗 Coche a cero'+(p.cb&&p.cb.nx?` (${CP[p.cb.nx]})`:''));
-return `<div class="ev peace">🤝 <b>Declarado en paz</b> · ${fd(p.date)}${l.map(t=>`<div class="mu">${t}</div>`).join('')}${p.note?`<div class="mu">💬 ${esc(p.note)}</div>`:''}<div class="acts">${dbtn('p',p.id)}</div></div>`}
-const o=x.o;return `<div class="ev"><b>${fd(o.date)}</b>${o.car!=='n'?' · 🚗 '+PL[o.car].toLowerCase():''}${o.exps.map(e=>`<div>${cn(e.k)} · ${eur(e.a)}${nos?'':' · '+PL[e.p]}${e.n?` <span class="mu">— ${esc(e.n)}</span>`:''}</div>`).join('')}${o.note?`<div class="mu">💬 ${esc(o.note)}</div>`:''}<div class="acts"><a onclick="editO('${o.id}')">Editar</a>${dbtn('o',o.id)}</div></div>`}).join('')||'<p class="mu c">Aún no hay salidas.</p>'}
-function tlS(f,wc){return S.outings.filter(o=>o.f===f).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.c-a.c).map(o=>`<div class="ev"><b>${fd(o.date)}</b>${wc&&o.car!=='n'?' · 🚗 '+PL[o.car].toLowerCase():''}${o.exps.map(e=>`<div>${cn(e.k)}${e.n?` <span class="mu">— ${esc(e.n)}</span>`:''}</div>`).join('')}${o.note?`<div class="mu">💬 ${esc(o.note)}</div>`:''}</div>`).join('')||'<p class="mu c">Aún no hay salidas.</p>'}
+return `<div class="ev peace">🤝 <b>Declarado en paz</b> · ${fd(p.date)}${l.map(t=>`<div class="mu">${t}</div>`).join('')}${p.note?`<div class="mu nl">💬 ${esc(p.note)}</div>`:''}<div class="acts">${dbtn('p',p.id)}</div></div>`}
+const o=x.o;return `<div class="ev"><b>${fd(o.date)}</b>${o.car!=='n'?' · 🚗 '+PL[o.car].toLowerCase():''}${o.exps.map(e=>`<div>${cn(e.k)} · ${eur(e.a)}${nos?'':' · '+PL[e.p]}${e.n?` <span class="mu nl">— ${esc(e.n)}</span>`:''}</div>`).join('')}${o.note?`<div class="mu nl">💬 ${esc(o.note)}</div>`:''}<div class="acts"><a onclick="editO('${o.id}')">Editar</a>${dbtn('o',o.id)}</div></div>`}).join('')||'<p class="mu c">Aún no hay salidas.</p>'}
+function tlS(f,wc){return S.outings.filter(o=>o.f===f).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.c-a.c).map(o=>`<div class="ev"><b>${fd(o.date)}</b>${wc&&o.car!=='n'?' · 🚗 '+PL[o.car].toLowerCase():''}${o.exps.map(e=>`<div>${cn(e.k)}${e.n?` <span class="mu nl">— ${esc(e.n)}</span>`:''}</div>`).join('')}${o.note?`<div class="mu nl">💬 ${esc(o.note)}</div>`:''}</div>`).join('')||'<p class="mu c">Aún no hay salidas.</p>'}
 function vNos(a){const mm=today().slice(0,7),L=S.outings.filter(o=>o.f==='nos'),tm=ag(L.filter(o=>o.date.slice(0,7)===mm)).tot,ta=ag(L).tot;
 a.innerHTML=`<div class="top"><a onclick="go('home')">← Inicio</a><a onclick="go('rep','nos')">📊 Informe</a></div><h1>💑 Nosotros</h1>
 <div class="card"><div class="sp"><span>Este mes</span><b>${eur(tm)}</b></div><div class="sp"><span class="mu">Total acumulado</span><span class="mu">${eur(ta)}</span></div></div>
@@ -135,7 +139,7 @@ ${mon?`<div class="card"><div class="pill ${c}">${ic} ${t}</div><div class="gaug
 ${carCard(k)}
 <button class="fab" onclick="newO('${f.id}')">+ Nueva salida</button>
 <button style="width:100%;margin-bottom:12px" onclick="newO('${f.id}')">🚗 Anotar solo el coche (sin gastos)</button>
-<div class="card">${peaceOpen?`<label>Nota (opcional)</label><input id="pn" placeholder="Ej: compensado con la cena de cumpleaños"><label class="chk"><input type="checkbox" id="pm" checked> 💶 Dinero a cero · nosotros ${sg(b)} · ellos ${sg(-b)}</label><label class="chk"><input type="checkbox" id="pc"> 🚗 Coche a cero · ${k.nx?CL[k.nx][2]+' '+CL[k.nx][0]:'sin datos'}</label><div class="row"><button onclick="peaceOpen=false;render()">Cancelar</button><button onclick="doPeace()">Confirmar en paz</button></div>`:`<button style="width:100%" onclick="peaceOpen=true;render()">🤝 Declarar en paz</button>`}</div>
+<div class="card">${peaceOpen?`<label>Nota (opcional)</label><textarea id="pn" class="ta" rows="2" placeholder="Ej: compensado con la cena de cumpleaños" oninput="rz(this)"></textarea><label class="chk"><input type="checkbox" id="pm" checked> 💶 Dinero a cero · nosotros ${sg(b)} · ellos ${sg(-b)}</label><label class="chk"><input type="checkbox" id="pc"> 🚗 Coche a cero · ${k.nx?CL[k.nx][2]+' '+CL[k.nx][0]:'sin datos'}</label><div class="row"><button onclick="peaceOpen=false;render()">Cancelar</button><button onclick="doPeace()">Confirmar en paz</button></div>`:`<button style="width:100%" onclick="peaceOpen=true;render()">🤝 Declarar en paz</button>`}</div>
 <h3>Últimos movimientos</h3>${tl(f.id,8)}<p class="c"><a onclick="go('rep','${f.id}')">Ver historial completo</a></p>`}
 function doPeace(){const m=$('#pm').checked,z=$('#pc').checked;if(!m&&!z)return toast('Marca dinero, coche o ambos');const k=car(V.id);S.peace.push({id:uid(),f:V.id,date:today(),note:$('#pn').value.trim(),c:Date.now(),m,cz:z,mb:bal(V.id),cb:{nx:k.nx}});save();peaceOpen=false;render();toast('Marcado: estamos en paz')}
 // formulario
@@ -144,15 +148,15 @@ function editO(id){D=JSON.parse(JSON.stringify(S.outings.find(o=>o.id===id)));go
 function seg(path,val,opts){return `<div class="seg">${Object.entries(opts).map(([k,l])=>`<button class="${k===val?'on':''}" onclick="${path}='${k}';render()">${l}</button>`).join('')}</div>`}
 function addE(k){D.exps.push({k,p:D.f==='nos'?'u':'h',a:0,n:''});render()}
 function vForm(a){const nos=D.f==='nos',opts=D.id?[fr(D.f)]:[NOS,...S.friends];
-a.innerHTML=`<div class="top"><a onclick="D.id?open(D.f):go('home')">← Cancelar</a></div><h1>${D.id?'Editar':'Nueva'} salida</h1>
+a.innerHTML=`<div class="top"><a onclick="D.id?openF(D.f):go('home')">← Cancelar</a></div><h1>${D.id?'Editar':'Nueva'} salida</h1>
 <div class="card"><label>Con quién</label><select onchange="D.f=this.value;if(D.f==='nos')D.car='n';render()">${opts.map(f=>`<option value="${f.id}" ${f.id===D.f?'selected':''}>${esc(f.name)}</option>`).join('')}</select><label>Fecha</label><input type="date" value="${D.date}" onchange="D.date=this.value"></div>
-${D.exps.map((e,i)=>`<div class="card"><div class="sp"><b>${cn(e.k)}</b><a class="del" onclick="D.exps.splice(${i},1);render()">Quitar</a></div>${nos?'':`<label>¿Quién pagó?</label>${seg('D.exps['+i+'].p',e.p,PL)}`}<input type="number" inputmode="decimal" placeholder="Importe${nos?'':' aproximado'} en €" value="${e.a||''}" oninput="D.exps[${i}].a=+this.value||0"><input placeholder="Comentario (opcional)" value="${esc(e.n)}" oninput="D.exps[${i}].n=this.value"></div>`).join('')}
+${D.exps.map((e,i)=>`<div class="card"><div class="sp"><b>${cn(e.k)}</b><a class="del" onclick="D.exps.splice(${i},1);render()">Quitar</a></div>${nos?'':`<label>¿Quién pagó?</label>${seg('D.exps['+i+'].p',e.p,PL)}`}<input type="number" inputmode="decimal" placeholder="Importe${nos?'':' aproximado'} en €" value="${e.a||''}" oninput="D.exps[${i}].a=+this.value||0"><textarea class="ta" rows="2" placeholder="Comentario (opcional)" oninput="D.exps[${i}].n=this.value;rz(this)">${esc(e.n)}</textarea></div>`).join('')}
 <div class="card"><label>Añadir gasto${nos?'':' (en una excursión solo de coche, no añadas ninguno)'}</label><div class="chips">${CATS.map(c=>`<button onclick="addE('${c[0]}')">${c[1]} ${c[2]}</button>`).join('')}</div></div>
 <div class="card">${nos?'':`<label>🚗 ¿Quién puso el coche?</label>${seg('D.car',D.car,{n:'Ninguno',u:'Nosotros',t:'Ellos'})}`}<label>Comentario de la salida</label><textarea oninput="D.note=this.value" placeholder="Opcional">${esc(D.note)}</textarea></div>
 <button class="fab" onclick="saveO()">Guardar salida</button>`}
 function saveO(){if(!D.exps.length&&D.car==='n')return toast('Añade algún gasto'+(D.f==='nos'?'':' o el coche'));
 if(D.id)S.outings=S.outings.map(o=>o.id===D.id?D:o);else{D.id=uid();D.c=Date.now();S.outings.push(D)}
-save();const f=D.f;D=null;open(f);toast('Salida guardada')}
+save();const f=D.f;D=null;openF(f);toast('Salida guardada')}
 // informes
 function chart(f){let v=0,p=[0],m=[];for(const e of evs(f)){if(e.t==='o'){v+=eff(e.o);p.push(v)}else if(e.p.m!==false){v=0;p.push(0);m.push(p.length-1)}}
 if(p.length<2)return '<p class="mu">Sin datos todavía.</p>';
@@ -165,7 +169,7 @@ function aggH(g){return `<div class="card"><div class="sp"><b>Total</b><b class=
 <h3>Por meses</h3>${Object.keys(g.mo).sort().reverse().map(mm=>`<div class="card"><div class="sp"><b>${new Date(mm+'-15T12:00').toLocaleDateString('es-ES',{month:'long',year:'numeric'})}</b><b>${eur(g.mo[mm].t)}</b></div><div class="mu">${Object.entries(g.mo[mm].c).map(([k,v])=>ci(k)+' '+eur(v)).join(' · ')}</div></div>`).join('')||'<p class="mu">Sin gastos.</p>'}
 <h3>Por salida</h3>${g.rows.map(({o,c,p})=>`<div class="ev"><div class="sp"><b>${fd(o.date)} · ${esc(fr(o.f).name)}</b><b>${eur(c)}</b></div><div class="mu">${o.exps.filter(e=>mc(o,e)).map(e=>ci(e.k)+' '+eur(mc(o,e))+(e.p==='p'?' 🔒':'')).join(' · ')||'Sin gastos'}${p?` · privado ${eur(p)}`:''}</div></div>`).join('')||'<p class="mu">Sin salidas.</p>'}`}
 function vRep(a){const f=fr(V.id),nos=f.id==='nos',os=S.outings.filter(o=>o.f===f.id);
-const hd=`<div class="top"><a onclick="open('${f.id}')">← ${esc(f.name)}</a><a onclick="window.print()">🖨️ Imprimir</a></div>${selP("go('rep',this.value)",f.id)}<h1>Informe · ${esc(f.name)}</h1>`;
+const hd=`<div class="top"><a onclick="openF('${f.id}')">← ${esc(f.name)}</a><a onclick="window.print()">🖨️ Imprimir</a></div>${selP("go('rep',this.value)",f.id)}<h1>Informe · ${esc(f.name)}</h1>`;
 if(nos)return a.innerHTML=hd+aggH(ag(os))+'<h3>Todas las salidas</h3>'+tl('nos',999);
 const ss=segs(f.id),ct={},full=repMode==='f';
 os.forEach(o=>o.exps.forEach(e=>ct[e.k]=(ct[e.k]||0)+e.a));
@@ -190,21 +194,30 @@ a.innerHTML=`<div class="top"><a onclick="go('home')">← Inicio</a><a onclick="
 <label>O elige fechas</label><div class="row">${dt('from',E.from)}${dt('to',E.to)}${E.per==='c'?`<button onclick="E.from=E.to='';E.per='0';render()">✕</button>`:''}</div></div>
 ${aggH(ag(L))}`}
 // ideas
-function vIdeas(a){const p=S.ideas.filter(i=>!i.done),d=S.ideas.filter(i=>i.done),row=i=>`<div class="ev"><div class="${i.done?'dn':''}">${esc(i.t)}</div><div class="acts"><a onclick="togI('${i.id}')">${i.done?'Reabrir':'✅ Implementada'}</a>${dbtn('i',i.id)}</div></div>`;
+const rz=t=>{t.style.height='auto';t.style.height=t.scrollHeight+'px'};
+function cpT(t){if(!t||!t.trim())return toast('Nada que copiar');
+const ok=()=>toast('Copiado'),fb=()=>{try{const x=document.createElement('textarea');x.value=t;x.style.cssText='position:fixed;opacity:0';document.body.appendChild(x);x.select();const r=document.execCommand('copy');x.remove();r?ok():toast('No se pudo copiar')}catch(e){toast('No se pudo copiar')}};
+try{navigator.clipboard.writeText(t).then(ok,fb)}catch(e){fb()}}
+function vIdeas(a){const p=S.ideas.filter(i=>!i.done),d=S.ideas.filter(i=>i.done),
+row=i=>`<div class="card idea"><textarea class="ta ${i.done?'dn':''}" rows="1" oninput="edI('${i.id}',this.value);rz(this)">${esc(i.t)}</textarea><div class="acts"><a onclick="cpI1('${i.id}')">📋 Copiar</a><a onclick="togI('${i.id}')">${i.done?'↩️ Reabrir':'✅ Implementada'}</a>${dbtn('i',i.id)}</div></div>`;
 a.innerHTML=`<div class="top"><a onclick="go('home')">← Inicio</a>${p.length?'<a onclick="cpI()">📋 Copiar pendientes</a>':''}</div><h1>💡 Ideas</h1>
-<div class="row"><input id="ni" placeholder="Anota una mejora…"><button onclick="addI()">Añadir</button></div>
+<div class="card"><textarea id="ni" class="ta" rows="2" placeholder="Anota una mejora…" oninput="rz(this)"></textarea><button style="width:100%;margin-top:4px" onclick="addI()">Añadir idea</button></div>
 <h3>Pendientes (${p.length})</h3>${p.map(row).join('')||'<p class="mu">Ninguna.</p>'}
-${d.length?`<h3>Implementadas (${d.length})</h3>${d.map(row).join('')}`:''}`}
+${d.length?`<h3>Implementadas (${d.length})</h3>${d.map(row).join('')}`:''}`;
+a.querySelectorAll('textarea.ta').forEach(rz)}
 function addI(){const v=$('#ni').value.trim();if(!v)return toast('Escribe la idea');S.ideas.unshift({id:uid(),t:v,done:false});save();render()}
+function edI(id,v){const i=S.ideas.find(x=>x.id===id);if(i){i.t=v;save()}}
 function togI(id){const i=S.ideas.find(x=>x.id===id);i.done=!i.done;save();render()}
-function cpI(){const t=S.ideas.filter(i=>!i.done).map(i=>'- '+i.t).join('\n');try{navigator.clipboard.writeText(t).then(()=>toast('Copiadas'),()=>toast('No se pudo copiar'))}catch(e){toast('No se pudo copiar')}}
+function cpI1(id){const i=S.ideas.find(x=>x.id===id);cpT(i&&i.t)}
+function cpI(){cpT(S.ideas.filter(i=>!i.done).map(i=>'- '+i.t).join('\n'))}
 // ajustes
 function mvF(id,d){const i=S.friends.findIndex(f=>f.id===id),j=i+d;if(j<0||j>=S.friends.length)return;[S.friends[i],S.friends[j]]=[S.friends[j],S.friends[i]];save();render()}
 function exportB(){S.bk=Date.now();save();const u=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='quien-paga-'+today()+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1e3);toast('Copia descargada');render()}
-function importB(i){const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!Array.isArray(o.friends)||!Array.isArray(o.outings))throw 0;if(!confirm('Esto sustituirá los datos actuales. ¿Continuar?'))return;S=Object.assign({peace:[],tol:5,bk:0,ideas:[],names:true},o);save();toast('Copia restaurada');go('home')}catch(e){toast('Archivo de copia no válido')}};r.readAsText(f)}
+function importB(i){const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!Array.isArray(o.friends)||!Array.isArray(o.outings))throw 0;if(!confirm('Esto sustituirá los datos actuales. ¿Continuar?'))return;S=Object.assign({peace:[],tol:5,bk:0,ideas:[],names:true,title:DEF_TITLE},o);if(!S.title)S.title=DEF_TITLE;save();toast('Copia restaurada');go('home')}catch(e){toast('Archivo de copia no válido')}};r.readAsText(f)}
 function vSet(a){a.innerHTML=`<div class="top"><a onclick="go('home')">← Inicio</a></div><h1>Ajustes</h1>
+<div class="card"><label style="margin-top:0">Título de la pantalla principal</label><input type="text" value="${esc(S.title)}" onchange="S.title=this.value.trim()||DEF_TITLE;save();toast('Guardado');render()"></div>
 <div class="card"><label>Margen de tolerancia para «estamos en paz» (€)</label><input type="number" inputmode="decimal" value="${S.tol}" onchange="S.tol=Math.max(0,+this.value||0);save();toast('Guardado')"></div>
 <div class="card"><b>Amigos</b>${S.friends.map((f,i)=>`<div class="sp" style="margin-top:8px"><span>${esc(f.name)} <a onclick="ren('${f.id}')">✏️</a></span><span><button class="mv" ${i?'':'disabled'} onclick="mvF('${f.id}',-1)">▲</button> <button class="mv" ${i<S.friends.length-1?'':'disabled'} onclick="mvF('${f.id}',1)">▼</button> ${dbtn('f',f.id)}</span></div>`).join('')||'<p class="mu">Ninguno.</p>'}<div class="row" style="margin-top:10px"><input id="nf" placeholder="Nuevo amigo o pareja"><button onclick="addF()">Añadir</button></div><p class="mu">Con ▲▼ eliges el orden. Con ✏️ corriges el nombre. Borrar un amigo borra también su historial.</p></div>
-<div class="card"><b>💾 Copia de seguridad</b><p class="mu">Última copia: ${S.bk?fd(new Date(S.bk).toISOString().slice(0,10)):'nunca'}. Incluye salidas, ideas y preferencias.</p><button onclick="exportB()">⬇️ Descargar copia</button><label style="margin-top:14px">Restaurar desde un archivo</label><input type="file" accept=".json,application/json" onchange="importB(this)"></div>`}
+<div class="card"><b>💾 Copia de seguridad</b><p class="mu">Última copia: ${S.bk?fd(new Date(S.bk).toISOString().slice(0,10)):'nunca'}. Incluye salidas, ideas, título y preferencias.</p><button onclick="exportB()">⬇️ Descargar copia</button><label style="margin-top:14px">Restaurar desde un archivo</label><input type="file" accept=".json,application/json" onchange="importB(this)"></div>`}
 render();
 </script></body></html>
