@@ -3,6 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mis compras</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{--bg:#fafaf7;--fg:#1d1d1b;--mut:#6b6b66;--card:#fff;--bd:#ddddd5;--ac:#1b7f5c;--err:#b3261e;--warn:#8a5a00}
 @media(prefers-color-scheme:dark){:root{--bg:#161614;--fg:#ececE6;--mut:#9a9a92;--card:#201f1d;--bd:#34332f;--ac:#4cc79b;--err:#ff8a80;--warn:#e6b34d}}
@@ -24,6 +25,21 @@ summary{cursor:pointer}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:cent
 </div>
 <div id="msg"></div>
 <div id="pend"></div>
+
+<h2>Panel de gasto</h2>
+<p class="mut" id="pempty">Importa algún ticket para ver el panel.</p>
+<div id="pbody" style="display:none">
+  <label class="mut">Periodo: <select id="per"></select></label>
+  <div id="kpi" class="row" style="margin-top:8px"></div>
+  <div id="pnote"></div>
+  <h2 style="font-size:1rem">Por categoría</h2>
+  <div class="card"><div id="wCat" style="position:relative"><canvas id="cCat"></canvas></div></div>
+  <div id="tCat"></div>
+  <h2 style="font-size:1rem">Por mes</h2>
+  <div class="card"><div style="position:relative;height:220px"><canvas id="cMes"></canvas></div></div>
+  <h2 style="font-size:1rem">Por supermercado</h2>
+  <div id="tSup"></div>
+</div>
 
 <h2>Tickets guardados <span class="mut" id="count"></span></h2>
 <div id="list"></div>
@@ -95,6 +111,14 @@ function validate(d){
   return E;
 }
 const huella=t=>[t.fecha,t.hora||'',t.supermercado,t.total.toFixed(2),t.lineas.length].join('|');
+function resumen(T,D,mes){
+  const S=mes?T.filter(t=>t.fecha.startsWith(mes)):T,cat={},sup={},m={};let tot=0;
+  const c=x=>Math.round(x*100);
+  T.forEach(t=>{const k=t.fecha.slice(0,7);m[k]=(m[k]||0)+c(t.total)});   // meses: siempre todos
+  S.forEach(t=>{tot+=c(t.total);sup[t.supermercado]=(sup[t.supermercado]||0)+c(t.total);
+    t.lineas.forEach(l=>{const k=(D[l.producto]||{}).categoria||'Sin categoría';cat[k]=(cat[k]||0)+c(l.importe)})});
+  return{n:S.length,tot,cat,sup,m};
+}
 //#endcore
 
 // ---------- Almacenamiento (IndexedDB) ----------
@@ -176,7 +200,7 @@ const SUG=[
  [/PEPINO|TOMATE|MANZ|MELOCOT|PL[AÁ]TANO|CALABAC|PIMIENTO|NARANJ|LIM[OÓ]N|CEBOLLA|ZANAH|LECHUGA|SETAS|^ESP |FRESA/i,'Frutas y verduras']];
 const suggest=(p,sec)=>sec&&/PESCADO/i.test(sec)?'Pescado':((SUG.find(([r])=>r.test(p))||[])[1]||'');
 
-async function renderDic(){
+async function renderDic(){renderPanel();
   const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),P={};
   T.forEach(t=>t.lineas.forEach(l=>{const p=P[l.producto]=P[l.producto]||{sec:l.seccion};}));
   const names=Object.keys(P).sort((a,b)=>(!D[a]-!D[b])||a.localeCompare(b)),unk=names.filter(p=>!D[p]).length;
@@ -198,6 +222,33 @@ async function renderDic(){
       if(sel&&sel.value&&sel.value!=='__new'&&!D[sel.dataset.p])await putDic({producto:sel.dataset.p,nombre:r.querySelector('.nm').value.trim(),categoria:sel.value})}
     renderDic();
   };
+}
+// ---------- Panel de gasto (fase 4) ----------
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim(),ch={};
+const mesNom=m=>{const[y,k]=m.split('-');return new Date(y,k-1).toLocaleDateString('es-ES',{month:'long',year:'numeric'})};
+function draw(id,cfg){if(typeof Chart==='undefined')return false;if(ch[id])ch[id].destroy();ch[id]=new Chart($(id),cfg);return true}
+const sorted=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);
+const tabla=(R,tot)=>'<table><tr><th></th><th>Importe</th><th>%</th></tr>'+R.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${eur(v/100)}</td><td>${(tot?v/tot*100:0).toFixed(1).replace('.',',')} %</td></tr>`).join('')+'</table>';
+$('per').onchange=()=>renderPanel();
+async function renderPanel(){
+  const T=await all();
+  $('pempty').style.display=T.length?'none':'';$('pbody').style.display=T.length?'':'none';
+  if(!T.length)return;
+  const D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),cur=$('per').value;
+  const months=[...new Set(T.map(t=>t.fecha.slice(0,7)))].sort().reverse();
+  $('per').innerHTML='<option value="">Todo el periodo</option>'+months.map(m=>`<option value="${m}"${m===cur?' selected':''}>${mesNom(m)}</option>`).join('');
+  const R=resumen(T,D,$('per').value),C=sorted(R.cat),S=sorted(R.sup),dif=Math.abs(C.reduce((a,x)=>a+x[1],0)-R.tot);
+  $('kpi').innerHTML=[['Gasto',eur(R.tot/100)],['Tickets',R.n],['Media por ticket',R.n?eur(R.tot/100/R.n):'—']].map(([a,b])=>`<div class="card" style="flex:1;min-width:110px;margin:0"><div class="mut">${a}</div><b style="font-size:1.2rem">${b}</b></div>`).join('');
+  const sc=R.cat['Sin categoría'];
+  $('pnote').innerHTML=(sc?`<p class="warn">⚠ ${eur(sc/100)} sin categoría: asígnala en “Productos y categorías”.</p>`:'')+
+    `<p class="mut">${dif<=R.n?'✓ Los totales cuadran con la suma de los tickets'+(dif?` (${dif} cént. de redondeo)`:''):'⚠ Los totales no cuadran: revisa los tickets'}</p>`;
+  const ax={ticks:{color:css('--fg')},grid:{color:css('--bd')}},base={maintainAspectRatio:false,plugins:{legend:{display:false}}};
+  $('wCat').style.height=Math.max(120,C.length*34+40)+'px';
+  const ok=draw('cCat',{type:'bar',data:{labels:C.map(x=>x[0]),datasets:[{data:C.map(x=>x[1]/100),backgroundColor:css('--ac')}]},options:{...base,indexAxis:'y',scales:{x:ax,y:{ticks:ax.ticks,grid:{display:false}}}}});
+  const M=Object.entries(R.m).sort();
+  draw('cMes',{type:'bar',data:{labels:M.map(x=>x[0]),datasets:[{data:M.map(x=>x[1]/100),backgroundColor:css('--ac')}]},options:{...base,scales:{x:{ticks:ax.ticks,grid:{display:false}},y:ax}}});
+  if(!ok)$('pnote').innerHTML+='<p class="mut">Las gráficas necesitan internet la primera vez; las tablas funcionan sin ella.</p>';
+  $('tCat').innerHTML=tabla(C,R.tot);$('tSup').innerHTML=tabla(S,R.tot);
 }
 render();
 </script></body></html>
