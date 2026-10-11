@@ -28,6 +28,10 @@ summary{cursor:pointer}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:cent
 <h2>Tickets guardados <span class="mut" id="count"></span></h2>
 <div id="list"></div>
 
+<h2>Productos y categorías <span class="mut" id="dcount"></span></h2>
+<p class="mut">Pon la misma categoría a cada producto. Si dos productos (o de dos súper) tienen el mismo <b>nombre legible</b>, la app los tratará como el mismo producto.</p>
+<div id="dic"></div>
+
 <script>
 //#core
 const PRIV=/\*{2,}|\b(VISA|MASTERCARD|MAESTRO|AMEX|IBAN)\b|\b(AUT|ARC|AID|OP|TARJ)\b\.?\s*:|\b\d{9,}\b|\d{4}[ -]\d{4}[ -]\d{4}|@|TEL[ÉE]FONO/i;
@@ -40,7 +44,7 @@ function parseMercadona(L){
   L.forEach((l,i)=>{
     const m=l.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}:\d{2})/);
     if(m&&!fecha){fecha=`${m[3]}-${m[2]}-${m[1]}`;hora=m[4]}
-    if(i0<0&&/^Cnt\.\s+Descripci/i.test(l))i0=i;
+    if(i0<0&&/^(Cnt\.?\s+)?Descripci/i.test(l))i0=i;
     if(i0>=0&&i1<0&&i>i0&&/^TOTAL\s*\(/i.test(l)){const t=l.match(/(\d+,\d{2})\s*$/);if(t){i1=i;total=n(t[1])}}
   });
   if(!fecha||i0<0||i1<0)throw Error('No parece un ticket de Mercadona (no encuentro fecha, cabecera de líneas o total).');
@@ -64,7 +68,7 @@ function parseMercadona(L){
 function validate(d){
   const E=[],T=d&&d.tickets;
   if(!d||d.version!==1||!Array.isArray(T)||!T.length)return['Formato inválido: se espera {"version":1,"tickets":[...]}'];
-  Object.keys(d).forEach(k=>{if(!['version','tickets'].includes(k))E.push('Campo no permitido: '+k)});
+  Object.keys(d).forEach(k=>{if(!['version','tickets','diccionario'].includes(k))E.push('Campo no permitido: '+k)});
   T.forEach((t,i)=>{
     const p=`Ticket ${i+1}: `;
     Object.keys(t).forEach(k=>{if(!KT.includes(k))E.push(p+'campo no permitido "'+k+'"')});
@@ -85,15 +89,21 @@ function validate(d){
     if(Math.abs(s-t.total)>0.011)E.push(`${p}las líneas suman ${s.toFixed(2)} y el total es ${t.total} (no cuadra)`);
     if(PRIV.test(JSON.stringify(t)))E.push(p+'⛔ contiene datos que parecen privados (tarjeta, teléfono, autorización...). Bloqueado.');
   });
+  (d.diccionario||[]).forEach((x,i)=>{
+    if(!x||typeof x.producto!=='string'||typeof x.categoria!=='string'||(x.nombre!=null&&typeof x.nombre!=='string')||Object.keys(x).some(k=>!['producto','nombre','categoria'].includes(k))||PRIV.test(JSON.stringify(x)))E.push('Diccionario: entrada '+(i+1)+' inválida');
+  });
   return E;
 }
 const huella=t=>[t.fecha,t.hora||'',t.supermercado,t.total.toFixed(2),t.lineas.length].join('|');
 //#endcore
 
 // ---------- Almacenamiento (IndexedDB) ----------
-const DB=new Promise((ok,ko)=>{const q=indexedDB.open('compras',1);q.onupgradeneeded=()=>q.result.createObjectStore('tickets',{keyPath:'id'});q.onsuccess=()=>ok(q.result);q.onerror=()=>ko(q.error)});
-const tx=async(m,f)=>{const db=await DB;return new Promise((ok,ko)=>{const t=db.transaction('tickets',m),s=t.objectStore('tickets'),r=f(s);t.oncomplete=()=>ok(r&&r.result);t.onerror=()=>ko(t.error)})};
+const DB=new Promise((ok,ko)=>{const q=indexedDB.open('compras',2);q.onupgradeneeded=()=>{const d=q.result;if(!d.objectStoreNames.contains('tickets'))d.createObjectStore('tickets',{keyPath:'id'});if(!d.objectStoreNames.contains('dic'))d.createObjectStore('dic',{keyPath:'producto'})};q.onsuccess=()=>ok(q.result);q.onerror=()=>ko(q.error)});
+const tx=async(m,f,st='tickets')=>{const db=await DB;return new Promise((ok,ko)=>{const t=db.transaction(st,m),s=t.objectStore(st),r=f(s);t.oncomplete=()=>ok(r&&r.result);t.onerror=()=>ko(t.error)})};
 const all=()=>tx('readonly',s=>s.getAll());
+const allDic=()=>tx('readonly',s=>s.getAll(),'dic');
+const putDic=x=>tx('readwrite',s=>s.put(x),'dic');
+async function addDic(a){const have=new Set((await allDic()).map(x=>x.producto));let k=0;for(const x of a)if(!have.has(x.producto)){await putDic({producto:x.producto,nombre:x.nombre||'',categoria:x.categoria});k++}return k} // SUMA: no pisa lo existente
 async function addTickets(ts){ // SUMA: nunca sobrescribe
   const have=new Set((await all()).map(x=>x.id));let add=0,dup=0;
   for(const t of ts){const id=huella(t);if(have.has(id)){dup++;continue}have.add(id);await tx('readwrite',s=>s.put({id,...t}));add++}
@@ -114,19 +124,19 @@ async function pdfLines(file){
 
 // ---------- UI ----------
 const $=id=>document.getElementById(id),eur=x=>x.toFixed(2).replace('.',',')+' €';
-const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-let pending=[];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let pending=[],pdic=[];
 const say=(h,c='')=>$('msg').innerHTML=`<div class="card ${c}">${h}</div>`;
 
 $('file').onchange=async e=>{
-  const errs=[],ok=[];
+  const errs=[],ok=[];pdic=[];
   for(const f of e.target.files){
     try{
       let d;
       if(/\.pdf$/i.test(f.name)){d={version:1,tickets:[parseMercadona(await pdfLines(f))]}}
       else d=JSON.parse(await f.text());
       const E=validate(d);
-      if(E.length)errs.push(`<b>${esc(f.name)}</b><br>`+E.map(esc).join('<br>'));else ok.push(...d.tickets);
+      if(E.length)errs.push(`<b>${esc(f.name)}</b><br>`+E.map(esc).join('<br>'));else{ok.push(...d.tickets);pdic.push(...(d.diccionario||[]))}
     }catch(x){errs.push(`<b>${esc(f.name)}</b><br>${esc(x.message)}`)}
   }
   e.target.value='';pending=ok;
@@ -137,20 +147,57 @@ function preview(){
   if(!pending.length){$('pend').innerHTML='';return}
   $('pend').innerHTML=`<h2>Vista previa (${pending.length})</h2>`+pending.map(ticketHTML).join('')+
    `<div class="row"><button id="save">Guardar ${pending.length} ticket(s)</button><button class="sec" id="drop">Descartar</button></div>`;
-  $('save').onclick=async()=>{const r=await addTickets(pending);pending=[];preview();say(`Añadidos: ${r.add}. Duplicados ignorados: ${r.dup}.`,r.dup?'warn':'ok');render()};
-  $('drop').onclick=()=>{pending=[];preview();say('Descartado.')};
+  $('save').onclick=async()=>{const r=await addTickets(pending);await addDic(pdic);pending=[];pdic=[];preview();say(`Añadidos: ${r.add}. Duplicados ignorados: ${r.dup}.`,r.dup?'warn':'ok');render()};
+  $('drop').onclick=()=>{pending=[];pdic=[];preview();say('Descartado.')};
 }
 const ticketHTML=t=>`<details class="card"><summary><b>${t.fecha}</b> ${t.hora||''} · ${esc(t.supermercado)} · <b>${eur(t.total)}</b> <span class="mut">(${t.lineas.length} líneas)</span></summary>
 <table><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr>${t.lineas.map(l=>`<tr><td>${esc(l.producto)}${l.seccion?` <span class="mut">· ${esc(l.seccion)}</span>`:''}</td><td>${l.unidades!=null?l.unidades:l.peso_kg.toFixed(3)+' kg'}</td><td>${eur(l.precio_ref)}${l.peso_kg!=null?'/kg':''}</td><td>${eur(l.importe)}</td></tr>`).join('')}</table></details>`;
 async function render(){
   const T=(await all()).sort((a,b)=>(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||'')));
-  $('count').textContent=T.length?`(${T.length})`:'';
+  renderDic();$('count').textContent=T.length?`(${T.length})`:'';
   $('list').innerHTML=T.length?T.map(ticketHTML).join(''):'<p class="mut">Aún no hay tickets. Importa un PDF de ticket digital.</p>';
 }
 $('exp').onclick=async()=>{
   const T=(await all()).map(({id,...t})=>t);
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({version:1,tickets:T},null,1)],{type:'application/json'}));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({version:1,tickets:T,diccionario:(await allDic()).map(x=>({producto:x.producto,nombre:x.nombre,categoria:x.categoria}))},null,1)],{type:'application/json'}));
   a.download=`copia-compras-${new Date().toISOString().slice(0,10)}.json`;a.click();
 };
+// ---------- Diccionario (fase 3) ----------
+const CATS=['Frutas y verduras','Carne','Pescado','Lácteos y huevos','Panadería y bollería','Despensa','Bebidas','Congelados','Snacks y dulces','Higiene y belleza','Limpieza y hogar','Otros'];
+const SUG=[
+ [/MEJILL|NAVAJA|CHIRLA|DORADA|LUBINA|SEPIA|LANGOSTINO|SALM[OÓ]N|MERLUZA|GAMBA|PULPO|CALAMAR|AT[UÚ]N/i,'Pescado'],
+ [/LECHE|YOGUR|QUESO|GRANA|NATA\b|MANTEQ|HUEVO|\bQ /i,'Lácteos y huevos'],
+ [/^PAN\b|BAGEL|BOLLO|CROISS|GALLETA/i,'Panadería y bollería'],
+ [/BEBIDA|AGUA|CERVEZA|VINO|ZUMO|REFRESCO|CAFE|CAP\./i,'Bebidas'],
+ [/JAM[OÓ]N|POLLO|PAVO|CERDO|TERNERA|SALCHICH|LOMO|CHORIZO|BACON/i,'Carne'],
+ [/TORTITAS|CHOCOL|SNACK|PATATAS FRIT/i,'Snacks y dulces'],
+ [/\bGEL\b|DESMAQ|M[ÁA]SCARA|CHAMP|ACONDIC|LEAVE-IN|CREMA|JAB[OÓ]N|DENTIFR|PAPEL HIG|FACIAL/i,'Higiene y belleza'],
+ [/DETERG|LAVAVAJ|FREGON|LEJ[IÍ]A|SUAVIZ|LIMPI/i,'Limpieza y hogar'],
+ [/PEPINO|TOMATE|MANZ|MELOCOT|PL[AÁ]TANO|CALABAC|PIMIENTO|NARANJ|LIM[OÓ]N|CEBOLLA|ZANAH|LECHUGA|SETAS|^ESP |FRESA/i,'Frutas y verduras']];
+const suggest=(p,sec)=>sec&&/PESCADO/i.test(sec)?'Pescado':((SUG.find(([r])=>r.test(p))||[])[1]||'');
+
+async function renderDic(){
+  const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),P={};
+  T.forEach(t=>t.lineas.forEach(l=>{const p=P[l.producto]=P[l.producto]||{sec:l.seccion};}));
+  const names=Object.keys(P).sort((a,b)=>(!D[a]-!D[b])||a.localeCompare(b)),unk=names.filter(p=>!D[p]).length;
+  $('dcount').textContent=names.length?`(${names.length}${unk?` · ${unk} sin categoría`:''})`:'';
+  const cats=[...new Set([...CATS,...Object.values(D).map(x=>x.categoria)])];
+  $('dic').innerHTML=names.length?(unk?'<div class="row" style="margin-bottom:8px"><button id="acc">Guardar las sugerencias de los sin categoría</button><span class="mut">Revisa antes las que estén en blanco.</span></div>':'')+
+   '<table><tr><th>Producto en el ticket</th><th>Nombre legible</th><th>Categoría</th></tr>'+names.map(p=>{
+     const d=D[p],c=d?d.categoria:suggest(p,P[p].sec);
+     return `<tr${d?'':' style="background:color-mix(in srgb,var(--warn) 15%,transparent)"'}><td>${esc(p)}</td><td><input class="nm" data-p="${esc(p)}" value="${esc(d?d.nombre:'')}" placeholder="opcional" style="width:100%"></td><td><select class="ct" data-p="${esc(p)}"><option value="">Elegir…</option>${cats.map(x=>`<option${x===c?' selected':''}>${esc(x)}</option>`).join('')}<option value="__new">+ Nueva categoría…</option></select></td></tr>`}).join('')+'</table>'
+   :'<p class="mut">Se llenará al importar tickets.</p>';
+  document.querySelectorAll('#dic .ct,#dic .nm').forEach(el=>el.onchange=async()=>{
+    const row=el.closest('tr');let c=row.querySelector('.ct').value;
+    if(c==='__new'){c=(prompt('Nombre de la nueva categoría')||'').trim();if(!c){renderDic();return}}
+    if(!c)return;
+    await putDic({producto:el.dataset.p,nombre:row.querySelector('.nm').value.trim(),categoria:c});renderDic();
+  });
+  const b=$('acc');if(b)b.onclick=async()=>{
+    for(const r of document.querySelectorAll('#dic tr')){const sel=r.querySelector('.ct');
+      if(sel&&sel.value&&sel.value!=='__new'&&!D[sel.dataset.p])await putDic({producto:sel.dataset.p,nombre:r.querySelector('.nm').value.trim(),categoria:sel.value})}
+    renderDic();
+  };
+}
 render();
 </script></body></html>
