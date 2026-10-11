@@ -1,1 +1,156 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mis compras</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{--bg:#fafaf7;--fg:#1d1d1b;--mut:#6b6b66;--card:#fff;--bd:#ddddd5;--ac:#1b7f5c;--err:#b3261e;--warn:#8a5a00}
+@media(prefers-color-scheme:dark){:root{--bg:#161614;--fg:#ececE6;--mut:#9a9a92;--card:#201f1d;--bd:#34332f;--ac:#4cc79b;--err:#ff8a80;--warn:#e6b34d}}
+*{box-sizing:border-box}body{margin:0;font:16px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--fg);padding:16px;max-width:760px;margin-inline:auto}
+h1{font-size:1.4rem;margin:.2rem 0}h2{font-size:1.05rem;margin:1.4rem 0 .5rem}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin:8px 0}
+button,label.btn{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:10px 14px;font:inherit;cursor:pointer;display:inline-block}
+button.sec{background:transparent;color:var(--fg);border:1px solid var(--bd)}
+input[type=file]{display:none}.mut{color:var(--mut);font-size:.9rem}.err{color:var(--err)}.warn{color:var(--warn)}.ok{color:var(--ac)}
+table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{padding:3px 6px;text-align:right;border-bottom:1px solid var(--bd)}td:first-child,th:first-child{text-align:left}
+summary{cursor:pointer}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+</style></head><body>
+<h1>🛒 Mis compras</h1>
+<p class="mut">Tus datos se guardan solo en este navegador. Nada se envía a ningún servidor.</p>
 
+<div class="row">
+  <label class="btn">Importar PDF o JSON<input id="file" type="file" accept=".pdf,.json,application/pdf,application/json" multiple></label>
+  <button class="sec" id="exp">Exportar copia (JSON)</button>
+</div>
+<div id="msg"></div>
+<div id="pend"></div>
+
+<h2>Tickets guardados <span class="mut" id="count"></span></h2>
+<div id="list"></div>
+
+<script>
+//#core
+const PRIV=/\*{2,}|\b(VISA|MASTERCARD|MAESTRO|AMEX|IBAN)\b|\b(AUT|ARC|AID|OP|TARJ)\b\.?\s*:|\b\d{9,}\b|\d{4}[ -]\d{4}[ -]\d{4}|@|TEL[ÉE]FONO/i;
+const KT=['fecha','hora','supermercado','total','lineas'], KL=['producto','seccion','unidades','peso_kg','precio_ref','importe'];
+const n=s=>parseFloat(String(s).replace(',','.'));
+const r2=x=>Math.round(x*100)/100;
+
+function parseMercadona(L){
+  let fecha,hora,total,i0=-1,i1=-1;
+  L.forEach((l,i)=>{
+    const m=l.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}:\d{2})/);
+    if(m&&!fecha){fecha=`${m[3]}-${m[2]}-${m[1]}`;hora=m[4]}
+    if(i0<0&&/^Cnt\.\s+Descripci/i.test(l))i0=i;
+    if(i0>=0&&i1<0&&i>i0&&/^TOTAL\s*\(/i.test(l)){const t=l.match(/(\d+,\d{2})\s*$/);if(t){i1=i;total=n(t[1])}}
+  });
+  if(!fecha||i0<0||i1<0)throw Error('No parece un ticket de Mercadona (no encuentro fecha, cabecera de líneas o total).');
+  // LISTA BLANCA: solo se leen las líneas entre "Cnt. Descripción" y "TOTAL (€)"
+  const B=L.slice(i0+1,i1),out=[],kg=/^(\d+,\d{3})\s*kg\s+(\d+,\d{2})\s*€\s*\/\s*kg\s+(\d+,\d{2})$/;
+  let sec=null,pend=null;
+  const mk=(p,u,w,r,i)=>{const o={producto:p.toUpperCase()};if(sec)o.seccion=sec;o.unidades=u;o.peso_kg=w;o.precio_ref=r;o.importe=i;out.push(o)};
+  B.forEach((l,k)=>{
+    let m;
+    if((m=l.match(kg))&&pend){mk(pend,null,n(m[1]),n(m[2]),n(m[3]));pend=null;return}
+    if(pend)throw Error('Línea sin peso/importe: '+pend);
+    if(m=l.match(/^(\d+)\s+(.+?)\s+(\d+,\d{2})\s+(\d+,\d{2})$/)){sec=null;mk(m[2],+m[1],null,n(m[3]),n(m[4]));return}
+    if(m=l.match(/^(\d+)\s+(.+?)\s+(\d+,\d{2})$/)){sec=null;mk(m[2],+m[1],null,r2(n(m[3])/+m[1]),n(m[3]));return}
+    if(m=l.match(/^\d+\s+(.+)$/)){sec=null;pend=m[1];return}   // "1 PEPINO" + línea de kg
+    if(B[k+1]&&kg.test(B[k+1]))pend=l;else sec=l;               // texto + kg = producto; texto + texto = sección
+  });
+  if(pend)throw Error('Línea sin peso/importe: '+pend);
+  return{fecha,hora,supermercado:'Mercadona',total,lineas:out};
+}
+
+function validate(d){
+  const E=[],T=d&&d.tickets;
+  if(!d||d.version!==1||!Array.isArray(T)||!T.length)return['Formato inválido: se espera {"version":1,"tickets":[...]}'];
+  Object.keys(d).forEach(k=>{if(!['version','tickets'].includes(k))E.push('Campo no permitido: '+k)});
+  T.forEach((t,i)=>{
+    const p=`Ticket ${i+1}: `;
+    Object.keys(t).forEach(k=>{if(!KT.includes(k))E.push(p+'campo no permitido "'+k+'"')});
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(t.fecha))E.push(p+'fecha inválida');
+    if(t.hora!=null&&!/^\d{2}:\d{2}$/.test(t.hora))E.push(p+'hora inválida');
+    if(typeof t.supermercado!=='string'||!t.supermercado)E.push(p+'falta supermercado');
+    if(typeof t.total!=='number')E.push(p+'total inválido');
+    if(!Array.isArray(t.lineas)||!t.lineas.length){E.push(p+'sin líneas');return}
+    let s=0;
+    t.lineas.forEach((l,j)=>{
+      const q=`${p}línea ${j+1}: `;
+      Object.keys(l).forEach(k=>{if(!KL.includes(k))E.push(q+'campo no permitido "'+k+'"')});
+      if(typeof l.producto!=='string'||!l.producto)E.push(q+'falta producto');
+      if((l.unidades==null)===(l.peso_kg==null))E.push(q+'debe tener exactamente uno de unidades o peso_kg');
+      if(typeof l.precio_ref!=='number'||typeof l.importe!=='number')E.push(q+'precio_ref/importe inválidos');
+      s+=l.importe||0;
+    });
+    if(Math.abs(s-t.total)>0.011)E.push(`${p}las líneas suman ${s.toFixed(2)} y el total es ${t.total} (no cuadra)`);
+    if(PRIV.test(JSON.stringify(t)))E.push(p+'⛔ contiene datos que parecen privados (tarjeta, teléfono, autorización...). Bloqueado.');
+  });
+  return E;
+}
+const huella=t=>[t.fecha,t.hora||'',t.supermercado,t.total.toFixed(2),t.lineas.length].join('|');
+//#endcore
+
+// ---------- Almacenamiento (IndexedDB) ----------
+const DB=new Promise((ok,ko)=>{const q=indexedDB.open('compras',1);q.onupgradeneeded=()=>q.result.createObjectStore('tickets',{keyPath:'id'});q.onsuccess=()=>ok(q.result);q.onerror=()=>ko(q.error)});
+const tx=async(m,f)=>{const db=await DB;return new Promise((ok,ko)=>{const t=db.transaction('tickets',m),s=t.objectStore('tickets'),r=f(s);t.oncomplete=()=>ok(r&&r.result);t.onerror=()=>ko(t.error)})};
+const all=()=>tx('readonly',s=>s.getAll());
+async function addTickets(ts){ // SUMA: nunca sobrescribe
+  const have=new Set((await all()).map(x=>x.id));let add=0,dup=0;
+  for(const t of ts){const id=huella(t);if(have.has(id)){dup++;continue}have.add(id);await tx('readwrite',s=>s.put({id,...t}));add++}
+  return{add,dup};
+}
+
+// ---------- PDF ----------
+async function pdfLines(file){
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,L=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const c=await(await pdf.getPage(p)).getTextContent(),rows={};
+    c.items.forEach(t=>{if(!t.str.trim())return;const y=Math.round(t.transform[5]/3);(rows[y]=rows[y]||[]).push(t)});
+    Object.keys(rows).map(Number).sort((a,b)=>b-a).forEach(y=>L.push(rows[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(t=>t.str.trim()).join(' ')));
+  }
+  return L;
+}
+
+// ---------- UI ----------
+const $=id=>document.getElementById(id),eur=x=>x.toFixed(2).replace('.',',')+' €';
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let pending=[];
+const say=(h,c='')=>$('msg').innerHTML=`<div class="card ${c}">${h}</div>`;
+
+$('file').onchange=async e=>{
+  const errs=[],ok=[];
+  for(const f of e.target.files){
+    try{
+      let d;
+      if(/\.pdf$/i.test(f.name)){d={version:1,tickets:[parseMercadona(await pdfLines(f))]}}
+      else d=JSON.parse(await f.text());
+      const E=validate(d);
+      if(E.length)errs.push(`<b>${esc(f.name)}</b><br>`+E.map(esc).join('<br>'));else ok.push(...d.tickets);
+    }catch(x){errs.push(`<b>${esc(f.name)}</b><br>${esc(x.message)}`)}
+  }
+  e.target.value='';pending=ok;
+  say(errs.length?errs.join('<hr>'):'Revisa la vista previa y pulsa Guardar.',errs.length?'err':'ok');
+  preview();
+};
+function preview(){
+  if(!pending.length){$('pend').innerHTML='';return}
+  $('pend').innerHTML=`<h2>Vista previa (${pending.length})</h2>`+pending.map(ticketHTML).join('')+
+   `<div class="row"><button id="save">Guardar ${pending.length} ticket(s)</button><button class="sec" id="drop">Descartar</button></div>`;
+  $('save').onclick=async()=>{const r=await addTickets(pending);pending=[];preview();say(`Añadidos: ${r.add}. Duplicados ignorados: ${r.dup}.`,r.dup?'warn':'ok');render()};
+  $('drop').onclick=()=>{pending=[];preview();say('Descartado.')};
+}
+const ticketHTML=t=>`<details class="card"><summary><b>${t.fecha}</b> ${t.hora||''} · ${esc(t.supermercado)} · <b>${eur(t.total)}</b> <span class="mut">(${t.lineas.length} líneas)</span></summary>
+<table><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr>${t.lineas.map(l=>`<tr><td>${esc(l.producto)}${l.seccion?` <span class="mut">· ${esc(l.seccion)}</span>`:''}</td><td>${l.unidades!=null?l.unidades:l.peso_kg.toFixed(3)+' kg'}</td><td>${eur(l.precio_ref)}${l.peso_kg!=null?'/kg':''}</td><td>${eur(l.importe)}</td></tr>`).join('')}</table></details>`;
+async function render(){
+  const T=(await all()).sort((a,b)=>(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||'')));
+  $('count').textContent=T.length?`(${T.length})`:'';
+  $('list').innerHTML=T.length?T.map(ticketHTML).join(''):'<p class="mut">Aún no hay tickets. Importa un PDF de ticket digital.</p>';
+}
+$('exp').onclick=async()=>{
+  const T=(await all()).map(({id,...t})=>t);
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({version:1,tickets:T},null,1)],{type:'application/json'}));
+  a.download=`copia-compras-${new Date().toISOString().slice(0,10)}.json`;a.click();
+};
+render();
+</script></body></html>
