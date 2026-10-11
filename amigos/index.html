@@ -10,17 +10,19 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 "Avenir Next","Segoe UI",system-ui,sans-serif}
 #app{max-width:520px;margin:0 auto;padding:16px 14px 40px}
-h1{font-size:28px;margin:6px 0 14px;font-weight:800;letter-spacing:-.5px}
+h1{font-size:26px;margin:6px 0 12px;font-weight:800;letter-spacing:-.5px}
+h3{margin:16px 0 8px}
 .card{background:var(--card);border:1px solid var(--ln);border-radius:16px;padding:14px;margin:0 0 12px}
 .big{font-size:23px;font-weight:800;margin:6px 0;line-height:1.2}
 .g{color:var(--g)}.o{color:var(--o)}.n{color:var(--ac)}
 .mu{color:var(--mu);font-size:14px}.c{text-align:center}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:16px;font-weight:700;padding:6px 14px;border-radius:20px;margin:6px 0;background:color-mix(in srgb,currentColor 12%,transparent)}
-.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;margin-bottom:12px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px;margin-bottom:12px}
 .tile{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;margin:0;padding:4px;text-align:center;cursor:pointer;word-break:break-word;border-radius:12px}
 .tile s{text-decoration:none;font-size:17px;font-weight:800;width:32px;height:32px;border-radius:50%;background:var(--ln);display:flex;align-items:center;justify-content:center}
 .tile span{font-size:11px;font-weight:600;color:var(--mu);line-height:1.1}
 .mid{font-size:19px;font-weight:800;margin:6px 0}
+.cc .mid{font-size:14px;font-weight:700}.cc .mu{font-size:12px}
 .chk{display:flex;gap:8px;align-items:center;font-size:15px;color:var(--tx);margin:10px 0}.chk input{width:auto;margin:0}
 .hit{cursor:pointer}.mv{padding:4px 12px;font-size:16px}button:disabled{opacity:.3}
 .gauge{position:relative;height:18px;background:var(--ln);border-radius:9px;overflow:hidden;margin-top:10px}
@@ -29,12 +31,13 @@ h1{font-size:28px;margin:6px 0 14px;font-weight:800;letter-spacing:-.5px}
 .lab{display:flex;justify-content:space-between;font-size:12px;color:var(--mu);margin-top:4px}
 button{font:inherit;border:1px solid var(--ln);background:var(--card);color:var(--tx);border-radius:12px;padding:10px 14px;cursor:pointer}
 .fab{position:sticky;bottom:12px;width:100%;background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:700;padding:14px;margin:6px 0}
-.seg{display:flex;gap:6px;margin:8px 0}.seg button{flex:1;padding:10px 4px}
+.seg{display:flex;gap:6px;margin:8px 0}.seg button{flex:1;padding:9px 2px;font-size:14px}
 .seg .on{background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:700}
 input,select,textarea{width:100%;font:inherit;padding:10px;margin:6px 0;border:1px solid var(--ln);border-radius:10px;background:var(--bg);color:var(--tx)}
-.row{display:flex;gap:8px;margin-bottom:12px}.row input{margin:0}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.top,.sp{display:flex;justify-content:space-between;align-items:center}
+select{width:auto;max-width:100%;padding:5px 8px;margin:4px 0;border-radius:8px}
+.row{display:flex;gap:8px;margin-bottom:12px}.row input{margin:0;flex:1;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.chips button{padding:7px 10px;font-size:14px}
+.top,.sp{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .top{margin-bottom:6px}
 a{color:var(--ac);cursor:pointer;text-decoration:none;font-weight:600}.del{color:var(--o)}
 .ev{border-left:3px solid var(--ln);padding:6px 10px;margin:8px 0;background:var(--card);border-radius:0 10px 10px 0}
@@ -42,26 +45,35 @@ a{color:var(--ac);cursor:pointer;text-decoration:none;font-weight:600}.del{color
 .acts{display:flex;gap:16px;font-size:14px;margin-top:4px}
 label{font-size:13px;color:var(--mu);display:block;margin-top:8px}
 .note{background:var(--card);border:1px dashed var(--o);border-radius:12px;padding:10px;margin-bottom:12px;font-size:14px;cursor:pointer}
+.hb{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 14px}
+.hb button{padding:14px 8px;border-radius:14px;font-weight:700;font-size:15px;display:flex;flex-direction:column;align-items:center;gap:4px;background:linear-gradient(160deg,var(--card),color-mix(in srgb,var(--ac) 12%,var(--card)))}
+.hb i{font-style:normal;font-size:24px}
+.lk{display:flex;justify-content:space-around;margin:14px 0;font-size:15px}
+.dn{text-decoration:line-through;color:var(--mu)}
 #t{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:20px;display:none;z-index:9}
 textarea{min-height:70px}
 @media print{.top,.fab,button{display:none}}
 </style></head><body><div id="app"></div><div id="t"></div>
 <script>
-const CATS=[['cena','🍽️','Cena/Comida'],['copas','🍸','Copas'],['helado','🍦','Helados y cafés'],['parking','🅿️','Parking'],['gasolina','⛽','Gasolina'],['otro','✨','Otro']];
-const PL={u:'Nosotros',t:'Ellos',h:'A medias'};
-const cn=k=>{const c=CATS.find(x=>x[0]===k)||CATS[5];return c[1]+' '+c[2]};
-function load(){try{const s=JSON.parse(localStorage.getItem('qp'));if(s&&s.friends)return s}catch(e){}return{friends:[],outings:[],peace:[],tol:5,bk:0}}
-let S=load(),V={n:'home'},D=null,arm=null,peaceOpen=false;
+const CATS=[['desa','🥐','Desayuno'],['cena','🍽️','Comida/Cena'],['copas','🍸','Copas'],['helado','🍦','Helados/cafés'],['cult','🎟️','Entradas/cultura'],['comp','🛍️','Compras'],['parking','🅿️','Parking'],['gasolina','⛽','Gasolina'],['otro','✨','Otros']];
+const PL={u:'Nosotros',t:'Ellos',h:'A medias',p:'Privado'};
+const NOS={id:'nos',name:'Nosotros'};
+const cn=k=>{const c=CATS.find(x=>x[0]===k)||CATS[8];return c[1]+' '+c[2]};
+const ci=k=>(CATS.find(x=>x[0]===k)||CATS[8])[1];
+function load(){try{const s=JSON.parse(localStorage.getItem('qp'));if(s&&s.friends){s.ideas=s.ideas||[];if(s.names===undefined)s.names=true;return s}}catch(e){}return{friends:[],outings:[],peace:[],tol:5,bk:0,ideas:[],names:true}}
+let S=load(),V={n:'home'},D=null,arm=null,peaceOpen=false,Q='',repMode='f',E={sc:'all',per:'0',from:'',to:''};
 function save(){try{localStorage.setItem('qp',JSON.stringify(S))}catch(e){}}
 const $=s=>document.querySelector(s),uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const eur=n=>(Math.round(n*100)/100).toLocaleString('es-ES')+' €';
 const fd=d=>new Date(d+'T12:00').toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'});
-const today=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
-const fr=id=>S.friends.find(f=>f.id===id);
+const fmt=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const today=()=>fmt(new Date());
+const fr=id=>id==='nos'?NOS:S.friends.find(f=>f.id===id);
 function toast(m){const t=$('#t');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',2200)}
 // ---- lógica
 const eff=o=>o.exps.reduce((s,e)=>s+(e.p==='u'?e.a/2:e.p==='t'?-e.a/2:0),0);
+const mc=(o,e)=>o.f==='nos'?e.a:e.p==='u'?e.a/2:(e.p==='h'||e.p==='p')?e.a:0;
 function evs(f){return[...S.outings.filter(o=>o.f===f).map(o=>({t:'o',d:o.date,c:o.c,o})),...S.peace.filter(p=>p.f===f).map(p=>({t:'p',d:p.date,c:p.c,p}))].sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:a.c-b.c)}
 function segs(f){const r=[];let s={outs:[],end:null,st:null};for(const e of evs(f)){if(e.t==='o')s.outs.push(e.o);else if(e.p.m!==false){s.end=e.p;r.push(s);s={outs:[],end:null,st:e.p}}}r.push(s);return r}
 const bal=f=>segs(f).pop().outs.reduce((s,o)=>s+eff(o),0);
@@ -74,43 +86,51 @@ const all=S.outings.filter(o=>o.f===f&&o.car!=='n').sort(cmp),os=zp?all.filter(o
 const lim=new Date(Date.now()-183*864e5).toISOString().slice(0,10),r=os.filter(o=>o.date>=lim),n=(l,k)=>l.filter(o=>o.car===k).length,last=all[all.length-1];
 let nx=null;if(os.length){const a=n(r,'u'),b=n(r,'t');nx=a>b?'t':b>a?'u':'any'}else if(all.length)nx='any';
 return{last,nx,tu:n(all,'u'),tt:n(all,'t'),ru:n(r,'u'),rt:n(r,'t')}}
-const carCard=k=>`<div class="card"><b>🚗 Coche</b>${k.nx?`<div class="mid ${CL[k.nx][1]}">${CL[k.nx][2]} ${CL[k.nx][0]}</div>`:'<div class="mid">Sin datos todavía</div>'}<div class="mu">${k.last?`Último: ${PL[k.last.car].toLowerCase()} (${fd(k.last.date)})<br>`:''}Total: nosotros ${k.tu} · ellos ${k.tt}<br>Últimos 6 meses: nosotros ${k.ru} · ellos ${k.rt}</div></div>`;
+const carCard=k=>`<div class="card cc"><b>🚗 Coche</b>${k.nx?`<div class="mid ${CL[k.nx][1]}">${CL[k.nx][2]} ${CL[k.nx][0]}</div>`:'<div class="mid mu">Sin datos todavía</div>'}<div class="mu">${k.last?`Último: ${PL[k.last.car].toLowerCase()} (${fd(k.last.date)})<br>`:''}Total: nosotros ${k.tu} · ellos ${k.tt}<br>Últimos 6 meses: nosotros ${k.ru} · ellos ${k.rt}</div></div>`;
 // ---- navegación
 function go(n,id){V={n,id};arm=null;peaceOpen=false;render();window.scrollTo(0,0)}
-function render(){const a=$('#app');({home:vHome,friend:vFriend,rep:vRep,set:vSet,form:vForm})[V.n](a)}
+const open=id=>id==='nos'?go('nos'):go('friend',id);
+function render(){const a=$('#app');({home:vHome,am:vAm,friend:vFriend,nos:vNos,rep:vRep,eco:vEco,ideas:vIdeas,set:vSet,form:vForm})[V.n](a)}
 function dbtn(k,id){return `<a class="del" onclick="del('${k}','${id}')">${arm===k+id?'¿Seguro? Púlsalo otra vez':'Borrar'}</a>`}
 function del(k,id){if(arm!==k+id){arm=k+id;return render()}arm=null;
 if(k==='o')S.outings=S.outings.filter(o=>o.id!==id);
 if(k==='p')S.peace=S.peace.filter(o=>o.id!==id);
+if(k==='i')S.ideas=S.ideas.filter(o=>o.id!==id);
 if(k==='f'){S.friends=S.friends.filter(o=>o.id!==id);S.outings=S.outings.filter(o=>o.f!==id);S.peace=S.peace.filter(o=>o.f!==id)}
 save();render()}
 function addF(){const i=$('#nf'),v=i.value.trim();if(!v)return toast('Escribe un nombre');S.friends.push({id:uid(),name:v});save();render()}
-// ---- vistas
-let showN=false,Q='',repMode='f';
+function ren(id){const f=fr(id),v=prompt('Nombre',f.name);if(v&&v.trim()){f.name=v.trim();save();render()}}
+const selP=(oc,val)=>`<select onchange="${oc}">${[NOS,...S.friends].map(f=>`<option value="${f.id}" ${f.id===val?'selected':''}>${f.id==='nos'?'💑 ':''}${esc(f.name)}</option>`).join('')}</select>`;
+// ---- búsqueda
 const nz=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 function srch(){const q=nz(Q.trim());if(!q)return'';
-const fs=S.friends.filter(f=>nz(f.name).includes(q)),r=[];
+const fs=[NOS,...S.friends].filter(f=>nz(f.name).includes(q)),r=[];
 S.outings.forEach(o=>{const f=fr(o.f);if(!f)return;[o.note,...o.exps.map(e=>e.n)].filter(t=>t&&nz(t).includes(q)).forEach(t=>r.push({f,d:o.date,t}))});
 S.peace.forEach(p=>{const f=fr(p.f);if(f&&p.note&&nz(p.note).includes(q))r.push({f,d:p.date,t:p.note})});
 r.sort((a,b)=>a.d<b.d?1:-1);
 if(!fs.length&&!r.length)return'<p class="mu c">Sin resultados.</p>';
-return(fs.length?'<div class="mu">👤 Personas</div>'+fs.map(f=>`<div class="ev hit" onclick="go('friend','${f.id}')"><b>${esc(f.name)}</b></div>`).join(''):'')+(r.length?'<div class="mu">💬 Comentarios</div>'+r.slice(0,30).map(x=>`<div class="ev hit" onclick="go('friend','${x.f.id}')"><b>${esc(x.f.name)}</b> · ${fd(x.d)}<div class="mu">${esc(x.t)}</div></div>`).join(''):'')}
-function vHome(a){const n=S.friends.length;let h=`<div class="sp"><h1>Salidas</h1>${n?`<a onclick="showN=!showN;render()">${showN?'🙈':'👁️'}</a>`:''}</div>`;
+return(fs.length?'<div class="mu">👤 Personas</div>'+fs.map(f=>`<div class="ev hit" onclick="open('${f.id}')"><b>${esc(f.name)}</b></div>`).join(''):'')+(r.length?'<div class="mu">💬 Comentarios</div>'+r.slice(0,30).map(x=>`<div class="ev hit" onclick="open('${x.f.id}')"><b>${esc(x.f.name)}</b> · ${fd(x.d)}<div class="mu">${esc(x.t)}</div></div>`).join(''):'')}
+const sBox=()=>`<input type="search" placeholder="🔍 Buscar persona o comentario…" value="${esc(Q)}" oninput="Q=this.value;$('#res').innerHTML=srch()"><div id="res">${srch()}</div>`;
+// ---- vistas
+function vHome(a){let h='<div class="sp"><h1>¿Quién paga?</h1></div>';
 if(S.outings.length&&Date.now()-S.bk>30*864e5)h+='<div class="note" onclick="go(\'set\')">💾 Hace tiempo que no haces copia de seguridad. Toca para hacerla.</div>';
-if(n){h+=`<input type="search" placeholder="🔍 Buscar persona o comentario…" value="${esc(Q)}" oninput="Q=this.value;$('#res').innerHTML=srch()"><div id="res">${srch()}</div>`;
-h+=`<select onchange="if(this.value)go('friend',this.value)"><option value="">👥 Elegir persona…</option>${S.friends.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select>`;
-h+=`<div class="tiles">${S.friends.map(f=>`<div class="card tile" onclick="go('friend','${f.id}')"><s>${esc((f.name.trim()[0]||'?').toUpperCase())}</s>${showN?`<span>${esc(f.name)}</span>`:''}</div>`).join('')}</div>`;
-h+='<button class="fab" onclick="newO()">+ Nueva salida</button>'}
-else h+='<div class="card">Empieza añadiendo con quién salís habitualmente.</div><div class="row"><input id="nf" placeholder="Nuevo amigo o pareja"><button onclick="addF()">Añadir</button></div>';
-h+='<p class="c"><a onclick="go(\'set\')">⚙️ Ajustes y copia de seguridad</a></p>';a.innerHTML=h}
-function tl(f,n){return evs(f).reverse().slice(0,n).map(x=>{if(x.t==='p'){const p=x.p,l=[];
+h+=`<div class="hb"><button onclick="go('nos')"><i>💑</i>Nosotros</button><button onclick="go('am')"><i>👥</i>Con amigos</button></div>${sBox()}<div class="lk"><a onclick="go('eco')">📊 Mis gastos</a><a onclick="go('ideas')">💡 Ideas</a><a onclick="go('set')">⚙️ Ajustes</a></div>`;a.innerHTML=h}
+function vAm(a){const n=S.friends.length;let h=`<div class="top"><a onclick="go('home')">← Inicio</a>${n?`<a onclick="S.names=!S.names;save();render()">${S.names?'🙈 Ocultar nombres':'👁️ Ver nombres'}</a>`:''}</div><h1>Con amigos</h1>${sBox()}`;
+if(n){h+=`<select onchange="if(this.value)go('friend',this.value)"><option value="">👥 Elegir persona…</option>${S.friends.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select>`;
+h+=`<div class="tiles">${S.friends.map(f=>`<div class="card tile" onclick="go('friend','${f.id}')"><s>${esc((f.name.trim()[0]||'?').toUpperCase())}</s>${S.names?`<span>${esc(f.name)}</span>`:''}</div>`).join('')}</div><button class="fab" onclick="newO()">+ Nueva salida</button>`}
+else h+='<div class="card">Empieza añadiendo con quién salís habitualmente.</div><div class="row"><input id="nf" placeholder="Nuevo amigo o pareja"><button onclick="addF()">Añadir</button></div>';a.innerHTML=h}
+function tl(f,n){const nos=f==='nos';return evs(f).reverse().slice(0,n).map(x=>{if(x.t==='p'){const p=x.p,l=[];
 if(p.m!==false)l.push(p.mb==null?'💶 Dinero a cero':`💶 Dinero a cero (${Math.abs(p.mb)<.01?'sin diferencia':p.mb>0?'a nuestro favor':'a su favor'}): nosotros ${sg(p.mb)} · ellos ${sg(-p.mb)}`);
 if(p.cz)l.push('🚗 Coche a cero'+(p.cb&&p.cb.nx?` (${CP[p.cb.nx]})`:''));
 return `<div class="ev peace">🤝 <b>Declarado en paz</b> · ${fd(p.date)}${l.map(t=>`<div class="mu">${t}</div>`).join('')}${p.note?`<div class="mu">💬 ${esc(p.note)}</div>`:''}<div class="acts">${dbtn('p',p.id)}</div></div>`}
-const o=x.o;return `<div class="ev"><b>${fd(o.date)}</b>${o.car!=='n'?' · 🚗 '+PL[o.car].toLowerCase():''}${o.exps.map(e=>`<div>${cn(e.k)} · ${eur(e.a)} · ${PL[e.p]}${e.n?` <span class="mu">— ${esc(e.n)}</span>`:''}</div>`).join('')}${o.note?`<div class="mu">💬 ${esc(o.note)}</div>`:''}<div class="acts"><a onclick="editO('${o.id}')">Editar</a>${dbtn('o',o.id)}</div></div>`}).join('')||'<p class="mu c">Aún no hay salidas.</p>'}
+const o=x.o;return `<div class="ev"><b>${fd(o.date)}</b>${o.car!=='n'?' · 🚗 '+PL[o.car].toLowerCase():''}${o.exps.map(e=>`<div>${cn(e.k)} · ${eur(e.a)}${nos?'':' · '+PL[e.p]}${e.n?` <span class="mu">— ${esc(e.n)}</span>`:''}</div>`).join('')}${o.note?`<div class="mu">💬 ${esc(o.note)}</div>`:''}<div class="acts"><a onclick="editO('${o.id}')">Editar</a>${dbtn('o',o.id)}</div></div>`}).join('')||'<p class="mu c">Aún no hay salidas.</p>'}
 function tlS(f,wc){return S.outings.filter(o=>o.f===f).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.c-a.c).map(o=>`<div class="ev"><b>${fd(o.date)}</b>${wc&&o.car!=='n'?' · 🚗 '+PL[o.car].toLowerCase():''}${o.exps.map(e=>`<div>${cn(e.k)}${e.n?` <span class="mu">— ${esc(e.n)}</span>`:''}</div>`).join('')}${o.note?`<div class="mu">💬 ${esc(o.note)}</div>`:''}</div>`).join('')||'<p class="mu c">Aún no hay salidas.</p>'}
+function vNos(a){const mm=today().slice(0,7),L=S.outings.filter(o=>o.f==='nos'),tm=ag(L.filter(o=>o.date.slice(0,7)===mm)).tot,ta=ag(L).tot;
+a.innerHTML=`<div class="top"><a onclick="go('home')">← Inicio</a><a onclick="go('rep','nos')">📊 Informe</a></div><h1>💑 Nosotros</h1>
+<div class="card"><div class="sp"><span>Este mes</span><b>${eur(tm)}</b></div><div class="sp"><span class="mu">Total acumulado</span><span class="mu">${eur(ta)}</span></div></div>
+<button class="fab" onclick="newO('nos')">+ Nueva salida</button><h3>Últimos movimientos</h3>${tl('nos',10)}<p class="c"><a onclick="go('rep','nos')">Ver historial completo</a></p>`}
 function vFriend(a){const f=fr(V.id);if(!f)return go('home');const b=bal(f.id),[t,c,ic]=msg(b),k=car(f.id),mon=S.outings.some(o=>o.f===f.id&&o.exps.length)||!S.outings.some(o=>o.f===f.id),w=Math.min(Math.abs(b)/100,1)*50;
-a.innerHTML=`<div class="top"><a onclick="go('home')">← Inicio</a><a onclick="go('rep','${f.id}')">📊 Informe</a></div><h1>${esc(f.name)}</h1>
+a.innerHTML=`<div class="top"><a onclick="go('am')">← Amigos</a><a onclick="go('rep','${f.id}')">📊 Informe</a></div><h1>${esc(f.name)} <a onclick="ren('${f.id}')" style="font-size:16px">✏️</a></h1>
 ${mon?`<div class="card"><div class="pill ${c}">${ic} ${t}</div><div class="gauge"><i class="${b>0?'g':'o'}" style="${b>0?'left':'right'}:50%;width:${w}%"></i><u></u></div><div class="lab"><span>← Nos toca</span><span>Les toca →</span></div><p class="c">${c==='n'?`Saldo: nosotros <b>${sg(b)}</b> · ellos <b>${sg(-b)}</b>`:`Diferencia orientativa: <b>${eur(Math.abs(b))}</b>`}</p></div>`:''}
 ${carCard(k)}
 <button class="fab" onclick="newO('${f.id}')">+ Nueva salida</button>
@@ -119,46 +139,72 @@ ${carCard(k)}
 <h3>Últimos movimientos</h3>${tl(f.id,8)}<p class="c"><a onclick="go('rep','${f.id}')">Ver historial completo</a></p>`}
 function doPeace(){const m=$('#pm').checked,z=$('#pc').checked;if(!m&&!z)return toast('Marca dinero, coche o ambos');const k=car(V.id);S.peace.push({id:uid(),f:V.id,date:today(),note:$('#pn').value.trim(),c:Date.now(),m,cz:z,mb:bal(V.id),cb:{nx:k.nx}});save();peaceOpen=false;render();toast('Marcado: estamos en paz')}
 // formulario
-function newO(f){D={id:null,f:f||(V.n==='friend'?V.id:S.friends[0].id),date:today(),exps:[],car:'n',note:''};go('form')}
+function newO(f){D={id:null,f:f||(V.n==='nos'?'nos':S.friends[0]?S.friends[0].id:'nos'),date:today(),exps:[],car:'n',note:''};go('form')}
 function editO(id){D=JSON.parse(JSON.stringify(S.outings.find(o=>o.id===id)));go('form')}
 function seg(path,val,opts){return `<div class="seg">${Object.entries(opts).map(([k,l])=>`<button class="${k===val?'on':''}" onclick="${path}='${k}';render()">${l}</button>`).join('')}</div>`}
-function addE(k){D.exps.push({k,p:'h',a:0,n:''});render()}
-function vForm(a){a.innerHTML=`<div class="top"><a onclick="D.id?go('friend',D.f):go('home')">← Cancelar</a></div><h1>${D.id?'Editar':'Nueva'} salida</h1>
-<div class="card"><label>Con quién</label><select onchange="D.f=this.value">${S.friends.map(f=>`<option value="${f.id}" ${f.id===D.f?'selected':''}>${esc(f.name)}</option>`).join('')}</select><label>Fecha</label><input type="date" value="${D.date}" onchange="D.date=this.value"></div>
-${D.exps.map((e,i)=>`<div class="card"><div class="sp"><b>${cn(e.k)}</b><a class="del" onclick="D.exps.splice(${i},1);render()">Quitar</a></div><label>¿Quién pagó?</label>${seg('D.exps['+i+'].p',e.p,PL)}<input type="number" inputmode="decimal" placeholder="Importe aproximado en €" value="${e.a||''}" oninput="D.exps[${i}].a=+this.value||0"><input placeholder="Comentario (opcional)" value="${esc(e.n)}" oninput="D.exps[${i}].n=this.value"></div>`).join('')}
-<div class="card"><label>Añadir gasto (en una excursión solo de coche, no añadas ninguno)</label><div class="chips">${CATS.map(c=>`<button onclick="addE('${c[0]}')">${c[1]} ${c[2]}</button>`).join('')}</div></div>
-<div class="card"><label>🚗 ¿Quién puso el coche?</label>${seg('D.car',D.car,{n:'Ninguno',u:'Nosotros',t:'Ellos'})}<label>Comentario de la salida</label><textarea oninput="D.note=this.value" placeholder="Opcional">${esc(D.note)}</textarea></div>
+function addE(k){D.exps.push({k,p:D.f==='nos'?'u':'h',a:0,n:''});render()}
+function vForm(a){const nos=D.f==='nos',opts=D.id?[fr(D.f)]:[NOS,...S.friends];
+a.innerHTML=`<div class="top"><a onclick="D.id?open(D.f):go('home')">← Cancelar</a></div><h1>${D.id?'Editar':'Nueva'} salida</h1>
+<div class="card"><label>Con quién</label><select onchange="D.f=this.value;if(D.f==='nos')D.car='n';render()">${opts.map(f=>`<option value="${f.id}" ${f.id===D.f?'selected':''}>${esc(f.name)}</option>`).join('')}</select><label>Fecha</label><input type="date" value="${D.date}" onchange="D.date=this.value"></div>
+${D.exps.map((e,i)=>`<div class="card"><div class="sp"><b>${cn(e.k)}</b><a class="del" onclick="D.exps.splice(${i},1);render()">Quitar</a></div>${nos?'':`<label>¿Quién pagó?</label>${seg('D.exps['+i+'].p',e.p,PL)}`}<input type="number" inputmode="decimal" placeholder="Importe${nos?'':' aproximado'} en €" value="${e.a||''}" oninput="D.exps[${i}].a=+this.value||0"><input placeholder="Comentario (opcional)" value="${esc(e.n)}" oninput="D.exps[${i}].n=this.value"></div>`).join('')}
+<div class="card"><label>Añadir gasto${nos?'':' (en una excursión solo de coche, no añadas ninguno)'}</label><div class="chips">${CATS.map(c=>`<button onclick="addE('${c[0]}')">${c[1]} ${c[2]}</button>`).join('')}</div></div>
+<div class="card">${nos?'':`<label>🚗 ¿Quién puso el coche?</label>${seg('D.car',D.car,{n:'Ninguno',u:'Nosotros',t:'Ellos'})}`}<label>Comentario de la salida</label><textarea oninput="D.note=this.value" placeholder="Opcional">${esc(D.note)}</textarea></div>
 <button class="fab" onclick="saveO()">Guardar salida</button>`}
-function saveO(){if(!D.exps.length&&D.car==='n')return toast('Añade algún gasto o el coche');
+function saveO(){if(!D.exps.length&&D.car==='n')return toast('Añade algún gasto'+(D.f==='nos'?'':' o el coche'));
 if(D.id)S.outings=S.outings.map(o=>o.id===D.id?D:o);else{D.id=uid();D.c=Date.now();S.outings.push(D)}
-save();const f=D.f;D=null;go('friend',f);toast('Salida guardada')}
-// informe
+save();const f=D.f;D=null;open(f);toast('Salida guardada')}
+// informes
 function chart(f){let v=0,p=[0],m=[];for(const e of evs(f)){if(e.t==='o'){v+=eff(e.o);p.push(v)}else if(e.p.m!==false){v=0;p.push(0);m.push(p.length-1)}}
 if(p.length<2)return '<p class="mu">Sin datos todavía.</p>';
 const W=320,H=130,mx=Math.max(10,...p.map(Math.abs)),x=i=>10+i*(W-20)/(p.length-1),y=v=>H/2-v/mx*(H/2-14);
 return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block"><line x1="0" x2="${W}" y1="${H/2}" y2="${H/2}" stroke="var(--ln)"/>${m.map(i=>`<line x1="${x(i)}" x2="${x(i)}" y1="12" y2="${H}" stroke="var(--g)" stroke-dasharray="3 3"/><text x="${x(i)}" y="10" font-size="10" text-anchor="middle">🤝</text>`).join('')}<polyline fill="none" stroke="var(--ac)" stroke-width="2.5" points="${p.map((v,i)=>x(i)+','+y(v)).join(' ')}"/></svg><div class="lab"><span>↓ Nos toca</span><span>Les toca ↑</span></div>`}
-function mine(f){const ct={},mo={};S.outings.filter(o=>o.f===f).forEach(o=>o.exps.forEach(e=>{const v=e.p==='u'?e.a/2:e.p==='h'?e.a:0;if(!v)return;ct[e.k]=(ct[e.k]||0)+v;const m=o.date.slice(0,7);(mo[m]=mo[m]||{t:0,c:{}}).t+=v;mo[m].c[e.k]=(mo[m].c[e.k]||0)+v}));return{ct,mo}}
-const ci=k=>(CATS.find(x=>x[0]===k)||CATS[5])[1];
-function vRep(a){const f=fr(V.id),ss=segs(f.id),ct={},m=mine(f.id),mt=Object.values(m.ct).reduce((x,y)=>x+y,0),full=repMode==='f';
-S.outings.filter(o=>o.f===f.id).forEach(o=>o.exps.forEach(e=>ct[e.k]=(ct[e.k]||0)+e.a));
-const sm=(os,p)=>os.reduce((x,o)=>x+o.exps.filter(e=>e.p===p).reduce((y,e)=>y+e.a,0),0);
-a.innerHTML=`<div class="top"><a onclick="go('friend','${f.id}')">← ${esc(f.name)}</a><a onclick="window.print()">🖨️ Imprimir</a></div><h1>Informe · ${esc(f.name)}</h1>
-${seg('repMode',repMode,{s:'Solo salidas',c:'Salidas + 🚗',f:'Completo'})}
+function ag(L){const ct={},mo={},rows=[];let tot=0,pv=0;L.forEach(o=>{let c=0,p=0;o.exps.forEach(e=>{const v=mc(o,e);if(!v)return;c+=v;if(e.p==='p')p+=v;ct[e.k]=(ct[e.k]||0)+v;const m=o.date.slice(0,7);(mo[m]=mo[m]||{t:0,c:{}}).t+=v;mo[m].c[e.k]=(mo[m].c[e.k]||0)+v});tot+=c;pv+=p;rows.push({o,c,p})});rows.sort((a,b)=>a.o.date<b.o.date?1:-1);return{ct,mo,tot,pv,rows}}
+const cats=ct=>CATS.filter(c=>ct[c[0]]).map(c=>`<div class="sp"><span>${c[1]} ${c[2]}</span><b>${eur(ct[c[0]])}</b></div>`).join('')||'<span class="mu">Sin gastos.</span>';
+function aggH(g){return `<div class="card"><div class="sp"><b>Total</b><b class="big" style="margin:0">${eur(g.tot)}</b></div>${g.pv?`<div class="mu">De ello, gastos privados: ${eur(g.pv)}</div>`:''}<p class="mu" style="margin:6px 0 0">Coste real para nosotros: lo que pagamos ÷ 2 con amigos, lo «a medias» y lo privado completos, y todo en salidas de Nosotros. Lo que pagaron ellos no cuenta.</p></div>
+<h3>Por categoría</h3><div class="card">${cats(g.ct)}</div>
+<h3>Por meses</h3>${Object.keys(g.mo).sort().reverse().map(mm=>`<div class="card"><div class="sp"><b>${new Date(mm+'-15T12:00').toLocaleDateString('es-ES',{month:'long',year:'numeric'})}</b><b>${eur(g.mo[mm].t)}</b></div><div class="mu">${Object.entries(g.mo[mm].c).map(([k,v])=>ci(k)+' '+eur(v)).join(' · ')}</div></div>`).join('')||'<p class="mu">Sin gastos.</p>'}
+<h3>Por salida</h3>${g.rows.map(({o,c,p})=>`<div class="ev"><div class="sp"><b>${fd(o.date)} · ${esc(fr(o.f).name)}</b><b>${eur(c)}</b></div><div class="mu">${o.exps.filter(e=>mc(o,e)).map(e=>ci(e.k)+' '+eur(mc(o,e))+(e.p==='p'?' 🔒':'')).join(' · ')||'Sin gastos'}${p?` · privado ${eur(p)}`:''}</div></div>`).join('')||'<p class="mu">Sin salidas.</p>'}`}
+function vRep(a){const f=fr(V.id),nos=f.id==='nos',os=S.outings.filter(o=>o.f===f.id);
+const hd=`<div class="top"><a onclick="open('${f.id}')">← ${esc(f.name)}</a><a onclick="window.print()">🖨️ Imprimir</a></div>${selP("go('rep',this.value)",f.id)}<h1>Informe · ${esc(f.name)}</h1>`;
+if(nos)return a.innerHTML=hd+aggH(ag(os))+'<h3>Todas las salidas</h3>'+tl('nos',999);
+const ss=segs(f.id),ct={},full=repMode==='f';
+os.forEach(o=>o.exps.forEach(e=>ct[e.k]=(ct[e.k]||0)+e.a));
+const sm=(L,p)=>L.reduce((x,o)=>x+o.exps.filter(e=>e.p===p).reduce((y,e)=>y+e.a,0),0);
+a.innerHTML=hd+`${seg('repMode',repMode,{s:'Solo salidas',c:'Salidas + 🚗',f:'Completo'})}
 ${repMode==='c'?carCard(car(f.id)):''}
 ${full?`<div class="card"><b>Saldo a lo largo del tiempo</b>${chart(f.id)}</div>
 <h3>Tramos entre «en paz»</h3>${ss.map(s=>{const d0=s.st?fd(s.st.date):(s.outs[0]?fd(s.outs[0].date):'—'),b=s.outs.reduce((x,o)=>x+eff(o),0);
-return `<div class="card"><b>${d0} → ${s.end?fd(s.end.date)+' 🤝':'hoy (tramo actual)'}</b><div class="mu">${s.outs.length} salidas<br>Pagamos nosotros: ${eur(sm(s.outs,'u'))} · Pagaron ellos: ${eur(sm(s.outs,'t'))} · A medias: ${eur(sm(s.outs,'h'))}<br>Saldo del tramo: ${eur(Math.abs(b))} ${Math.abs(b)<.01?'':b>0?'a nuestro favor':'a su favor'}<br>Coche: nosotros ${s.outs.filter(o=>o.car==='u').length} · ellos ${s.outs.filter(o=>o.car==='t').length}${s.end&&s.end.note?`<br>🤝 ${esc(s.end.note)}`:''}</div></div>`}).reverse().join('')}
-<h3>Total por categoría</h3><div class="card">${Object.entries(ct).map(([k,v])=>`<div class="sp"><span>${cn(k)}</span><b>${eur(v)}</b></div>`).join('')||'<span class="mu">Sin gastos.</span>'}</div>
-<h3>Mis gastos por categoría</h3><div class="card">${Object.entries(m.ct).map(([k,v])=>`<div class="sp"><span>${cn(k)}</span><b>${eur(v)}</b></div>`).join('')||'<span class="mu">Sin gastos.</span>'}<div class="sp" style="border-top:1px solid var(--ln);margin-top:6px;padding-top:6px"><b>Total</b><b>${eur(mt)}</b></div><p class="mu">Lo que pagué yo ÷ 2 + lo pagado a medias (sin dividir). Lo que pagaron ellos no cuenta.</p></div>
-<h3>Mis gastos por meses</h3>${Object.keys(m.mo).sort().reverse().map(mm=>`<div class="card"><div class="sp"><b>${new Date(mm+'-15T12:00').toLocaleDateString('es-ES',{month:'long',year:'numeric'})}</b><b>${eur(m.mo[mm].t)}</b></div><div class="mu">${Object.entries(m.mo[mm].c).map(([k,v])=>ci(k)+' '+eur(v)).join(' · ')}</div></div>`).join('')||'<p class="mu">Sin gastos.</p>'}`:''}
+return `<div class="card"><b>${d0} → ${s.end?fd(s.end.date)+' 🤝':'hoy (tramo actual)'}</b><div class="mu">${s.outs.length} salidas<br>Pagamos nosotros: ${eur(sm(s.outs,'u'))} · Pagaron ellos: ${eur(sm(s.outs,'t'))} · A medias: ${eur(sm(s.outs,'h'))} · Privado: ${eur(sm(s.outs,'p'))}<br>Saldo del tramo: ${eur(Math.abs(b))} ${Math.abs(b)<.01?'':b>0?'a nuestro favor':'a su favor'}<br>Coche: nosotros ${s.outs.filter(o=>o.car==='u').length} · ellos ${s.outs.filter(o=>o.car==='t').length}${s.end&&s.end.note?`<br>🤝 ${esc(s.end.note)}`:''}</div></div>`}).reverse().join('')}
+<h3>Total gastado por categoría</h3><div class="card">${cats(ct)}</div>
+<h2 style="margin:18px 0 0">Mis gastos</h2>${aggH(ag(os))}`:''}
 <h3>Todas las salidas</h3>${full?tl(f.id,999):tlS(f.id,repMode==='c')}`}
+// informe económico
+function rng(){if(E.per==='c')return[E.from||'0000-00-00',E.to||'9999-99-99'];if(E.per==='o')return['0000-00-00','9999-99-99'];const n=new Date(),y=n.getFullYear(),m=n.getMonth();if(E.per==='0')return[fmt(new Date(y,m,1)),'9999-99-99'];return[fmt(new Date(y,m-+E.per,1)),fmt(new Date(y,m,0))]}
+const PER={0:'Mes actual',1:'1 mes (anterior)',2:'2 meses',3:'3 meses',6:'6 meses',12:'1 año',o:'Desde el origen'};
+function vEco(a){const[r0,r1]=rng(),L=S.outings.filter(o=>fr(o.f)&&o.date>=r0&&o.date<=r1&&(E.sc==='all'||(E.sc==='am'?o.f!=='nos':o.f===E.sc)));
+const sc=[['all','Todos (amigos + nosotros)'],['nos','💑 Nosotros'],['am','Todos los amigos'],...S.friends.map(f=>[f.id,f.name])];
+const dt=(k,v)=>`<input type="date" value="${v}" onchange="E.${k}=this.value;E.per=(E.from||E.to)?'c':'0';render()">`;
+a.innerHTML=`<div class="top"><a onclick="go('home')">← Inicio</a><a onclick="window.print()">🖨️ Imprimir</a></div><h1>📊 Mis gastos</h1>
+<div class="card"><label>Quién</label><select onchange="E.sc=this.value;render()">${sc.map(([k,n])=>`<option value="${k}" ${k===E.sc?'selected':''}>${esc(n)}</option>`).join('')}</select>
+<label>Periodo</label><select onchange="E.per=this.value;E.from=E.to='';render()">${E.per==='c'?'<option value="c" selected>Personalizado</option>':''}${Object.entries(PER).map(([k,n])=>`<option value="${k}" ${k===E.per?'selected':''}>${n}</option>`).join('')}</select>
+<label>O elige fechas</label><div class="row">${dt('from',E.from)}${dt('to',E.to)}${E.per==='c'?`<button onclick="E.from=E.to='';E.per='0';render()">✕</button>`:''}</div></div>
+${aggH(ag(L))}`}
+// ideas
+function vIdeas(a){const p=S.ideas.filter(i=>!i.done),d=S.ideas.filter(i=>i.done),row=i=>`<div class="ev"><div class="${i.done?'dn':''}">${esc(i.t)}</div><div class="acts"><a onclick="togI('${i.id}')">${i.done?'Reabrir':'✅ Implementada'}</a>${dbtn('i',i.id)}</div></div>`;
+a.innerHTML=`<div class="top"><a onclick="go('home')">← Inicio</a>${p.length?'<a onclick="cpI()">📋 Copiar pendientes</a>':''}</div><h1>💡 Ideas</h1>
+<div class="row"><input id="ni" placeholder="Anota una mejora…"><button onclick="addI()">Añadir</button></div>
+<h3>Pendientes (${p.length})</h3>${p.map(row).join('')||'<p class="mu">Ninguna.</p>'}
+${d.length?`<h3>Implementadas (${d.length})</h3>${d.map(row).join('')}`:''}`}
+function addI(){const v=$('#ni').value.trim();if(!v)return toast('Escribe la idea');S.ideas.unshift({id:uid(),t:v,done:false});save();render()}
+function togI(id){const i=S.ideas.find(x=>x.id===id);i.done=!i.done;save();render()}
+function cpI(){const t=S.ideas.filter(i=>!i.done).map(i=>'- '+i.t).join('\n');try{navigator.clipboard.writeText(t).then(()=>toast('Copiadas'),()=>toast('No se pudo copiar'))}catch(e){toast('No se pudo copiar')}}
 // ajustes
 function mvF(id,d){const i=S.friends.findIndex(f=>f.id===id),j=i+d;if(j<0||j>=S.friends.length)return;[S.friends[i],S.friends[j]]=[S.friends[j],S.friends[i]];save();render()}
 function exportB(){S.bk=Date.now();save();const u=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='quien-paga-'+today()+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1e3);toast('Copia descargada');render()}
-function importB(i){const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!Array.isArray(o.friends)||!Array.isArray(o.outings))throw 0;if(!confirm('Esto sustituirá los datos actuales. ¿Continuar?'))return;S=Object.assign({peace:[],tol:5,bk:0},o);save();toast('Copia restaurada');go('home')}catch(e){toast('Archivo de copia no válido')}};r.readAsText(f)}
+function importB(i){const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!Array.isArray(o.friends)||!Array.isArray(o.outings))throw 0;if(!confirm('Esto sustituirá los datos actuales. ¿Continuar?'))return;S=Object.assign({peace:[],tol:5,bk:0,ideas:[],names:true},o);save();toast('Copia restaurada');go('home')}catch(e){toast('Archivo de copia no válido')}};r.readAsText(f)}
 function vSet(a){a.innerHTML=`<div class="top"><a onclick="go('home')">← Inicio</a></div><h1>Ajustes</h1>
 <div class="card"><label>Margen de tolerancia para «estamos en paz» (€)</label><input type="number" inputmode="decimal" value="${S.tol}" onchange="S.tol=Math.max(0,+this.value||0);save();toast('Guardado')"></div>
-<div class="card"><b>Amigos</b>${S.friends.map((f,i)=>`<div class="sp" style="margin-top:8px"><span>${esc(f.name)}</span><span><button class="mv" ${i?'':'disabled'} onclick="mvF('${f.id}',-1)">▲</button> <button class="mv" ${i<S.friends.length-1?'':'disabled'} onclick="mvF('${f.id}',1)">▼</button> ${dbtn('f',f.id)}</span></div>`).join('')||'<p class="mu">Ninguno.</p>'}<div class="row" style="margin-top:10px"><input id="nf" placeholder="Nuevo amigo o pareja"><button onclick="addF()">Añadir</button></div><p class="mu">Con ▲▼ eliges el orden: se usa en la cuadrícula, el desplegable y el formulario. Borrar un amigo borra también su historial.</p></div>
-<div class="card"><b>💾 Copia de seguridad</b><p class="mu">Última copia: ${S.bk?fd(new Date(S.bk).toISOString().slice(0,10)):'nunca'}. Se descarga un archivo .json con la fecha en el nombre.</p><button onclick="exportB()">⬇️ Descargar copia</button><label style="margin-top:14px">Restaurar desde un archivo</label><input type="file" accept=".json,application/json" onchange="importB(this)"></div>`}
+<div class="card"><b>Amigos</b>${S.friends.map((f,i)=>`<div class="sp" style="margin-top:8px"><span>${esc(f.name)} <a onclick="ren('${f.id}')">✏️</a></span><span><button class="mv" ${i?'':'disabled'} onclick="mvF('${f.id}',-1)">▲</button> <button class="mv" ${i<S.friends.length-1?'':'disabled'} onclick="mvF('${f.id}',1)">▼</button> ${dbtn('f',f.id)}</span></div>`).join('')||'<p class="mu">Ninguno.</p>'}<div class="row" style="margin-top:10px"><input id="nf" placeholder="Nuevo amigo o pareja"><button onclick="addF()">Añadir</button></div><p class="mu">Con ▲▼ eliges el orden. Con ✏️ corriges el nombre. Borrar un amigo borra también su historial.</p></div>
+<div class="card"><b>💾 Copia de seguridad</b><p class="mu">Última copia: ${S.bk?fd(new Date(S.bk).toISOString().slice(0,10)):'nunca'}. Incluye salidas, ideas y preferencias.</p><button onclick="exportB()">⬇️ Descargar copia</button><label style="margin-top:14px">Restaurar desde un archivo</label><input type="file" accept=".json,application/json" onchange="importB(this)"></div>`}
 render();
 </script></body></html>
