@@ -15,18 +15,28 @@ button.sec{background:transparent;color:var(--fg);border:1px solid var(--bd)}
 input[type=file]{display:none}.mut{color:var(--mut);font-size:.9rem}.err{color:var(--err)}.warn{color:var(--warn)}.ok{color:var(--ac)}
 table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{padding:3px 6px;text-align:right;border-bottom:1px solid var(--bd)}td:first-child,th:first-child{text-align:left}
 summary{cursor:pointer}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-</style></head><body>
-<h1>🛒 Mis compras</h1>
-<p class="mut">Tus datos se guardan solo en este navegador. Nada se envía a ningún servidor.</p>
 
+body{padding-bottom:84px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:6px 8px;max-width:100%}
+input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;padding:0}
+#nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding:4px 4px calc(4px + env(safe-area-inset-bottom));z-index:9}
+#nav button{flex:1;background:none;color:var(--mut);padding:5px 2px;font-size:.72rem;border-radius:8px}
+#nav button span{display:block;font-size:1.25rem;line-height:1.2}#nav button.on{color:var(--ac);font-weight:600}
+.pills{display:flex;gap:6px;margin:6px 0 10px;flex-wrap:wrap}.pills button{background:transparent;color:var(--fg);border:1px solid var(--bd)}.pills button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.chip{padding:5px 10px;margin:3px 3px 0 0;font-size:.85rem}
+.li{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd)}.li .tx{flex:1;min-width:100px}.li.done .tx{text-decoration:line-through;color:var(--mut)}.li .qt{width:5rem}.li .nt{flex-basis:100%;margin-left:30px;max-width:calc(100% - 30px)}
+.idea textarea{width:100%;resize:vertical}.idea.done textarea{text-decoration:line-through;color:var(--mut)}
+</style></head><body>
+<h1>🛒 Mis compras <small class="mut">v7</small></h1>
+<p class="mut">Tus datos se guardan solo en este navegador. Nada se envía a ningún servidor.</p>
 <div class="row">
   <label class="btn">Importar PDF o JSON<input id="file" type="file" accept=".pdf,.json,application/pdf,application/json" multiple></label>
   <button class="sec" id="exp">Exportar copia (JSON)</button>
 </div>
 <div id="aviso"></div>
 <div id="msg"></div>
-<div id="pend"></div>
 
+<section class="tab" id="t-panel">
 <h2>Panel de gasto</h2>
 <p class="mut" id="pempty">Importa algún ticket para ver el panel.</p>
 <div id="pbody" style="display:none">
@@ -41,7 +51,9 @@ summary{cursor:pointer}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:cent
   <h2 style="font-size:1rem">Por supermercado</h2>
   <div id="tSup"></div>
 </div>
+</section>
 
+<section class="tab" id="t-precios">
 <h2>Precios</h2>
 <p class="mut" id="prempty">Para ver subidas hace falta comprar el mismo producto en dos fechas distintas (en el mismo súper).</p>
 <div id="prbody" style="display:none">
@@ -55,19 +67,62 @@ summary{cursor:pointer}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:cent
   <h2 style="font-size:1rem">Categorías mes a mes</h2>
   <div id="tMes" style="overflow-x:auto"></div>
 </div>
+</section>
 
+<section class="tab" id="t-lista">
+<h2>Lista de la compra</h2>
+<div class="card">
+  <div class="row"><input id="ln" list="dl" placeholder="Producto (escribe o elige)" style="flex:2;min-width:150px" autocomplete="off"><input id="lq" placeholder="Cant." style="width:5rem"></div>
+  <datalist id="dl"></datalist>
+  <div class="row" style="margin-top:6px"><input id="lnt" placeholder="Nota (opcional)" style="flex:2;min-width:150px"><select id="lc"></select><button id="ladd">Añadir</button></div>
+</div>
+<details class="card"><summary>Habituales (toca para añadir)</summary><div id="hab"></div></details>
+<div class="row"><label class="mut">Agrupar por <select id="lg"><option value="cat">categoría</option><option value="sup">supermercado</option><option value="no">sin agrupar</option></select></label><span class="mut" id="lcnt"></span></div>
+<div id="lbody"></div>
+<div class="row" style="margin-top:10px"><button id="lcopy">Copiar para WhatsApp</button><button class="sec" id="lquit">Quitar marcados</button><button class="sec" id="lclr">Vaciar</button></div>
+<p class="mut">Se copian solo los productos sin marcar. En WhatsApp, pega el texto y se verá con negritas y casillas.</p>
+</section>
+
+<section class="tab" id="t-tickets">
+<div id="pend"></div>
 <h2>Tickets guardados <span class="mut" id="count"></span></h2>
 <div id="list"></div>
+</section>
 
-<h2>Productos y categorías <span class="mut" id="dcount"></span></h2>
-<p class="mut">Pon la misma categoría a cada producto. Si dos productos (o de dos súper) tienen el mismo <b>nombre legible</b>, la app los tratará como el mismo producto.</p>
-<div id="dic"></div>
+<section class="tab" id="t-ideas">
+<h2>Ideas de mejora</h2>
+<div class="row"><button id="inew">＋ Nueva idea</button><select id="if"><option value="pend">Pendientes</option><option value="done">Implementadas</option><option value="all">Todas</option></select></div>
+<div class="row" style="margin:8px 0"><button class="sec" id="icp">Copiar pendientes</button><button class="sec" id="ipr">Copiar prompt de mejora</button></div>
+<div id="ilist"></div>
+</section>
 
-<details class="card" style="margin-top:24px"><summary><b>Zona de riesgo</b>: restaurar o borrar todo</summary>
+<section class="tab" id="t-mas">
+<div class="pills" id="sub"><button data-t="ia">🤖 IA</button><button data-t="prod">📖 Productos</button><button data-t="copia">💾 Copias</button></div>
+<div class="sub" id="s-ia">
+  <div class="card"><b>1. Analizar mi gasto</b>
+    <p class="mut">Genera un resumen con datos agregados (sin tickets individuales) y el prompt de análisis. Pégalo en Gemini, ChatGPT o Claude.</p>
+    <div class="row"><select id="iaper"></select><button id="iacopy">Copiar resumen para IA</button></div>
+    <textarea id="iatxt" readonly rows="8" style="width:100%;margin-top:8px"></textarea></div>
+  <div class="card"><b>2. Pasar un ticket de foto a la app</b>
+    <p class="mut">Adjunta la foto a la IA junto con el prompt. <b>PDF</b>: guarda el resultado y impórtalo. <b>JSON</b>: más robusto (la app comprueba que las líneas sumen el total).</p>
+    <div class="row"><button id="pp">Copiar prompt (PDF)</button><button class="sec" id="pj">Copiar prompt (JSON)</button></div></div>
+</div>
+<div class="sub" id="s-prod">
+  <h2>Productos y categorías <span class="mut" id="dcount"></span></h2>
+  <p class="mut">Pon la misma categoría a cada producto. Si dos productos (o de dos súper) tienen el mismo <b>nombre legible</b>, la app los tratará como el mismo producto.</p>
+  <div id="dic"></div>
+</div>
+<div class="sub" id="s-copia">
+  <p class="mut">La copia incluye tickets, diccionario, lista de la compra e ideas. Usa “Exportar copia” (arriba) para descargarla.</p>
+<details class="card" style="margin-top:12px"><summary><b>Zona de riesgo</b>: restaurar o borrar todo</summary>
   <p class="mut">El botón principal de importar <b>suma</b>. Aquí, <b>Restaurar</b> sustituye todo lo que tienes por el contenido de una copia. Antes de cualquier cambio se descarga una copia de lo actual y se te pide escribir una palabra para confirmar.</p>
   <div class="row"><button class="sec" id="restb">Restaurar copia (reemplaza todo)</button><input id="rest" type="file" accept=".json,application/json">
   <button class="sec" id="wipe" style="color:var(--err)">Borrar todos los datos</button></div>
 </details>
+</div>
+</section>
+
+<nav id="nav"><button data-t="panel"><span>📊</span>Panel</button><button data-t="precios"><span>💲</span>Precios</button><button data-t="lista"><span>🛒</span>Lista</button><button data-t="tickets"><span>🧾</span>Tickets</button><button data-t="ideas"><span>💡</span>Ideas</button><button data-t="mas"><span>⋯</span>Más</button></nav>
 
 <script>
 //#core
@@ -86,7 +141,7 @@ function parseMercadona(L){
   });
   if(!fecha||i0<0||i1<0)throw Error('No parece un ticket de Mercadona (no encuentro fecha, cabecera de líneas o total).');
   // LISTA BLANCA: solo se leen las líneas entre "Cnt. Descripción" y "TOTAL (€)"
-  const B=L.slice(i0+1,i1),out=[],kg=/^(\d+,\d{3})\s*kg\s+(\d+,\d{2})\s*€\s*\/\s*kg\s+(\d+,\d{2})$/;
+  const B=L.slice(i0+1,i1),out=[],kg=/^(\d+,\d{3})\s*kg\s+(?:a\s+)?(\d+,\d{2})\s*€\s*\/\s*kg\s+(\d+,\d{2})$/;
   let sec=null,pend=null;
   const mk=(p,u,w,r,i)=>{const o={producto:p.toUpperCase()};if(sec)o.seccion=sec;o.unidades=u;o.peso_kg=w;o.precio_ref=r;o.importe=i;out.push(o)};
   B.forEach((l,k)=>{
@@ -105,7 +160,7 @@ function parseMercadona(L){
 function validate(d){
   const E=[],T=d&&d.tickets;
   if(!d||d.version!==1||!Array.isArray(T)||!T.length)return['Formato inválido: se espera {"version":1,"tickets":[...]}'];
-  Object.keys(d).forEach(k=>{if(!['version','tickets','diccionario'].includes(k))E.push('Campo no permitido: '+k)});
+  Object.keys(d).forEach(k=>{if(!['version','tickets','diccionario','lista','ideas'].includes(k))E.push('Campo no permitido: '+k)});
   T.forEach((t,i)=>{
     const p=`Ticket ${i+1}: `;
     Object.keys(t).forEach(k=>{if(!KT.includes(k))E.push(p+'campo no permitido "'+k+'"')});
@@ -129,6 +184,9 @@ function validate(d){
   (d.diccionario||[]).forEach((x,i)=>{
     if(!x||typeof x.producto!=='string'||typeof x.categoria!=='string'||(x.nombre!=null&&typeof x.nombre!=='string')||Object.keys(x).some(k=>!['producto','nombre','categoria'].includes(k))||PRIV.test(JSON.stringify(x)))E.push('Diccionario: entrada '+(i+1)+' inválida');
   });
+  ['lista','ideas'].forEach(k=>{if(d[k]!=null&&!Array.isArray(d[k]))E.push(k+': formato inválido')});
+  (Array.isArray(d.lista)?d.lista:[]).forEach((x,i)=>{if(!x||typeof x.producto!=='string'||!x.producto)E.push('Lista: entrada '+(i+1)+' inválida')});
+  (Array.isArray(d.ideas)?d.ideas:[]).forEach((x,i)=>{if(!x||typeof x.texto!=='string')E.push('Ideas: entrada '+(i+1)+' inválida')});
   return E;
 }
 const huella=t=>[t.fecha,t.hora||'',t.supermercado,t.total.toFixed(2),t.lineas.length].join('|');
@@ -162,13 +220,13 @@ function catMes(T,D){
 }
 const hash=s=>{let h=5381;for(let i=0;i<s.length;i++)h=(h*33^s.charCodeAt(i))>>>0;return h};
 // Firma del estado (tickets + diccionario): si cambia, hay datos sin copiar
-const firma=(T,D)=>hash(JSON.stringify([T.map(huella).sort(),D.map(x=>[x.producto,x.nombre||'',x.categoria]).sort((a,b)=>a[0].localeCompare(b[0]))]));
+const firma=(T,D,X)=>hash(JSON.stringify([T.map(huella).sort(),D.map(x=>[x.producto,x.nombre||'',x.categoria]).sort((a,b)=>a[0].localeCompare(b[0])),...(X&&X.length?[X]:[])]));
 function resumenCopia(d){const u=new Map();(d.tickets||[]).forEach(t=>u.set(huella(t),t));
   return{n:u.size,tot:[...u.values()].reduce((a,t)=>a+Math.round(t.total*100),0),dic:new Set((d.diccionario||[]).map(x=>x.producto)).size}}
 //#endcore
 
 // ---------- Almacenamiento (IndexedDB) ----------
-const DB=new Promise((ok,ko)=>{const q=indexedDB.open('compras',2);q.onupgradeneeded=()=>{const d=q.result;if(!d.objectStoreNames.contains('tickets'))d.createObjectStore('tickets',{keyPath:'id'});if(!d.objectStoreNames.contains('dic'))d.createObjectStore('dic',{keyPath:'producto'})};q.onsuccess=()=>ok(q.result);q.onerror=()=>ko(q.error)});
+const DB=new Promise((ok,ko)=>{const q=indexedDB.open('compras',3);q.onupgradeneeded=()=>{const d=q.result;if(!d.objectStoreNames.contains('tickets'))d.createObjectStore('tickets',{keyPath:'id'});if(!d.objectStoreNames.contains('dic'))d.createObjectStore('dic',{keyPath:'producto'});['lista','ideas'].forEach(n=>{if(!d.objectStoreNames.contains(n))d.createObjectStore(n,{keyPath:'id'})})};q.onsuccess=()=>ok(q.result);q.onerror=()=>ko(q.error)});
 const tx=async(m,f,st='tickets')=>{const db=await DB;return new Promise((ok,ko)=>{const t=db.transaction(st,m),s=t.objectStore(st),r=f(s);t.oncomplete=()=>ok(r&&r.result);t.onerror=()=>ko(t.error)})};
 const all=()=>tx('readonly',s=>s.getAll());
 const allDic=()=>tx('readonly',s=>s.getAll(),'dic');
@@ -211,7 +269,7 @@ $('file').onchange=async e=>{
   }
   e.target.value='';pending=ok;
   say(errs.length?errs.join('<hr>'):'Revisa la vista previa y pulsa Guardar.',errs.length?'err':'ok');
-  preview();
+  preview();tab('tickets');
 };
 function preview(){
   if(!pending.length){$('pend').innerHTML='';return}
@@ -224,7 +282,7 @@ const ticketHTML=t=>`<details class="card"><summary><b>${t.fecha}</b> ${t.hora||
 <table><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr>${t.lineas.map(l=>`<tr><td>${esc(l.producto)}${l.seccion?` <span class="mut">· ${esc(l.seccion)}</span>`:''}</td><td>${l.unidades!=null?l.unidades:l.peso_kg.toFixed(3)+' kg'}</td><td>${eur(l.precio_ref)}${l.peso_kg!=null?'/kg':''}</td><td>${eur(l.importe)}</td></tr>`).join('')}</table></details>`;
 async function render(){
   const T=(await all()).sort((a,b)=>(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||'')));
-  renderDic();$('count').textContent=T.length?`(${T.length})`:'';
+  renderDic();renderLista();renderIdeas();$('count').textContent=T.length?`(${T.length})`:'';
   $('list').innerHTML=T.length?T.map(ticketHTML).join(''):'<p class="mut">Aún no hay tickets. Importa un PDF de ticket digital.</p>';
 }
 // ---------- Diccionario (fase 3) ----------
@@ -325,16 +383,16 @@ const meta=()=>{try{return JSON.parse(localStorage.getItem('compras_copia'))}cat
 const setMeta=m=>{try{localStorage.setItem('compras_copia',JSON.stringify(m))}catch(e){}};
 async function crearCopia(){
   const T=(await all()).map(({id,...t})=>t),D=(await allDic()).map(x=>({producto:x.producto,nombre:x.nombre,categoria:x.categoria}));
-  return{version:1,tickets:T,diccionario:D};
+  return{version:1,tickets:T,diccionario:D,lista:await list('lista'),ideas:await list('ideas')};
 }
 function bajar(d,pre){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,1)],{type:'application/json'}));a.download=`${pre}-${new Date().toISOString().slice(0,10)}.json`;a.click()}
-const vaciar=async()=>{await tx('readwrite',s=>s.clear());await tx('readwrite',s=>s.clear(),'dic')};
-const marcar=d=>setMeta({f:new Date().toISOString(),n:d.tickets.length,s:firma(d.tickets,d.diccionario)});
+const vaciar=async()=>{await tx('readwrite',s=>s.clear());await tx('readwrite',s=>s.clear(),'dic');await tx('readwrite',s=>s.clear(),'lista');await tx('readwrite',s=>s.clear(),'ideas')};
+const marcar=d=>setMeta({f:new Date().toISOString(),n:d.tickets.length,s:firma(d.tickets,d.diccionario,xi(d.ideas||[]))});
 
 async function renderCopia(){
   const T=await all(),D=await allDic(),m=meta(),el=$('aviso');
   if(!T.length&&!D.length){el.innerHTML='';return}
-  const cambios=!m||m.s!==firma(T,D),dias=m?Math.floor((Date.now()-new Date(m.f))/864e5):0,nuevos=m?Math.max(0,T.length-m.n):T.length;
+  const cambios=!m||m.s!==firma(T,D,xi(await list('ideas'))),dias=m?Math.floor((Date.now()-new Date(m.f))/864e5):0,nuevos=m?Math.max(0,T.length-m.n):T.length;
   const cuando=m?(dias<1?'hoy':`hace ${dias} día${dias>1?'s':''}`):'';
   el.innerHTML=!m?`<p class="warn">⚠ Aún no has hecho ninguna copia de seguridad. Si limpias los datos del navegador, lo perderías todo.</p>`
    :cambios?`<p class="${dias>=7?'warn':'mut'}">${dias>=7?'⚠ ':''}Última copia ${cuando}. Desde entonces hay cambios sin copiar${nuevos?` (${nuevos} ticket${nuevos>1?'s':''} nuevo${nuevos>1?'s':''})`:''}.</p>`
@@ -355,7 +413,7 @@ $('rest').onchange=async e=>{
   const w=prompt(`Esta copia tiene ${r.n} tickets (${eur(r.tot/100)}) y ${r.dic} entradas de diccionario.\nAhora tienes ${a.n} tickets (${eur(a.tot/100)}).\n\nSe BORRARÁ todo lo actual y se sustituirá por la copia. Antes se descargará una copia de lo actual.\n\nEscribe REEMPLAZAR para continuar:`);
   if(w!=='REEMPLAZAR'){say('Cancelado. No se ha cambiado nada.');return}
   if(act.tickets.length)bajar(act,'copia-previa');
-  await vaciar();await addTickets(d.tickets);await addDic(d.diccionario||[]);
+  await vaciar();await addTickets(d.tickets);await addDic(d.diccionario||[]);await addLista(d.lista||[]);await addIdeas(d.ideas||[]);
   const nuevo=await crearCopia(),v=resumenCopia(nuevo),ok=v.n===r.n&&v.tot===r.tot&&v.dic===r.dic;
   marcar(nuevo);
   say(ok?`✓ Restauración verificada: ${v.n} tickets, ${eur(v.tot/100)} y ${v.dic} entradas de diccionario. Coincide con la copia.`
@@ -365,9 +423,159 @@ $('rest').onchange=async e=>{
 $('wipe').onclick=async()=>{
   const d=await crearCopia();
   if(!d.tickets.length&&!d.diccionario.length){say('No hay nada que borrar.');return}
-  if(prompt(`Se borrarán ${d.tickets.length} tickets y todo el diccionario de este navegador.\nAntes se descargará una copia.\n\nEscribe BORRAR para continuar:`)!=='BORRAR'){say('Cancelado. No se ha cambiado nada.');return}
+  if(prompt(`Se borrarán ${d.tickets.length} tickets todo el diccionario, la lista y las ideas de este navegador.\nAntes se descargará una copia.\n\nEscribe BORRAR para continuar:`)!=='BORRAR'){say('Cancelado. No se ha cambiado nada.');return}
   bajar(d,'copia-previa');await vaciar();render();
   say('Datos borrados. Tienes la copia descargada: restáurala desde “Zona de riesgo”.','warn');
 };
+// ---------- v7: navegación, IA, lista de la compra, ideas ----------
+const VERSION=7,uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const put=(st,x)=>tx('readwrite',s=>s.put(x),st),del=(st,id)=>tx('readwrite',s=>s.delete(id),st),list=st=>tx('readonly',s=>s.getAll(),st);
+const xi=I=>[...I].sort((a,b)=>a.id.localeCompare(b.id)).map(x=>[x.texto,!!x.hecho]);
+async function addLista(a){for(const x of a)await put('lista',{id:x.id||uid(),producto:x.producto,cat:x.cat||'Otros',cant:x.cant||'',nota:x.nota||'',ok:!!x.ok})}
+async function addIdeas(a){for(const x of a)await put('ideas',{id:x.id||uid(),texto:x.texto,hecho:!!x.hecho,f:x.f||new Date().toISOString()})}
+async function copiar(t){try{await navigator.clipboard.writeText(t);return true}catch(e){const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();let ok=false;try{ok=document.execCommand('copy')}catch(x){}a.remove();return ok}}
+const cp=async(t,m)=>{const ok=await copiar(t);say(ok?m:'No se pudo copiar automáticamente. Selecciona el texto y cópialo a mano.',ok?'ok':'err')};
+const grp=(bs,ps,n)=>{document.querySelectorAll(bs).forEach(b=>b.classList.toggle('on',b.dataset.t===n));document.querySelectorAll(ps).forEach(p=>p.style.display=p.id.slice(2)===n?'':'none')};
+let cursub='ia';
+const tab=n=>{grp('#nav button','.tab',n);scrollTo(0,0);if(n==='lista')renderLista();if(n==='ideas')renderIdeas();if(n==='mas')sub(cursub);Object.values(ch).forEach(c=>c.resize())};
+const sub=n=>{cursub=n;grp('#sub button','.sub',n);if(n==='ia')renderIA()};
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>tab(b.dataset.t));
+document.querySelectorAll('#sub button').forEach(b=>b.onclick=()=>sub(b.dataset.t));
+
+// ----- IA -----
+const PIA=`Actúa como analista de economía doméstica. Te paso un resumen AGREGADO de mis compras en supermercados (no incluye tickets individuales ni datos personales). Respóndeme en español, con cifras concretas del resumen y sin inventar datos que no aparezcan en él.
+
+1. ¿Dónde se va más dinero y qué cambió respecto al mes anterior? (categorías y supermercados; ten en cuenta que el último mes puede estar incompleto).
+2. ¿Qué productos o categorías suben por encima de la inflación? Si usas cifras de inflación, indica la fuente y la fecha, y avisa si no estás seguro.
+3. Ideas concretas de ahorro: marcas blancas, cambio de formato, cambio de súper, compras recurrentes o a granel.
+4. Alertas y objetivos para el mes siguiente (importe orientativo por categoría).
+
+Termina con un resumen de 5 líneas y las 3 acciones prioritarias.
+
+--- MIS DATOS ---`;
+const PPDF=`Te adjunto la foto de un ticket de supermercado (Mercadona). Genera un PDF con la TRANSCRIPCIÓN LITERAL del ticket completo.
+
+Reglas estrictas:
+1. Transcribe TODO lo impreso en el ticket, de arriba abajo, incluida la CABECERA (nombre de la tienda, dirección, fecha y hora, número de factura simplificada, la línea "Descripción", etc.) y el PIE (línea "TOTAL (€)", IVA, forma de pago, etc.). No omitas ni resumas ninguna línea.
+2. No añadas, corrijas, traduzcas, reordenes ni "mejores" nada: ni palabras, ni símbolos, ni comentarios. En los productos por peso copia exactamente el formato del ticket, por ejemplo: 0,350 kg 1,99 €/kg 0,70. PROHIBIDO insertar "a", "x", "=" o cualquier otra palabra o símbolo entre el peso, el precio por kg y el importe.
+3. Una línea del PDF por cada línea del ticket, en el mismo orden, con los mismos decimales (coma decimal) y el mismo texto.
+4. TODO SEGUIDO: un único flujo continuo de texto plano. El PDF NO debe llevar encabezados ni pies de página propios, ni números de página, ni título, ni marcas de agua, ni tablas, ni columnas, ni negritas, ni nada que no esté en el ticket. Si el texto ocupa más de una página, que sea solo por desbordamiento natural, sin repetir ninguna línea.
+5. Si hay varias fotos del mismo ticket, únelas en orden sin repetir líneas solapadas.
+6. Si algo es ilegible, escribe [ILEGIBLE] en lugar de adivinar.
+7. Responde solo con el PDF, sin explicaciones.`;
+const PJSON=`Te adjunto la foto de un ticket de supermercado. Devuélveme SOLO un JSON válido (sin explicaciones ni bloques de markdown) con exactamente esta estructura:
+
+{"version":1,"tickets":[{"fecha":"AAAA-MM-DD","hora":"HH:MM","supermercado":"Mercadona","total":0.00,"lineas":[{"producto":"NOMBRE TAL CUAL EN MAYÚSCULAS","seccion":"opcional (p. ej. PESCADO)","unidades":2,"precio_ref":1.50,"importe":3.00},{"producto":"PEPINO","peso_kg":0.350,"precio_ref":1.99,"importe":0.70}]}]}
+
+Reglas estrictas:
+- Cada línea lleva "unidades" (productos por unidad) O "peso_kg" (productos por peso), nunca los dos ni ninguno. Omite el que no aplique.
+- "precio_ref" es el precio por unidad o por kg tal como figura en el ticket; "importe" es el importe de la línea. Números con punto decimal, sin símbolo €.
+- Copia los nombres de producto literalmente, sin corregir ni traducir.
+- La suma de los importes debe ser igual al "total". Si no cuadra, revisa tu lectura; no inventes ni ajustes líneas.
+- No incluyas datos de tarjeta, números de autorización, teléfonos ni ningún otro dato personal.
+- Si algo es ilegible, no lo adivines: dímelo fuera del JSON.`;
+async function textoIA(mes){
+  const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x]));
+  if(!T.length)return '';
+  const R=resumen(T,D,mes),f=v=>eur(v/100),pc=(v,t)=>(t?v/t*100:0).toFixed(0)+'%',ms=Object.entries(R.m).sort(),hoy=new Date().toISOString().slice(0,7);
+  const S=mes?T.filter(t=>t.fecha.startsWith(mes)):T,L=[];
+  const dc=(o,t)=>sorted(o).map(([k,v])=>`${k} ${f(v)} (${pc(v,t)})`).join('; ');
+  L.push(`Periodo: ${mes?mesNom(mes):'todo el histórico ('+ms[0][0]+' a '+ms[ms.length-1][0]+')'} · ${R.n} tickets · gasto ${f(R.tot)} · media por ticket ${R.n?f(R.tot/R.n):'—'}`);
+  L.push('Supermercados: '+dc(R.sup,R.tot));
+  L.push('Gasto por categoría: '+dc(R.cat,R.tot));
+  L.push('Gasto por mes: '+ms.map(([k,v])=>`${k} ${f(v)}`).join('; ')+(R.m[hoy]?` (OJO: ${hoy} está en curso e incompleto)`:''));
+  const M=catMes(T,D),mm=M.meses.slice(-4);
+  L.push(`Categorías mes a mes (${mm.join(' / ')}): `+Object.entries(M.cat).map(([c,v])=>c+': '+mm.map(m=>v[m]?f(v[m]):'0').join(' / ')).join('; '));
+  const V=variaciones(precios(T,D)),vf=a=>a.length?'\n  '+a.map(x=>`${x.nom} (${x.sup}): ${eur(x.a.v)} → ${eur(x.b.v)}/${x.tipo} entre ${x.a.fecha} y ${x.b.fecha} (${pct(x.pct)})`).join('\n  '):' ninguno';
+  L.push('Productos que más suben (mismo súper):'+vf(V.filter(x=>x.pct>=0.5).sort((a,b)=>b.pct-a.pct).slice(0,10)));
+  L.push('Productos que bajan:'+vf(V.filter(x=>x.pct<=-0.5).sort((a,b)=>a.pct-b.pct).slice(0,5)));
+  const P={};S.forEach(t=>t.lineas.forEach(l=>{const k=(D[l.producto]||{}).nombre||l.producto,o=P[k]=P[k]||{n:0,v:0};o.n++;o.v+=Math.round(l.importe*100)}));
+  L.push('Productos con más gasto: '+Object.entries(P).sort((a,b)=>b[1].v-a[1].v).slice(0,15).map(([k,o])=>`${k} (${o.n} compras, ${f(o.v)})`).join('; '));
+  const w=[];if(R.cat['Sin categoría'])w.push(`${f(R.cat['Sin categoría'])} sin categoría`);if(R.m[hoy])w.push('el mes en curso no está completo');
+  L.push('Avisos sobre los datos: '+(w.join('; ')||'ninguno')+'. Las variaciones de precio comparan el mismo producto en el mismo súper (primera vs última compra).');
+  return L.join('\n');
+}
+async function renderIA(){
+  const T=await all(),ms=[...new Set(T.map(t=>t.fecha.slice(0,7)))].sort().reverse(),cur=$('iaper').value;
+  $('iaper').innerHTML='<option value="">Todo el periodo</option>'+ms.map(m=>`<option value="${m}"${m===cur?' selected':''}>${mesNom(m)}</option>`).join('');
+  const t=await textoIA($('iaper').value);$('iatxt').value=t?PIA+'\n'+t:'Importa tickets para generar el resumen.';$('iatxt').dataset.ok=t?1:'';
+}
+$('iaper').onchange=renderIA;
+$('iacopy').onclick=()=>$('iatxt').dataset.ok?cp($('iatxt').value,'Resumen + prompt copiados. Pégalos en tu IA.'):say('Aún no hay datos.','warn');
+$('pp').onclick=()=>cp(PPDF,'Prompt (PDF) copiado. Pégalo en la IA y adjunta la foto.');
+$('pj').onclick=()=>cp(PJSON,'Prompt (JSON) copiado. Pégalo en la IA, adjunta la foto y guarda la respuesta como .json para importarla.');
+
+// ----- Lista de la compra -----
+let LST=[],HAB={};
+const cap=s=>s.charAt(0)+s.slice(1).toLowerCase();
+async function habituales(){
+  const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),H={};
+  T.forEach(t=>{const seen=new Set();t.lineas.forEach(l=>{const d=D[l.producto]||{},nom=d.nombre||cap(l.producto),k=nom.toLowerCase(),h=H[k]=H[k]||{nom,cat:d.categoria||suggest(l.producto,l.seccion)||'Otros',n:0,s:{}};if(!seen.has(k)){seen.add(k);h.n++;h.s[t.supermercado]=(h.s[t.supermercado]||0)+1}})});
+  return H;
+}
+const supOf=x=>{const h=HAB[x.producto.toLowerCase()];return h?Object.entries(h.s).sort((a,b)=>b[1]-a[1])[0][0]:'Sin súper habitual'};
+function agrupar(A,g){
+  if(g==='no')return[['',[...A].sort((p,q)=>!!p.ok-!!q.ok)]];
+  const m={};A.forEach(x=>{const k=g==='cat'?(x.cat||'Otros'):supOf(x);(m[k]=m[k]||[]).push(x)});
+  const o=k=>{const i=CATS.indexOf(k);return i<0?99:i};
+  return Object.entries(m).sort((a,b)=>(g==='cat'?o(a[0])-o(b[0]):0)||a[0].localeCompare(b[0])).map(([k,a])=>[k,a.sort((p,q)=>!!p.ok-!!q.ok||p.producto.localeCompare(q.producto))]);
+}
+async function renderLista(){
+  LST=await list('lista');HAB=await habituales();
+  const HV=Object.values(HAB).sort((a,b)=>b.n-a.n),have=new Set(LST.filter(x=>!x.ok).map(x=>x.producto.toLowerCase())),g=$('lg').value;
+  $('dl').innerHTML=HV.map(h=>`<option value="${esc(h.nom)}">`).join('');
+  $('hab').innerHTML=HV.filter(h=>!have.has(h.nom.toLowerCase())).slice(0,40).map(h=>`<button class="sec chip" data-n="${esc(h.nom)}">${esc(h.nom)}</button>`).join('')||'<span class="mut">Se llenará con tus tickets.</span>';
+  const cv=$('lc').value;
+  $('lc').innerHTML='<option value="">Categoría (auto)</option>'+[...new Set([...CATS,...HV.map(h=>h.cat)])].map(c=>`<option${c===cv?' selected':''}>${esc(c)}</option>`).join('');
+  const P=LST.filter(x=>!x.ok).length;$('lcnt').textContent=LST.length?`${P} pendientes · ${LST.length-P} marcados`:'';
+  $('lbody').innerHTML=LST.length?agrupar(LST,g).map(([k,a])=>(k?`<h2 style="font-size:1rem">${esc(k)}</h2>`:'')+a.map(x=>`<div class="li${x.ok?' done':''}"><input type="checkbox" class="ck" data-i="${x.id}"${x.ok?' checked':''}><span class="tx">${esc(x.producto)}</span><input class="qt" data-i="${x.id}" placeholder="cant." value="${esc(x.cant||'')}"><button class="sec del" data-i="${x.id}">✕</button><input class="nt" data-i="${x.id}" placeholder="nota" value="${esc(x.nota||'')}"></div>`).join('')).join(''):'<p class="mut">La lista está vacía. Añade productos arriba o toca los habituales.</p>';
+}
+async function addItem(nom,cant,nota,cat){
+  nom=(nom||'').trim();if(!nom)return;
+  if(!Object.keys(HAB).length)HAB=await habituales();
+  const h=HAB[nom.toLowerCase()];
+  if(LST.some(x=>!x.ok&&x.producto.toLowerCase()===nom.toLowerCase())){say(`“${esc(nom)}” ya está en la lista.`,'warn');return}
+  await put('lista',{id:uid(),producto:h?h.nom:nom,cat:h?h.cat:(cat||'Otros'),cant:cant||'',nota:nota||'',ok:false});renderLista();
+}
+$('ladd').onclick=async()=>{await addItem($('ln').value,$('lq').value.trim(),$('lnt').value.trim(),$('lc').value);$('ln').value=$('lq').value=$('lnt').value='';$('ln').focus()};
+$('ln').onkeydown=e=>{if(e.key==='Enter')$('ladd').click()};
+$('hab').onclick=e=>{const b=e.target.closest('[data-n]');if(b)addItem(b.dataset.n)};
+$('lg').onchange=renderLista;
+$('lbody').onchange=async e=>{const el=e.target,x=LST.find(y=>y.id===el.dataset.i);if(!x)return;
+  if(el.classList.contains('ck'))x.ok=el.checked;else if(el.classList.contains('qt'))x.cant=el.value.trim();else if(el.classList.contains('nt'))x.nota=el.value.trim();else return;
+  await put('lista',x);if(el.classList.contains('ck'))renderLista()};
+$('lbody').onclick=async e=>{const b=e.target.closest('.del');if(!b)return;await del('lista',b.dataset.i);renderLista()};
+$('lquit').onclick=async()=>{for(const x of LST.filter(y=>y.ok))await del('lista',x.id);renderLista()};
+$('lclr').onclick=async()=>{if(LST.length&&confirm('¿Vaciar toda la lista?')){for(const x of LST)await del('lista',x.id);renderLista()}};
+function textoLista(){
+  const P=LST.filter(x=>!x.ok);if(!P.length)return '';
+  const ln=x=>`⬜ ${x.producto}${x.cant?' ('+x.cant+')':''}${x.nota?' — _'+x.nota.replace(/\s*\n\s*/g,' ')+'_':''}`,g=$('lg').value;
+  return `🛒 *Lista de la compra* (${P.length})\n`+agrupar(P,g).map(([k,a])=>(k?`\n*${k}*\n`:'')+a.map(ln).join('\n')).join('\n');
+}
+$('lcopy').onclick=()=>{const t=textoLista();t?cp(t,'Lista copiada. Pégala en WhatsApp y se verá con formato.'):say('No hay productos pendientes en la lista.','warn')};
+
+// ----- Ideas -----
+let IDS=[];const tm={};
+const fit=el=>{el.style.height='auto';el.style.height=Math.max(64,el.scrollHeight+4)+'px'};
+async function renderIdeas(){
+  IDS=(await list('ideas')).sort((a,b)=>(a.f||'').localeCompare(b.f||''));
+  const fl=$('if').value,V=IDS.filter(x=>fl==='all'||(fl==='done')===!!x.hecho);
+  $('ilist').innerHTML=V.length?V.map(x=>`<div class="card idea${x.hecho?' done':''}"><textarea class="idt" data-i="${x.id}" placeholder="Escribe tu idea…">\n${esc(x.texto)}</textarea><div class="row" style="margin-top:6px"><label class="row" style="gap:6px"><input type="checkbox" class="idc" data-i="${x.id}"${x.hecho?' checked':''}> Implementada</label><span style="flex:1"></span><button class="sec icp" data-i="${x.id}">Copiar</button><button class="sec idl" data-i="${x.id}">🗑</button></div></div>`).join(''):'<p class="mut">No hay ideas en esta vista.</p>';
+  document.querySelectorAll('.idt').forEach(fit);
+}
+$('if').onchange=renderIdeas;
+$('inew').onclick=async()=>{$('if').value='pend';await put('ideas',{id:uid(),texto:'',hecho:false,f:new Date().toISOString()});await renderIdeas();const a=document.querySelectorAll('.idt');if(a.length)a[a.length-1].focus()};
+$('ilist').oninput=e=>{const el=e.target;if(!el.classList.contains('idt'))return;fit(el);const x=IDS.find(y=>y.id===el.dataset.i);if(!x)return;x.texto=el.value;
+  clearTimeout(tm[x.id]);tm[x.id]=setTimeout(async()=>{await put('ideas',x);renderCopia()},400)};
+$('ilist').onchange=async e=>{const el=e.target;if(!el.classList.contains('idc'))return;const x=IDS.find(y=>y.id===el.dataset.i);if(!x)return;x.hecho=el.checked;await put('ideas',x);renderIdeas();renderCopia()};
+$('ilist').onclick=async e=>{const b=e.target.closest('button');if(!b)return;const x=IDS.find(y=>y.id===b.dataset.i);if(!x)return;
+  if(b.classList.contains('icp'))cp(x.texto,'Idea copiada.');
+  else if(b.classList.contains('idl')&&(!x.texto.trim()||confirm('¿Borrar esta idea?'))){await del('ideas',x.id);renderIdeas();renderCopia()}};
+const pend=()=>IDS.filter(x=>!x.hecho&&x.texto.trim());
+$('icp').onclick=()=>{const P=pend();P.length?cp(P.map((x,i)=>`${i+1}. ${x.texto.trim()}`).join('\n\n'),'Ideas pendientes copiadas.'):say('No hay ideas pendientes.','warn')};
+$('ipr').onclick=()=>{const P=pend();if(!P.length){say('No hay ideas pendientes.','warn');return}
+  cp(`Tengo una aplicación web de gestión de gastos en supermercados (un único archivo HTML, versión ${VERSION}, que te adjunto). Funciona en local, guarda los datos en IndexedDB y tiene copias JSON.\n\nQuiero la siguiente versión (${VERSION+1}) sin perder funcionalidad ni compatibilidad con las copias existentes. Mejoras a implementar:\n\n${P.map((x,i)=>`${i+1}. ${x.texto.trim()}`).join('\n\n')}\n\nAntes de programar, dame feedback e ideas y espera mi confirmación. Después, devuélveme el HTML completo.`,'Prompt de mejora copiado.')};
+
+grp('#sub button','.sub','ia');tab('panel');
 render();
 </script></body></html>
