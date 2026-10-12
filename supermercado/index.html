@@ -26,13 +26,10 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
 .chip{padding:5px 10px;margin:3px 3px 0 0;font-size:.85rem}
 .li{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd)}.li .tx{flex:1;min-width:100px}.li.done .tx{text-decoration:line-through;color:var(--mut)}.li .qt{width:5rem}.li .nt{flex-basis:100%;margin-left:30px;max-width:calc(100% - 30px)}
 .idea textarea{width:100%;resize:vertical}.idea.done textarea{text-decoration:line-through;color:var(--mut)}
+#toast{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:10;max-width:90%;box-shadow:0 2px 8px #0004}#toast.err{background:var(--err);color:#fff}
 </style></head><body>
-<h1>🛒 Mis compras <small class="mut">v7</small></h1>
+<h1>🛒 Mis compras <small class="mut">v8</small></h1>
 <p class="mut">Tus datos se guardan solo en este navegador. Nada se envía a ningún servidor.</p>
-<div class="row">
-  <label class="btn">Importar PDF o JSON<input id="file" type="file" accept=".pdf,.json,application/pdf,application/json" multiple></label>
-  <button class="sec" id="exp">Exportar copia (JSON)</button>
-</div>
 <div id="aviso"></div>
 <div id="msg"></div>
 
@@ -76,9 +73,10 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
   <datalist id="dl"></datalist>
   <div class="row" style="margin-top:6px"><input id="lnt" placeholder="Nota (opcional)" style="flex:2;min-width:150px"><select id="lc"></select><button id="ladd">Añadir</button></div>
 </div>
-<details class="card"><summary>Habituales (toca para añadir)</summary><div id="hab"></div></details>
+<details class="card"><summary>Habituales (toca para añadir)</summary><div class="row" style="margin:6px 0"><select id="hf"><option value="top">Más frecuentes (40)</option><option value="all">Todos</option></select><span class="mut">Por categoría y en orden alfabético</span></div><div id="hab"></div></details>
 <div class="row"><label class="mut">Agrupar por <select id="lg"><option value="cat">categoría</option><option value="sup">supermercado</option><option value="no">sin agrupar</option></select></label><span class="mut" id="lcnt"></span></div>
 <div id="lbody"></div>
+<div id="lest"></div>
 <div class="row" style="margin-top:10px"><button id="lcopy">Copiar para WhatsApp</button><button class="sec" id="lquit">Quitar marcados</button><button class="sec" id="lclr">Vaciar</button></div>
 <p class="mut">Se copian solo los productos sin marcar. En WhatsApp, pega el texto y se verá con negritas y casillas.</p>
 </section>
@@ -97,7 +95,7 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
 </section>
 
 <section class="tab" id="t-mas">
-<div class="pills" id="sub"><button data-t="ia">🤖 IA</button><button data-t="prod">📖 Productos</button><button data-t="copia">💾 Copias</button></div>
+<div class="pills" id="sub"><button data-t="ia">🤖 IA</button><button data-t="prod">📖 Productos</button><button data-t="copia">💾 Datos</button></div>
 <div class="sub" id="s-ia">
   <div class="card"><b>1. Analizar mi gasto</b>
     <p class="mut">Genera un resumen con datos agregados (sin tickets individuales) y el prompt de análisis. Pégalo en Gemini, ChatGPT o Claude.</p>
@@ -106,14 +104,21 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
   <div class="card"><b>2. Pasar un ticket de foto a la app</b>
     <p class="mut">Adjunta la foto a la IA junto con el prompt. <b>PDF</b>: guarda el resultado y impórtalo. <b>JSON</b>: más robusto (la app comprueba que las líneas sumen el total).</p>
     <div class="row"><button id="pp">Copiar prompt (PDF)</button><button class="sec" id="pj">Copiar prompt (JSON)</button></div></div>
+  <div class="card"><b>3. Revisar mis categorías</b>
+    <p class="mut">Envía todo el diccionario (producto, nombre legible y categoría) para que la IA compruebe si son correctas y proponga cambios o categorías nuevas. Los cambios los aplicas tú en Más → Productos.</p>
+    <button id="pd">Copiar prompt de revisión de categorías</button></div>
 </div>
 <div class="sub" id="s-prod">
   <h2>Productos y categorías <span class="mut" id="dcount"></span></h2>
   <p class="mut">Pon la misma categoría a cada producto. Si dos productos (o de dos súper) tienen el mismo <b>nombre legible</b>, la app los tratará como el mismo producto.</p>
+  <div class="row" style="margin-bottom:8px"><input id="dq" placeholder="Buscar producto…" style="flex:1;min-width:150px"><select id="dfil"><option value="">Todos</option><option value="sin">Solo sin categoría</option></select></div>
   <div id="dic"></div>
 </div>
 <div class="sub" id="s-copia">
-  <p class="mut">La copia incluye tickets, diccionario, lista de la compra e ideas. Usa “Exportar copia” (arriba) para descargarla.</p>
+  <div class="card"><b>Importar y exportar</b>
+    <p class="mut">Importar <b>suma</b> tickets (PDF o JSON) y diccionario. La copia (JSON) incluye tickets, diccionario, lista de la compra e ideas.</p>
+    <div class="row"><label class="btn">Importar PDF o JSON<input id="file" type="file" accept=".pdf,.json,application/pdf,application/json" multiple></label>
+    <button class="sec" id="exp">Exportar copia (JSON)</button></div></div>
 <details class="card" style="margin-top:12px"><summary><b>Zona de riesgo</b>: restaurar o borrar todo</summary>
   <p class="mut">El botón principal de importar <b>suma</b>. Aquí, <b>Restaurar</b> sustituye todo lo que tienes por el contenido de una copia. Antes de cualquier cambio se descarga una copia de lo actual y se te pide escribir una palabra para confirmar.</p>
   <div class="row"><button class="sec" id="restb">Restaurar copia (reemplaza todo)</button><input id="rest" type="file" accept=".json,application/json">
@@ -122,12 +127,13 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
 </div>
 </section>
 
+<div id="toast"></div>
 <nav id="nav"><button data-t="panel"><span>📊</span>Panel</button><button data-t="precios"><span>💲</span>Precios</button><button data-t="lista"><span>🛒</span>Lista</button><button data-t="tickets"><span>🧾</span>Tickets</button><button data-t="ideas"><span>💡</span>Ideas</button><button data-t="mas"><span>⋯</span>Más</button></nav>
 
 <script>
 //#core
 const PRIV=/\*{2,}|\b(VISA|MASTERCARD|MAESTRO|AMEX|IBAN)\b|\b(AUT|ARC|AID|OP|TARJ)\b\.?\s*:|\b\d{9,}\b|\d{4}[ -]\d{4}[ -]\d{4}|@|TEL[ÉE]FONO/i;
-const KT=['fecha','hora','supermercado','total','lineas'], KL=['producto','seccion','unidades','peso_kg','precio_ref','importe'];
+const KT=['fecha','hora','supermercado','total','lineas'], KL=['producto','seccion','unidades','peso_kg','precio_ref','importe','original'];
 const n=s=>parseFloat(String(s).replace(',','.'));
 const r2=x=>Math.round(x*100)/100;
 
@@ -174,6 +180,7 @@ function validate(d){
       const q=`${p}línea ${j+1}: `;
       Object.keys(l).forEach(k=>{if(!KL.includes(k))E.push(q+'campo no permitido "'+k+'"')});
       if(typeof l.producto!=='string'||!l.producto)E.push(q+'falta producto');
+      if(l.original!=null&&typeof l.original!=='string')E.push(q+'original inválido');
       if((l.unidades==null)===(l.peso_kg==null))E.push(q+'debe tener exactamente uno de unidades o peso_kg');
       if(typeof l.precio_ref!=='number'||typeof l.importe!=='number')E.push(q+'precio_ref/importe inválidos');
       s+=l.importe||0;
@@ -220,7 +227,7 @@ function catMes(T,D){
 }
 const hash=s=>{let h=5381;for(let i=0;i<s.length;i++)h=(h*33^s.charCodeAt(i))>>>0;return h};
 // Firma del estado (tickets + diccionario): si cambia, hay datos sin copiar
-const firma=(T,D,X)=>hash(JSON.stringify([T.map(huella).sort(),D.map(x=>[x.producto,x.nombre||'',x.categoria]).sort((a,b)=>a[0].localeCompare(b[0])),...(X&&X.length?[X]:[])]));
+const firma=(T,D,X)=>hash(JSON.stringify([T.map(huella).sort(),D.map(x=>[x.producto,x.nombre||'',x.categoria]).sort((a,b)=>a[0].localeCompare(b[0])),...(X&&X.length?[X]:[]),...(T.some(t=>t.lineas.some(l=>l.original))?[T.flatMap(t=>t.lineas.filter(l=>l.original).map(l=>huella(t)+l.producto)).sort()]:[])]));
 function resumenCopia(d){const u=new Map();(d.tickets||[]).forEach(t=>u.set(huella(t),t));
   return{n:u.size,tot:[...u.values()].reduce((a,t)=>a+Math.round(t.total*100),0),dic:new Set((d.diccionario||[]).map(x=>x.producto)).size}}
 //#endcore
@@ -254,7 +261,8 @@ async function pdfLines(file){
 const $=id=>document.getElementById(id),eur=x=>x.toFixed(2).replace('.',',')+' €';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let pending=[],pdic=[];
-const say=(h,c='')=>$('msg').innerHTML=`<div class="card ${c}">${h}</div>`;
+const say=(h,c='')=>{$('msg').innerHTML=`<div class="card ${c}">${h}</div>`;scrollTo(0,0)};
+let tt;const toast=(m,c)=>{const e=$('toast');e.textContent=m;e.className=c||'';e.style.display='block';clearTimeout(tt);tt=setTimeout(()=>e.style.display='none',3500)};
 
 $('file').onchange=async e=>{
   const errs=[],ok=[];pdic=[];
@@ -273,17 +281,17 @@ $('file').onchange=async e=>{
 };
 function preview(){
   if(!pending.length){$('pend').innerHTML='';return}
-  $('pend').innerHTML=`<h2>Vista previa (${pending.length})</h2>`+pending.map(ticketHTML).join('')+
+  $('pend').innerHTML=`<h2>Vista previa (${pending.length})</h2>`+pending.map(t=>ticketHTML(t)).join('')+
    `<div class="row"><button id="save">Guardar ${pending.length} ticket(s)</button><button class="sec" id="drop">Descartar</button></div>`;
   $('save').onclick=async()=>{const r=await addTickets(pending);await addDic(pdic);pending=[];pdic=[];preview();say(`Añadidos: ${r.add}. Duplicados ignorados: ${r.dup}.`,r.dup?'warn':'ok');render()};
   $('drop').onclick=()=>{pending=[];pdic=[];preview();say('Descartado.')};
 }
-const ticketHTML=t=>`<details class="card"><summary><b>${t.fecha}</b> ${t.hora||''} · ${esc(t.supermercado)} · <b>${eur(t.total)}</b> <span class="mut">(${t.lineas.length} líneas)</span></summary>
-<table><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr>${t.lineas.map(l=>`<tr><td>${esc(l.producto)}${l.seccion?` <span class="mut">· ${esc(l.seccion)}</span>`:''}</td><td>${l.unidades!=null?l.unidades:l.peso_kg.toFixed(3)+' kg'}</td><td>${eur(l.precio_ref)}${l.peso_kg!=null?'/kg':''}</td><td>${eur(l.importe)}</td></tr>`).join('')}</table></details>`;
+const ticketHTML=(t,ed)=>`<details class="card"><summary><b>${t.fecha}</b> ${t.hora||''} · ${esc(t.supermercado)} · <b>${eur(t.total)}</b> <span class="mut">(${t.lineas.length} líneas)</span></summary>
+<table><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr>${t.lineas.map((l,j)=>`<tr><td>${esc(l.producto)}${l.original?` <span class="mut" title="Original: ${esc(l.original)}">(editado)</span>`:''}${ed?` <button class="sec edl" data-t="${esc(t.id)}" data-j="${j}" style="padding:0 7px">✎</button>`:''}${l.seccion?` <span class="mut">· ${esc(l.seccion)}</span>`:''}</td><td>${l.unidades!=null?l.unidades:l.peso_kg.toFixed(3)+' kg'}</td><td>${eur(l.precio_ref)}${l.peso_kg!=null?'/kg':''}</td><td>${eur(l.importe)}</td></tr>`).join('')}</table></details>`;
 async function render(){
   const T=(await all()).sort((a,b)=>(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||'')));
   renderDic();renderLista();renderIdeas();$('count').textContent=T.length?`(${T.length})`:'';
-  $('list').innerHTML=T.length?T.map(ticketHTML).join(''):'<p class="mut">Aún no hay tickets. Importa un PDF de ticket digital.</p>';
+  $('list').innerHTML=T.length?T.map(t=>ticketHTML(t,1)).join(''):'<p class="mut">Aún no hay tickets. Importa un PDF en Más → Datos.</p>';
 }
 // ---------- Diccionario (fase 3) ----------
 const CATS=['Frutas y verduras','Carne','Pescado','Lácteos y huevos','Panadería y bollería','Despensa','Bebidas','Congelados','Snacks y dulces','Higiene y belleza','Limpieza y hogar','Otros'];
@@ -301,15 +309,15 @@ const suggest=(p,sec)=>sec&&/PESCADO/i.test(sec)?'Pescado':((SUG.find(([r])=>r.t
 
 async function renderDic(){renderPanel();renderCopia();
   const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),P={};
-  T.forEach(t=>t.lineas.forEach(l=>{const p=P[l.producto]=P[l.producto]||{sec:l.seccion};}));
-  const names=Object.keys(P).sort((a,b)=>(!D[a]-!D[b])||a.localeCompare(b)),unk=names.filter(p=>!D[p]).length;
+  T.slice().sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))).forEach(t=>t.lineas.forEach(l=>{const p=P[l.producto]=P[l.producto]||{sec:l.seccion};p.v=l.precio_ref;p.t=l.peso_kg!=null?'/kg':'/ud';p.f=t.fecha}));
+  const names=Object.keys(P).sort((a,b)=>al(a,b)),unk=names.filter(p=>!D[p]).length;
   $('dcount').textContent=names.length?`(${names.length}${unk?` · ${unk} sin categoría`:''})`:'';
-  const cats=[...new Set([...CATS,...Object.values(D).map(x=>x.categoria)])];
+  const cats=[...new Set([...CATS,...Object.values(D).map(x=>x.categoria)])].sort(al);
   $('dic').innerHTML=names.length?(unk?'<div class="row" style="margin-bottom:8px"><button id="acc">Guardar las sugerencias de los sin categoría</button><span class="mut">Revisa antes las que estén en blanco.</span></div>':'')+
-   '<table><tr><th>Producto en el ticket</th><th>Nombre legible</th><th>Categoría</th></tr>'+names.map(p=>{
+   '<table><tr><th>Producto en el ticket</th><th>Nombre legible</th><th>Categoría</th><th>Último precio</th></tr>'+names.map(p=>{
      const d=D[p],c=d?d.categoria:suggest(p,P[p].sec);
-     return `<tr${d?'':' style="background:color-mix(in srgb,var(--warn) 15%,transparent)"'}><td>${esc(p)}</td><td><input class="nm" data-p="${esc(p)}" value="${esc(d?d.nombre:'')}" placeholder="opcional" style="width:100%"></td><td><select class="ct" data-p="${esc(p)}"><option value="">Elegir…</option>${cats.map(x=>`<option${x===c?' selected':''}>${esc(x)}</option>`).join('')}<option value="__new">+ Nueva categoría…</option></select></td></tr>`}).join('')+'</table>'
-   :'<p class="mut">Se llenará al importar tickets.</p>';
+     return `<tr data-q="${esc(p.toLowerCase())}" data-u="${d?'':1}"${d?'':' style="background:color-mix(in srgb,var(--warn) 15%,transparent)"'}><td>${esc(p)}</td><td><input class="nm" data-p="${esc(p)}" value="${esc(d?d.nombre:'')}" placeholder="opcional" style="width:100%"></td><td><select class="ct" data-p="${esc(p)}"><option value="">Elegir…</option>${cats.map(x=>`<option${x===c?' selected':''}>${esc(x)}</option>`).join('')}<option value="__new">+ Nueva categoría…</option></select></td><td class="mut" style="white-space:nowrap">${eur(P[p].v)}${P[p].t}<br>${P[p].f}</td></tr>`}).join('')+'</table>'
+   :'<p class="mut">Se llenará al importar tickets.</p>';fdic();
   document.querySelectorAll('#dic .ct,#dic .nm').forEach(el=>el.onchange=async()=>{
     const row=el.closest('tr');let c=row.querySelector('.ct').value;
     if(c==='__new'){c=(prompt('Nombre de la nueva categoría')||'').trim();if(!c){renderDic();return}}
@@ -428,13 +436,13 @@ $('wipe').onclick=async()=>{
   say('Datos borrados. Tienes la copia descargada: restáurala desde “Zona de riesgo”.','warn');
 };
 // ---------- v7: navegación, IA, lista de la compra, ideas ----------
-const VERSION=7,uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const VERSION=8,al=(a,b)=>a.localeCompare(b,'es'),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const put=(st,x)=>tx('readwrite',s=>s.put(x),st),del=(st,id)=>tx('readwrite',s=>s.delete(id),st),list=st=>tx('readonly',s=>s.getAll(),st);
 const xi=I=>[...I].sort((a,b)=>a.id.localeCompare(b.id)).map(x=>[x.texto,!!x.hecho]);
 async function addLista(a){for(const x of a)await put('lista',{id:x.id||uid(),producto:x.producto,cat:x.cat||'Otros',cant:x.cant||'',nota:x.nota||'',ok:!!x.ok})}
 async function addIdeas(a){for(const x of a)await put('ideas',{id:x.id||uid(),texto:x.texto,hecho:!!x.hecho,f:x.f||new Date().toISOString()})}
 async function copiar(t){try{await navigator.clipboard.writeText(t);return true}catch(e){const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();let ok=false;try{ok=document.execCommand('copy')}catch(x){}a.remove();return ok}}
-const cp=async(t,m)=>{const ok=await copiar(t);say(ok?m:'No se pudo copiar automáticamente. Selecciona el texto y cópialo a mano.',ok?'ok':'err')};
+const cp=async(t,m)=>{const ok=await copiar(t);toast(ok?m:'No se pudo copiar automáticamente. Selecciona el texto y cópialo a mano.',ok?'':'err')};
 const grp=(bs,ps,n)=>{document.querySelectorAll(bs).forEach(b=>b.classList.toggle('on',b.dataset.t===n));document.querySelectorAll(ps).forEach(p=>p.style.display=p.id.slice(2)===n?'':'none')};
 let cursub='ia';
 const tab=n=>{grp('#nav button','.tab',n);scrollTo(0,0);if(n==='lista')renderLista();if(n==='ideas')renderIdeas();if(n==='mas')sub(cursub);Object.values(ch).forEach(c=>c.resize())};
@@ -501,7 +509,7 @@ async function renderIA(){
   const t=await textoIA($('iaper').value);$('iatxt').value=t?PIA+'\n'+t:'Importa tickets para generar el resumen.';$('iatxt').dataset.ok=t?1:'';
 }
 $('iaper').onchange=renderIA;
-$('iacopy').onclick=()=>$('iatxt').dataset.ok?cp($('iatxt').value,'Resumen + prompt copiados. Pégalos en tu IA.'):say('Aún no hay datos.','warn');
+$('iacopy').onclick=()=>$('iatxt').dataset.ok?cp($('iatxt').value,'Resumen + prompt copiados. Pégalos en tu IA.'):toast('Aún no hay datos.');
 $('pp').onclick=()=>cp(PPDF,'Prompt (PDF) copiado. Pégalo en la IA y adjunta la foto.');
 $('pj').onclick=()=>cp(PJSON,'Prompt (JSON) copiado. Pégalo en la IA, adjunta la foto y guarda la respuesta como .json para importarla.');
 
@@ -509,38 +517,48 @@ $('pj').onclick=()=>cp(PJSON,'Prompt (JSON) copiado. Pégalo en la IA, adjunta l
 let LST=[],HAB={};
 const cap=s=>s.charAt(0)+s.slice(1).toLowerCase();
 async function habituales(){
-  const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),H={};
-  T.forEach(t=>{const seen=new Set();t.lineas.forEach(l=>{const d=D[l.producto]||{},nom=d.nombre||cap(l.producto),k=nom.toLowerCase(),h=H[k]=H[k]||{nom,cat:d.categoria||suggest(l.producto,l.seccion)||'Otros',n:0,s:{}};if(!seen.has(k)){seen.add(k);h.n++;h.s[t.supermercado]=(h.s[t.supermercado]||0)+1}})});
+  const T=(await all()).sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),H={};
+  T.forEach(t=>{const seen=new Set();t.lineas.forEach(l=>{const d=D[l.producto]||{},nom=d.nombre||cap(l.producto),k=nom.toLowerCase(),h=H[k]=H[k]||{nom,cat:suggest(l.producto,l.seccion)||'Otros',cd:true,n:0,s:{},ws:0,wn:0};
+    h.cd=h.cd&&!!d.categoria;if(d.categoria)h.cat=d.categoria;
+    if(!seen.has(k)){seen.add(k);h.n++;h.s[t.supermercado]=(h.s[t.supermercado]||0)+1}
+    h.pv=l.precio_ref;h.tipo=l.peso_kg!=null?'kg':'ud';if(l.peso_kg!=null){h.ws+=l.peso_kg;h.wn++}})});
   return H;
 }
 const supOf=x=>{const h=HAB[x.producto.toLowerCase()];return h?Object.entries(h.s).sort((a,b)=>b[1]-a[1])[0][0]:'Sin súper habitual'};
+const num=c=>{c=String(c||'').trim().replace(',','.');const m=c.match(/\d+(\.\d+)?/);if(!m)return null;let q=parseFloat(m[0]);if(/\d\s*g(r\w*)?\s*$/i.test(c))q/=1000;return q};
+const estim=x=>{const h=HAB[x.producto.toLowerCase()];if(!h||h.pv==null)return null;const q=num(x.cant);return h.tipo==='kg'?(q!=null?q:h.wn?h.ws/h.wn:1)*h.pv:(q!=null?q:1)*h.pv};
 function agrupar(A,g){
-  if(g==='no')return[['',[...A].sort((p,q)=>!!p.ok-!!q.ok)]];
+  const s=(p,q)=>!!p.ok-!!q.ok||al(p.producto,q.producto);
+  if(g==='no')return[['',[...A].sort(s)]];
   const m={};A.forEach(x=>{const k=g==='cat'?(x.cat||'Otros'):supOf(x);(m[k]=m[k]||[]).push(x)});
-  const o=k=>{const i=CATS.indexOf(k);return i<0?99:i};
-  return Object.entries(m).sort((a,b)=>(g==='cat'?o(a[0])-o(b[0]):0)||a[0].localeCompare(b[0])).map(([k,a])=>[k,a.sort((p,q)=>!!p.ok-!!q.ok||p.producto.localeCompare(q.producto))]);
+  return Object.entries(m).sort((a,b)=>al(a[0],b[0])).map(([k,a])=>[k,a.sort(s)]);
 }
 async function renderLista(){
   LST=await list('lista');HAB=await habituales();
-  const HV=Object.values(HAB).sort((a,b)=>b.n-a.n),have=new Set(LST.filter(x=>!x.ok).map(x=>x.producto.toLowerCase())),g=$('lg').value;
-  $('dl').innerHTML=HV.map(h=>`<option value="${esc(h.nom)}">`).join('');
-  $('hab').innerHTML=HV.filter(h=>!have.has(h.nom.toLowerCase())).slice(0,40).map(h=>`<button class="sec chip" data-n="${esc(h.nom)}">${esc(h.nom)}</button>`).join('')||'<span class="mut">Se llenará con tus tickets.</span>';
+  const HV=Object.values(HAB),have=new Set(LST.filter(x=>!x.ok).map(x=>x.producto.toLowerCase())),g=$('lg').value;
+  $('dl').innerHTML=HV.map(h=>h.nom).sort(al).map(n=>`<option value="${esc(n)}">`).join('');
+  let C=HV.filter(h=>!have.has(h.nom.toLowerCase()));if($('hf').value==='top')C=[...C].sort((a,b)=>b.n-a.n).slice(0,40);
+  const gc={};C.forEach(h=>(gc[h.cat]=gc[h.cat]||[]).push(h.nom));
+  $('hab').innerHTML=Object.keys(gc).sort(al).map(c=>`<div class="mut" style="margin-top:6px"><b>${esc(c)}</b></div>`+gc[c].sort(al).map(n=>`<button class="sec chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')).join('')||'<span class="mut">Se llenará con tus tickets.</span>';
   const cv=$('lc').value;
-  $('lc').innerHTML='<option value="">Categoría (auto)</option>'+[...new Set([...CATS,...HV.map(h=>h.cat)])].map(c=>`<option${c===cv?' selected':''}>${esc(c)}</option>`).join('');
-  const P=LST.filter(x=>!x.ok).length;$('lcnt').textContent=LST.length?`${P} pendientes · ${LST.length-P} marcados`:'';
-  $('lbody').innerHTML=LST.length?agrupar(LST,g).map(([k,a])=>(k?`<h2 style="font-size:1rem">${esc(k)}</h2>`:'')+a.map(x=>`<div class="li${x.ok?' done':''}"><input type="checkbox" class="ck" data-i="${x.id}"${x.ok?' checked':''}><span class="tx">${esc(x.producto)}</span><input class="qt" data-i="${x.id}" placeholder="cant." value="${esc(x.cant||'')}"><button class="sec del" data-i="${x.id}">✕</button><input class="nt" data-i="${x.id}" placeholder="nota" value="${esc(x.nota||'')}"></div>`).join('')).join(''):'<p class="mut">La lista está vacía. Añade productos arriba o toca los habituales.</p>';
+  $('lc').innerHTML='<option value="">Categoría (auto)</option>'+[...new Set([...CATS,...HV.map(h=>h.cat)])].sort(al).map(c=>`<option${c===cv?' selected':''}>${esc(c)}</option>`).join('');
+  const P=LST.filter(x=>!x.ok);$('lcnt').textContent=LST.length?`${P.length} pendientes · ${LST.length-P.length} marcados`:'';
+  $('lbody').innerHTML=LST.length?agrupar(LST,g).map(([k,a])=>(k?`<h2 style="font-size:1rem">${esc(k)}</h2>`:'')+a.map(x=>{const v=estim(x);return `<div class="li${x.ok?' done':''}"><input type="checkbox" class="ck" data-i="${x.id}"${x.ok?' checked':''}><span class="tx">${esc(x.producto)}${v!=null?` <span class="mut">≈ ${eur(v)}</span>`:''}</span><input class="qt" data-i="${x.id}" placeholder="cant." value="${esc(x.cant||'')}"><button class="sec del" data-i="${x.id}">✕</button><input class="nt" data-i="${x.id}" placeholder="nota" value="${esc(x.nota||'')}"></div>`}).join('')).join(''):'<p class="mut">La lista está vacía. Añade productos arriba o toca los habituales.</p>';
+  const E=P.map(x=>[x,estim(x)]),tot=E.reduce((a,[,v])=>a+(v||0),0),sp=E.filter(([,v])=>v==null).map(([x])=>x.producto),
+    sc=P.filter(x=>{const h=HAB[x.producto.toLowerCase()];return h?!h.cd:(!x.cat||x.cat==='Otros')}).map(x=>x.producto);
+  $('lest').innerHTML=P.length?`<div class="card"><b>Total aproximado: ≈ ${eur(tot)}</b> <span class="mut">(último precio visto de cada producto; cantidad numérica = unidades o kg; sin cantidad: 1 ud o el peso medio que sueles comprar)</span>${sp.length?`<p class="warn">⚠ Sin precio (no aparecen en tus tickets): ${esc(sp.join(', '))}</p>`:''}${sc.length?`<p class="warn">⚠ Sin categorizar en el diccionario: ${esc(sc.join(', '))}. Asígnala en Más → Productos.</p>`:''}</div>`:'';
 }
 async function addItem(nom,cant,nota,cat){
   nom=(nom||'').trim();if(!nom)return;
   if(!Object.keys(HAB).length)HAB=await habituales();
   const h=HAB[nom.toLowerCase()];
-  if(LST.some(x=>!x.ok&&x.producto.toLowerCase()===nom.toLowerCase())){say(`“${esc(nom)}” ya está en la lista.`,'warn');return}
+  if(LST.some(x=>!x.ok&&x.producto.toLowerCase()===nom.toLowerCase())){toast(`“${nom}” ya está en la lista.`);return}
   await put('lista',{id:uid(),producto:h?h.nom:nom,cat:h?h.cat:(cat||'Otros'),cant:cant||'',nota:nota||'',ok:false});renderLista();
 }
 $('ladd').onclick=async()=>{await addItem($('ln').value,$('lq').value.trim(),$('lnt').value.trim(),$('lc').value);$('ln').value=$('lq').value=$('lnt').value='';$('ln').focus()};
 $('ln').onkeydown=e=>{if(e.key==='Enter')$('ladd').click()};
 $('hab').onclick=e=>{const b=e.target.closest('[data-n]');if(b)addItem(b.dataset.n)};
-$('lg').onchange=renderLista;
+$('lg').onchange=$('hf').onchange=renderLista;
 $('lbody').onchange=async e=>{const el=e.target,x=LST.find(y=>y.id===el.dataset.i);if(!x)return;
   if(el.classList.contains('ck'))x.ok=el.checked;else if(el.classList.contains('qt'))x.cant=el.value.trim();else if(el.classList.contains('nt'))x.nota=el.value.trim();else return;
   await put('lista',x);if(el.classList.contains('ck'))renderLista()};
@@ -549,10 +567,35 @@ $('lquit').onclick=async()=>{for(const x of LST.filter(y=>y.ok))await del('lista
 $('lclr').onclick=async()=>{if(LST.length&&confirm('¿Vaciar toda la lista?')){for(const x of LST)await del('lista',x.id);renderLista()}};
 function textoLista(){
   const P=LST.filter(x=>!x.ok);if(!P.length)return '';
-  const ln=x=>`⬜ ${x.producto}${x.cant?' ('+x.cant+')':''}${x.nota?' — _'+x.nota.replace(/\s*\n\s*/g,' ')+'_':''}`,g=$('lg').value;
-  return `🛒 *Lista de la compra* (${P.length})\n`+agrupar(P,g).map(([k,a])=>(k?`\n*${k}*\n`:'')+a.map(ln).join('\n')).join('\n');
+  const ln=x=>`⬜ ${x.producto}${x.cant?' ('+x.cant+')':''}${x.nota?' — _'+x.nota.replace(/\s*\n\s*/g,' ')+'_':''}`,g=$('lg').value,tot=P.reduce((a,x)=>a+(estim(x)||0),0);
+  return `🛒 *Lista de la compra* (${P.length})\n`+agrupar(P,g).map(([k,a])=>(k?`\n*${k}*\n`:'')+a.map(ln).join('\n')).join('\n')+(tot>0?`\n\n_Total aprox.: ${eur(tot)}_`:'');
 }
-$('lcopy').onclick=()=>{const t=textoLista();t?cp(t,'Lista copiada. Pégala en WhatsApp y se verá con formato.'):say('No hay productos pendientes en la lista.','warn')};
+$('lcopy').onclick=()=>{const t=textoLista();t?cp(t,'Lista copiada. Pégala en WhatsApp y se verá con formato.'):toast('No hay productos pendientes en la lista.')};
+
+// ----- Editar texto de una línea de ticket -----
+$('list').onclick=async e=>{const b=e.target.closest('.edl');if(!b)return;
+  const t=(await all()).find(x=>x.id===b.dataset.t),l=t&&t.lineas[+b.dataset.j];if(!l)return;
+  const v=prompt('Nuevo texto de este producto SOLO en este ticket (cantidad y precio no cambian).\nEjemplo: BEBIDA AVENA 0% PACK 6',l.producto);if(v==null)return;
+  const nv=v.trim().toUpperCase(),old=l.producto;if(!nv||nv===old)return;
+  if(PRIV.test(nv)){say('Ese texto parece un dato privado. No se ha cambiado nada.','err');return}
+  const D=Object.fromEntries((await allDic()).map(x=>[x.producto,x]));
+  if(!l.original)l.original=old;if(nv===l.original)delete l.original;l.producto=nv;await put('tickets',t);
+  if(!D[nv]&&D[old])await putDic({producto:nv,nombre:'',categoria:D[old].categoria});
+  await render();toast('Texto cambiado. Se copió la categoría; el nombre legible queda vacío para que no se mezcle con el producto anterior.')};
+function fdic(){const q=$('dq').value.trim().toLowerCase(),u=$('dfil').value==='sin';document.querySelectorAll('#dic tr[data-q]').forEach(r=>r.style.display=(!q||r.dataset.q.includes(q))&&(!u||r.dataset.u)?'':'none')}
+$('dq').oninput=$('dfil').onchange=fdic;
+const PDIC=`Actúa como experto en clasificación de productos de supermercado en España. Te paso mi diccionario de productos: nombre en el ticket | nombre legible (puede estar vacío) | categoría actual.
+
+Tareas:
+1. Revisa si cada categoría asignada es correcta.
+2. Para los productos marcados como SIN CATEGORÍA, propón una.
+3. Si algunos productos encajarían mejor en categorías nuevas, propón crearlas (nombre y qué productos incluirían); evita crear demasiadas y no repitas categorías casi iguales.
+4. Señala productos que parezcan el mismo artículo con nombres distintos (para unificar su nombre legible).
+
+Formato de respuesta: SOLO los cambios, en una tabla con las columnas: Producto | Categoría actual | Categoría propuesta | Motivo (breve). Después, la lista de categorías nuevas propuestas. No repitas los productos que están bien. Usa exactamente los nombres de producto tal como te los doy y no inventes productos.`;
+$('pd').onclick=async()=>{const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),N=[...new Set(T.flatMap(t=>t.lineas.map(l=>l.producto)))].sort(al);
+  if(!N.length){toast('Aún no hay productos.');return}
+  cp(PDIC+'\n\nCategorías actuales: '+[...new Set(Object.values(D).map(x=>x.categoria))].sort(al).join(', ')+'\n\n--- DICCIONARIO ---\n'+N.map(p=>`${p} | ${(D[p]||{}).nombre||''} | ${(D[p]||{}).categoria||'SIN CATEGORÍA'}`).join('\n'),`Prompt copiado (${N.length} productos).`)};
 
 // ----- Ideas -----
 let IDS=[];const tm={};
@@ -572,8 +615,8 @@ $('ilist').onclick=async e=>{const b=e.target.closest('button');if(!b)return;con
   if(b.classList.contains('icp'))cp(x.texto,'Idea copiada.');
   else if(b.classList.contains('idl')&&(!x.texto.trim()||confirm('¿Borrar esta idea?'))){await del('ideas',x.id);renderIdeas();renderCopia()}};
 const pend=()=>IDS.filter(x=>!x.hecho&&x.texto.trim());
-$('icp').onclick=()=>{const P=pend();P.length?cp(P.map((x,i)=>`${i+1}. ${x.texto.trim()}`).join('\n\n'),'Ideas pendientes copiadas.'):say('No hay ideas pendientes.','warn')};
-$('ipr').onclick=()=>{const P=pend();if(!P.length){say('No hay ideas pendientes.','warn');return}
+$('icp').onclick=()=>{const P=pend();P.length?cp(P.map((x,i)=>`${i+1}. ${x.texto.trim()}`).join('\n\n'),'Ideas pendientes copiadas.'):toast('No hay ideas pendientes.')};
+$('ipr').onclick=()=>{const P=pend();if(!P.length){toast('No hay ideas pendientes.');return}
   cp(`Tengo una aplicación web de gestión de gastos en supermercados (un único archivo HTML, versión ${VERSION}, que te adjunto). Funciona en local, guarda los datos en IndexedDB y tiene copias JSON.\n\nQuiero la siguiente versión (${VERSION+1}) sin perder funcionalidad ni compatibilidad con las copias existentes. Mejoras a implementar:\n\n${P.map((x,i)=>`${i+1}. ${x.texto.trim()}`).join('\n\n')}\n\nAntes de programar, dame feedback e ideas y espera mi confirmación. Después, devuélveme el HTML completo.`,'Prompt de mejora copiado.')};
 
 grp('#sub button','.sub','ia');tab('panel');
