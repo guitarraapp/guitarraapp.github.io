@@ -2,7 +2,14 @@
 <html lang="es"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mis Enlaces</title>
+<title>Mis enlaces</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mis enlaces">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{--bg:#0f172a;--card:#1e293b;--hov:#334155;--tx:#f8fafc;--tx2:#a8b5c9;--ac:#f59e0b;--ac2:#38bdf8;--bd:rgba(255,255,255,.1)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -74,12 +81,22 @@ dialog textarea{min-height:8rem}
 .toast.visible{opacity:1;transform:translate(-50%,0)}
 .toast.accion{pointer-events:auto}
 .toast .des{margin-left:.8rem;border:none;background:var(--bg);color:var(--ac);font:inherit;font-weight:700;padding:.25rem .8rem;border-radius:9999px;cursor:pointer}
+dialog h2.sec{margin-top:1.3rem}
+.ideas{display:grid;gap:.6rem;margin-top:.8rem}
+.idea{background:var(--bg);border:1px solid var(--bd);border-radius:.8rem;padding:.7rem}
+.idea .it{white-space:pre-wrap;overflow-wrap:anywhere}
+.idea small{display:block;margin-top:.4rem;color:var(--tx2);font-size:.75rem}
+.idea.hecha .it{text-decoration:line-through;opacity:.6}
+.idea .acc{margin-top:.5rem}
+.idea textarea{margin-top:0}
+.campana{position:fixed;top:.6rem;right:.6rem;z-index:20;width:2.3rem;height:2.3rem;border-radius:50%;border:1px solid var(--ac);background:var(--card);font-size:1.05rem;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.campana::after{content:"";position:absolute;top:.15rem;right:.15rem;width:.55rem;height:.55rem;border-radius:50%;background:#ef4444}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 <div class="ancho">
-  <h1 id="titulo">Mis Enlaces</h1>
+  <h1 id="titulo">Mis enlaces</h1>
   <div class="herr">
     <button class="bt" id="b-menos" aria-label="Letra más pequeña">A−</button>
     <button class="bt" id="b-mas" aria-label="Letra más grande">A+</button>
@@ -87,10 +104,9 @@ dialog textarea{min-height:8rem}
     <button class="bt" id="b-editar" aria-pressed="false">✏️ Editar</button>
     <button class="bt" id="b-cat" hidden>📁 ＋ Categoría</button>
     <button class="bt" id="b-ajustes">⚙️ Ajustes</button>
-    <button class="bt" id="b-guardar">💾 Respaldo</button>
   </div>
   <div class="aviso-g" id="sucio" hidden>
-    <span>Hay cambios sin copia de seguridad.</span>
+    <span id="sucio-t">Hay cambios sin copia de seguridad.</span>
     <button class="bt prim" id="b-guardar2">💾 Descargar respaldo</button>
   </div>
   <div class="busca">
@@ -100,6 +116,7 @@ dialog textarea{min-height:8rem}
   <nav class="migas" id="migas"></nav>
   <main id="lista" class="lista"></main>
 </div>
+<button class="campana" id="campana" title="Hay cambios sin copia de seguridad" aria-label="Hay cambios sin copia de seguridad" hidden>🔔</button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <dialog id="dlg"></dialog>
 <input type="file" id="archivo" accept=".json,.txt,application/json" hidden>
@@ -112,6 +129,7 @@ const CFG0 = {
   // URL de la app de bucles: los enlaces "bucle" abren BASE?v=...&t=...&n=...
   baseLoop: "https://v0-project-gamma-indol-75.vercel.app/",
   fs: 18,
+  umbral: 10, // a partir de cuántos cambios sin respaldo sale el aviso grande (editable en Ajustes)
   // IAs para los prompts. {p} = prompt codificado. c:1 = no admite prompt por URL (se copia y se abre la IA)
   ias: [
     { n: "Claude", u: "https://claude.ai/new?q={p}" },
@@ -135,7 +153,8 @@ const cmp = (a, b) => (a || "").localeCompare(b || "", "es", { numeric: true, se
 const dominio = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch (e) { return ""; } };
 
 /* ============ DATOS ============
-   S = { cfg, arbol, pend }   (se guarda en localStorage)
+   S = { cfg, arbol, ideas, cambios, ultimo }   (se guarda en localStorage)
+   ideas: [{ id, t (texto), d (fecha), ok (implementada), h (fecha implementada) }]
    nodo = { id, nombre, icono, o?:"m" (orden manual), hijos:[nodo], items:[elemento] }
    elemento: tipo "loop" {v,t,n,e}  |  "enlace" {url,n,d}  |  "prompt" {n,d,p}   ("f":1 = favorito) */
 const K = "misenlaces:datos";
@@ -146,15 +165,30 @@ function leer(txt) {
   const o = JSON.parse(txt.replace(/\u00ad/g, ""));
   const a = Array.isArray(o) ? o : o.arbol;
   if (!Array.isArray(a)) throw new Error("No es un archivo de Mis Enlaces");
-  return { cfg: Array.isArray(o) ? null : o.cfg, arbol: a.map(nodo) };
+  return { cfg: Array.isArray(o) ? null : o.cfg, arbol: a.map(nodo),
+    ideas: Array.isArray(o) ? [] : (o.ideas || []).filter(i => i && i.t).map(i => ({ id: String(i.id || uid()), t: String(i.t), d: i.d || "", ok: !!i.ok, ...(i.h ? { h: i.h } : {}) })) };
 }
 let S;
 try { const g = JSON.parse(localStorage.getItem(K)); if (g && g.arbol) S = g; } catch (e) {}
-if (!S) S = { cfg: JSON.parse(sj(CFG0)), arbol: [], pend: false };
+if (!S) S = { cfg: JSON.parse(sj(CFG0)), arbol: [], ideas: [], cambios: 0, ultimo: "" };
 S.cfg = { ...JSON.parse(sj(CFG0)), ...S.cfg };
+S.ideas = S.ideas || []; S.cambios = S.cambios || (S.pend ? 1 : 0); delete S.pend; S.ultimo = S.ultimo || ""; // migración de versiones anteriores
 let edit = false;
 const guardar = () => { try { localStorage.setItem(K, sj(S)); } catch (e) { aviso("No se pudo guardar en el navegador"); } };
-const cambio = () => { S.pend = true; guardar(); render(); };
+// cambio(): cuenta como cambio pendiente de respaldo. cambio(false): guarda y repinta SIN contarlo (favoritos, reordenar)
+const cambio = (cuenta = true) => { if (cuenta) S.cambios = (S.cambios || 0) + 1; guardar(); render(); };
+// Campanita (hay cambios) y aviso grande (a partir del umbral)
+function barraRespaldo() {
+  const n = S.cambios || 0, u = Math.max(1, +S.cfg.umbral || 10);
+  $("sucio").hidden = n < u; $("campana").hidden = !n || n >= u;
+  $("sucio-t").textContent = `Tienes ${n} cambios sin copia de seguridad.`;
+}
+function recordatorio() {
+  const d = $("dlg"), n = S.cambios || 0; d.replaceChildren();
+  const acc = el("div", "acc"); acc.append(bt("💾 Descargar respaldo", "", () => { d.close(); respaldo(); }, "bt prim"), bt("Ahora no", "", () => d.close(), "bt"));
+  d.append(el("h2", "", "🔔 Copia de seguridad"), el("p", "nota", `Tienes ${n} ${n === 1 ? "cambio" : "cambios"} sin copia de seguridad. Descarga el respaldo para no perder tus datos si se borra el navegador o cambias de móvil.`), acc);
+  d.showModal();
+}
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {} // pide no borrar los datos solo
 
 const walk = (a, p, f) => a.forEach(n => { const q = [...p, n]; f(n, q); walk(n.hijos, q, f); });
@@ -164,7 +198,7 @@ const ruta = q => q.map(n => n.nombre).join(" › ");
 const hashDe = q => "#" + q.map(n => n.id).join("/");
 const cadena = h => { let a = S.arbol; const r = []; for (const id of h.slice(1).split("/").filter(Boolean)) { const n = a.find(x => x.id === id); if (!n) break; r.push(n); a = n.hijos; } return r; };
 const ir = h => { location.hash = h; };
-const mover = (arr, x, d) => { const i = arr.indexOf(x), j = i + d; if (j < 0 || j >= arr.length) return; arr.splice(i, 1); arr.splice(j, 0, x); cambio(); };
+const mover = (arr, x, d) => { const i = arr.indexOf(x), j = i + d; if (j < 0 || j >= arr.length) return; arr.splice(i, 1); arr.splice(j, 0, x); cambio(false); };
 
 const urlDe = it => it.tipo === "loop"
   ? `${S.cfg.baseLoop}?v=${encodeURIComponent(it.v)}&t=${encodeURIComponent(it.t || "")}&n=${encodeURIComponent(it.n || "")}`
@@ -211,7 +245,7 @@ function fila(it, arr, icono, etiqueta, nd) {
   cu.append(el("span", "nom", (icono || "") + " " + (it.n || "Sin nombre")), meta);
 
   const lado = el("span", "lado");
-  lado.append(bt(it.f ? "★" : "☆", "Favorito", () => { if (it.f) delete it.f; else it.f = 1; cambio(); }, it.f ? "on" : ""));
+  lado.append(bt(it.f ? "★" : "☆", "Favorito", () => { if (it.f) delete it.f; else it.f = 1; cambio(false); }, it.f ? "on" : ""));
   const bc = bt("📋", "Copiar", () => copiar(urlDe(it), esP ? "Prompt copiado" : "Enlace copiado")); bc.disabled = !act; lado.append(bc);
   if (edit) {
     lado.append(bt("✏️", "Editar", () => anadir({ it, arr })));
@@ -252,7 +286,7 @@ function tarjeta(h, hs, q, cls) { // categoría/subcategoría; en modo Editar ll
 function render() {
   const L = $("lista"), M = $("migas"); L.replaceChildren(); M.replaceChildren();
   const b = $("buscador").value.trim().toLowerCase();
-  $("limpiar").hidden = !b; $("sucio").hidden = !S.pend; $("b-cat").hidden = !edit;
+  $("limpiar").hidden = !b; barraRespaldo(); $("b-cat").hidden = !edit;
   document.documentElement.style.setProperty("--fs", S.cfg.fs + "px");
   const fav = location.hash === "#fav", q = fav ? [] : cadena(location.hash), n = q[q.length - 1];
   L.className = "lista";
@@ -308,7 +342,7 @@ function nodoDlg(n, arr) { // crear (n=null) o editar categoría; arr = lista do
   d.showModal(); nom.focus();
 }
 
-function anadir(ed) { // ed = { it, arr } para editar un elemento existente
+function anadir(ed, pre) { // ed = { it, arr } para editar un elemento existente
   const d = $("dlg"), orig = ed && ed.it; d.replaceChildren();
   const nodos = []; walk(S.arbol, [], (m, q) => nodos.push([m, q]));
   if (!nodos.length) { aviso("Primero crea una categoría (✏️ Editar › ＋ Categoría)"); return; }
@@ -321,6 +355,7 @@ function anadir(ed) { // ed = { it, arr } para editar un elemento existente
   const desc = inp("Descripción corta (opcional)"), txt = el("textarea"), err = el("p", "err");
   txt.placeholder = "Escribe o pega el prompt…";
   if (orig) { nom.value = orig.n || ""; url.value = orig.url || ""; vid.value = orig.v || ""; t.value = orig.t || ""; est.value = orig.e || 0; desc.value = orig.d || ""; txt.value = orig.p || ""; }
+  if (pre) { tipo.value = pre.tipo; nom.value = pre.n || ""; url.value = pre.url || ""; vid.value = pre.v || ""; } // datos compartidos desde otra app
   let avisado = ""; // duplicado ya avisado: la segunda pulsación guarda igualmente
   const ok = () => {
     const n = nom.value.trim(), k = tipo.value; let it;
@@ -348,25 +383,71 @@ function anadir(ed) { // ed = { it, arr } para editar un elemento existente
 function ajustes() {
   const d = $("dlg"); d.replaceChildren();
   const u = inp("https://…"); u.value = S.cfg.baseLoop;
+  const um = inp("10"); um.type = "number"; um.min = 1; um.max = 99; um.value = S.cfg.umbral;
   const ias = el("textarea"); ias.value = S.cfg.ias.map(x => [x.n, x.u, x.c ? "copiar" : ""].filter(Boolean).join(" | ")).join("\n");
   const ok = () => {
     S.cfg.baseLoop = u.value.trim() || CFG0.baseLoop;
+    S.cfg.umbral = Math.max(1, Math.min(99, parseInt(um.value, 10) || CFG0.umbral));
     S.cfg.ias = ias.value.split("\n").map(l => l.split("|").map(s => s.trim())).filter(a => a[0] && a[1]).map(a => ({ n: a[0], u: a[1], ...(a[2] ? { c: 1 } : {}) }));
     d.close(); cambio(); aviso("Ajustes guardados");
   };
+  const nid = S.ideas.filter(i => !i.ok).length;
+  const accI = el("div", "acc"); accI.append(bt("💡 Ideas de mejora" + (nid ? " (" + nid + " pendientes)" : ""), "", () => ideas(), "bt prim"));
   const acc = el("div", "acc"); acc.append(bt("Guardar ajustes", "", ok, "bt prim"), bt("Cerrar", "", () => d.close(), "bt"));
   const acc2 = el("div", "acc"); acc2.append(bt("⬇ Descargar respaldo", "", () => { d.close(); respaldo(); }, "bt"), bt("⬆ Cargar archivo…", "", () => { d.close(); $("archivo").click(); }, "bt"));
-  d.append(el("h2", "", "Ajustes"), campo("URL de la app de bucles", u), campo("IAs para los prompts (una por línea: Nombre | URL con {p} | copiar)", ias), acc,
-    el("p", "nota", "Copia de seguridad: incluye categorías, enlaces, favoritos y estos ajustes."), acc2);
-  d.showModal();
+  const ult = S.ultimo ? new Date(S.ultimo).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" }) : "todavía ninguno";
+  d.append(el("h2", "", "Ajustes"), accI, campo("URL de la app de bucles", u), campo("IAs para los prompts (una por línea: Nombre | URL con {p} | copiar)", ias),
+    campo("Aviso grande de respaldo a partir de (cambios pendientes)", um), acc,
+    el("h2", "sec", "💾 Copia de seguridad"),
+    el("p", "nota", `Incluye categorías, enlaces, favoritos, ideas y estos ajustes. Último respaldo: ${ult}. Cambios pendientes: ${S.cambios || 0}.`), acc2);
+  if (!d.open) d.showModal();
+}
+
+/* ============ IDEAS DE MEJORA ============ */
+let filtroI = "p"; // p = pendientes, h = implementadas, t = todas
+const fechaC = s => s ? new Date(s).toLocaleDateString("es-ES") : "";
+function ideas(editId) {
+  const d = $("dlg"), y = d.scrollTop; d.replaceChildren();
+  const nuevo = el("textarea"); nuevo.placeholder = "Escribe una idea de mejora… (Intro = salto de línea)"; nuevo.style.minHeight = "5rem";
+  const accN = el("div", "acc");
+  accN.append(bt("＋ Guardar idea", "", () => { const t = nuevo.value.trim(); if (!t) return; S.ideas.unshift({ id: uid(), t, d: new Date().toISOString(), ok: false }); cambio(); ideas(); }, "bt prim"));
+  const pills = el("div", "acc");
+  [["p", "Pendientes", i => !i.ok], ["h", "Implementadas", i => i.ok], ["t", "Todas", () => true]].forEach(([k, t, f]) => {
+    const p = bt(`${t} (${S.ideas.filter(f).length})`, "", () => { filtroI = k; ideas(); }, "bt"); p.setAttribute("aria-pressed", filtroI === k); pills.append(p);
+  });
+  const lista = el("div", "ideas");
+  const vis = S.ideas.filter(i => filtroI === "t" || (filtroI === "h") === i.ok);
+  vis.forEach(i => {
+    const c = el("div", "idea" + (i.ok ? " hecha" : ""));
+    if (editId === i.id) {
+      const ta = el("textarea"); ta.value = i.t;
+      const a = el("div", "acc");
+      a.append(bt("Guardar", "", () => { const t = ta.value.trim(); if (!t) return; i.t = t; cambio(); ideas(); }, "bt prim"), bt("Cancelar", "", () => ideas(), "bt"));
+      c.append(ta, a);
+    } else {
+      c.append(el("div", "it", i.t), el("small", "", "Añadida " + fechaC(i.d) + (i.ok && i.h ? " · Implementada " + fechaC(i.h) : "")));
+      const a = el("div", "acc");
+      a.append(
+        bt(i.ok ? "↩ Volver a pendiente" : "✔ Implementada", "", () => { i.ok = !i.ok; if (i.ok) i.h = new Date().toISOString(); else delete i.h; cambio(); ideas(); }, "bt"),
+        bt("✏️", "Editar", () => ideas(i.id), "bt"),
+        bt("🗑", "Borrar", () => { if (confirm("¿Borrar esta idea?")) { S.ideas.splice(S.ideas.indexOf(i), 1); cambio(); ideas(); } }, "bt"));
+      c.append(a);
+    }
+    lista.append(c);
+  });
+  if (!vis.length) lista.append(el("p", "nota", filtroI === "h" ? "Aún no hay ideas implementadas." : filtroI === "p" ? "No hay ideas pendientes." : "Aún no hay ideas."));
+  const pie = el("div", "acc"); pie.append(bt("← Ajustes", "", ajustes, "bt"), bt("Cerrar", "", () => d.close(), "bt"));
+  d.append(el("h2", "", "💡 Ideas de mejora"), el("p", "nota", "Apunta aquí lo que quieras mejorar de la aplicación."), nuevo, accN, el("h2", "sec", "Mis ideas"), pills, lista, pie);
+  if (!d.open) d.showModal();
+  d.scrollTop = y;
 }
 
 /* ============ RESPALDO E IMPORTACIÓN ============ */
 function respaldo() {
-  const blob = new Blob([sj({ app: "misenlaces", version: 2, fecha: new Date().toISOString(), cfg: S.cfg, arbol: S.arbol }, null, 1)], { type: "application/json" });
+  const blob = new Blob([sj({ app: "misenlaces", version: 3, fecha: new Date().toISOString(), cfg: S.cfg, arbol: S.arbol, ideas: S.ideas }, null, 1)], { type: "application/json" });
   const a = el("a"); a.href = URL.createObjectURL(blob); a.download = "misenlaces-datos-" + new Date().toISOString().slice(0, 10) + ".json";
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  S.pend = false; guardar(); render(); aviso("Respaldo descargado");
+  S.cambios = 0; S.ultimo = new Date().toISOString(); guardar(); render(); aviso("Respaldo descargado");
 }
 // Fusionar: une categorías con el mismo nombre (sin tildes/mayúsculas) y omite elementos ya existentes
 const clave = it => it.tipo === "loop" ? "l|" + norm(it.v) + "|" + (it.t || "") : it.tipo === "enlace" ? "e|" + norm(it.url) : "p|" + nn(it.n) + "|" + nn(it.p);
@@ -379,16 +460,18 @@ function fusionar(dst, src, st) {
     fusionar(d.hijos, s.hijos, st);
   });
 }
+// Ideas: se añaden las que no existan ya (mismo texto sin tildes/mayúsculas)
+const fusionarIdeas = a => a.forEach(i => { if (!S.ideas.some(x => nn(x.t) === nn(i.t))) S.ideas.push(i); });
 function cargarArchivo(file) {
   const r = new FileReader();
   r.onload = () => {
     let inc; try { inc = leer(r.result); } catch (e) { aviso("Archivo no válido: " + e.message); return; }
     let nIt = 0, nCat = 0; walk(inc.arbol, [], n => { nCat++; nIt += n.items.length; });
     const d = $("dlg"); d.replaceChildren();
-    const previo = sj(S), fin = (m) => { d.close(); S.pend = true; guardar(); render(); aviso(m, () => { S = JSON.parse(previo); S.pend = true; guardar(); render(); }); };
+    const previo = sj(S), fin = (m) => { d.close(); S.cambios = (S.cambios || 0) + 1; guardar(); render(); aviso(m, () => { S = JSON.parse(previo); guardar(); render(); }); };
     const acc = el("div", "acc");
-    acc.append(bt("Fusionar (sin duplicados)", "", () => { const st = { cats: 0, add: 0, dup: 0 }; fusionar(S.arbol, inc.arbol, st); fin(`Fusionado: ${st.add} añadidos, ${st.dup} repetidos omitidos, ${st.cats} categorías nuevas`); }, "bt prim"),
-      bt("Reemplazar todo", "", () => { S.arbol = inc.arbol; if (inc.cfg) S.cfg = { ...S.cfg, ...inc.cfg }; fin("Datos reemplazados"); }, "bt"),
+    acc.append(bt("Fusionar (sin duplicados)", "", () => { const st = { cats: 0, add: 0, dup: 0 }; fusionar(S.arbol, inc.arbol, st); fusionarIdeas(inc.ideas); fin(`Fusionado: ${st.add} añadidos, ${st.dup} repetidos omitidos, ${st.cats} categorías nuevas`); }, "bt prim"),
+      bt("Reemplazar todo", "", () => { S.arbol = inc.arbol; if (inc.ideas.length) S.ideas = inc.ideas; if (inc.cfg) S.cfg = { ...S.cfg, ...inc.cfg }; fin("Datos reemplazados"); }, "bt"),
       bt("Cancelar", "", () => d.close(), "bt"));
     d.append(el("h2", "", "Cargar " + file.name), el("p", "nota", `El archivo tiene ${nCat} categorías y ${nIt} elementos.`),
       el("p", "nota", "Fusionar añade lo que falte y no toca lo que ya tienes. Reemplazar sustituye todo por el contenido del archivo. Después podrás pulsar Deshacer."), acc);
@@ -408,10 +491,28 @@ $("b-editar").onclick = e => { edit = !edit; e.currentTarget.setAttribute("aria-
 $("b-add").onclick = () => anadir();
 $("b-cat").onclick = () => { const q = cadena(location.hash); nodoDlg(null, q.length ? q[q.length - 1].hijos : S.arbol); };
 $("b-ajustes").onclick = ajustes;
-$("b-guardar").onclick = $("b-guardar2").onclick = respaldo;
+$("b-guardar2").onclick = respaldo;
+$("campana").onclick = recordatorio;
 $("archivo").onchange = e => { if (e.target.files[0]) cargarArchivo(e.target.files[0]); e.target.value = ""; };
 window.onhashchange = render;
+
+/* ============ COMPARTIR HACIA LA APP (Android: Compartir › Mis enlaces) ============
+   Solo rellena el formulario de Añadir con el enlace recibido; no guarda nada hasta que pulses Añadir. */
+(function compartido() {
+  const P = new URLSearchParams(location.search);
+  if (!P.has("url") && !P.has("text") && !P.has("title")) return;
+  const m = [P.get("url"), P.get("text"), P.get("title")].filter(Boolean).join(" ").match(/https?:\/\/[^\s<>"']+/i);
+  history.replaceState(null, "", location.pathname + location.hash); // limpia la dirección
+  if (!m) { aviso("Lo compartido no contenía ningún enlace"); return; }
+  const u = m[0].replace(/[.,;)]+$/, "");
+  const nombre = (P.get("title") || (P.get("text") || "").replace(m[0], "")).trim().split("\n")[0].slice(0, 120);
+  const yt = /(^|\.)(youtube\.com|youtu\.be)$/.test(dominio(u));
+  setTimeout(() => anadir(null, yt ? { tipo: "loop", v: u, n: nombre } : { tipo: "enlace", url: u, n: nombre }), 0);
+})();
+
 render();
+// PWA: service worker (solo funciona servida por https, p. ej. GitHub Pages)
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
 </body>
 </html>
