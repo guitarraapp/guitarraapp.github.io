@@ -1,317 +1,190 @@
 <!DOCTYPE html>
-<html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mis compras</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#24120e">
+<meta name="description" content="Metrónomo, afinador, bucles y teoría: todas tus herramientas para tocar la guitarra en un solo sitio.">
+<title>Aplicaciones para guitarra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#fafaf7;--fg:#1d1d1b;--mut:#6b6b66;--card:#fff;--bd:#ddddd5;--ac:#1b7f5c;--err:#b3261e;--warn:#8a5a00}
-@media(prefers-color-scheme:dark){:root{--bg:#161614;--fg:#ececE6;--mut:#9a9a92;--card:#201f1d;--bd:#34332f;--ac:#4cc79b;--err:#ff8a80;--warn:#e6b34d}}
-*{box-sizing:border-box}body{margin:0;font:16px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--fg);padding:16px;max-width:760px;margin-inline:auto}
-h1{font-size:1.4rem;margin:.2rem 0}h2{font-size:1.05rem;margin:1.4rem 0 .5rem}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin:8px 0}
-button,label.btn{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:10px 14px;font:inherit;cursor:pointer;display:inline-block}
-button.sec{background:transparent;color:var(--fg);border:1px solid var(--bd)}
-input[type=file]{display:none}.mut{color:var(--mut);font-size:.9rem}.err{color:var(--err)}.warn{color:var(--warn)}.ok{color:var(--ac)}
-table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{padding:3px 6px;text-align:right;border-bottom:1px solid var(--bd)}td:first-child,th:first-child{text-align:left}
-summary{cursor:pointer}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-</style></head><body>
-<h1>🛒 Mis compras</h1>
-<p class="mut">Tus datos se guardan solo en este navegador. Nada se envía a ningún servidor.</p>
-
-<div class="row">
-  <label class="btn">Importar PDF o JSON<input id="file" type="file" accept=".pdf,.json,application/pdf,application/json" multiple></label>
-  <button class="sec" id="exp">Exportar copia (JSON)</button>
-</div>
-<div id="msg"></div>
-<div id="pend"></div>
-
-<h2>Panel de gasto</h2>
-<p class="mut" id="pempty">Importa algún ticket para ver el panel.</p>
-<div id="pbody" style="display:none">
-  <label class="mut">Periodo: <select id="per"></select></label>
-  <div id="kpi" class="row" style="margin-top:8px"></div>
-  <div id="pnote"></div>
-  <h2 style="font-size:1rem">Por categoría</h2>
-  <div class="card"><div id="wCat" style="position:relative"><canvas id="cCat"></canvas></div></div>
-  <div id="tCat"></div>
-  <h2 style="font-size:1rem">Por mes</h2>
-  <div class="card"><div style="position:relative;height:220px"><canvas id="cMes"></canvas></div></div>
-  <h2 style="font-size:1rem">Por supermercado</h2>
-  <div id="tSup"></div>
-</div>
-
-<h2>Precios</h2>
-<p class="mut" id="prempty">Para ver subidas hace falta comprar el mismo producto en dos fechas distintas (en el mismo súper).</p>
-<div id="prbody" style="display:none">
-  <h2 style="font-size:1rem">Los que más suben</h2><div id="tUp"></div>
-  <h2 style="font-size:1rem">Los que bajan</h2><div id="tDown"></div>
-  <h2 style="font-size:1rem">Evolución de un producto</h2>
-  <select id="ps" style="max-width:100%"></select>
-  <div class="card"><div style="position:relative;height:220px"><canvas id="cPre"></canvas></div></div>
-</div>
-<div id="mmbody" style="display:none">
-  <h2 style="font-size:1rem">Categorías mes a mes</h2>
-  <div id="tMes" style="overflow-x:auto"></div>
-</div>
-
-<h2>Tickets guardados <span class="mut" id="count"></span></h2>
-<div id="list"></div>
-
-<h2>Productos y categorías <span class="mut" id="dcount"></span></h2>
-<p class="mut">Pon la misma categoría a cada producto. Si dos productos (o de dos súper) tienen el mismo <b>nombre legible</b>, la app los tratará como el mismo producto.</p>
-<div id="dic"></div>
-
-<script>
-//#core
-const PRIV=/\*{2,}|\b(VISA|MASTERCARD|MAESTRO|AMEX|IBAN)\b|\b(AUT|ARC|AID|OP|TARJ)\b\.?\s*:|\b\d{9,}\b|\d{4}[ -]\d{4}[ -]\d{4}|@|TEL[ÉE]FONO/i;
-const KT=['fecha','hora','supermercado','total','lineas'], KL=['producto','seccion','unidades','peso_kg','precio_ref','importe'];
-const n=s=>parseFloat(String(s).replace(',','.'));
-const r2=x=>Math.round(x*100)/100;
-
-function parseMercadona(L){
-  let fecha,hora,total,i0=-1,i1=-1;
-  L.forEach((l,i)=>{
-    const m=l.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}:\d{2})/);
-    if(m&&!fecha){fecha=`${m[3]}-${m[2]}-${m[1]}`;hora=m[4]}
-    if(i0<0&&/^(Cnt\.?\s+)?Descripci/i.test(l))i0=i;
-    if(i0>=0&&i1<0&&i>i0&&/^TOTAL\s*\(/i.test(l)){const t=l.match(/(\d+,\d{2})\s*$/);if(t){i1=i;total=n(t[1])}}
-  });
-  if(!fecha||i0<0||i1<0)throw Error('No parece un ticket de Mercadona (no encuentro fecha, cabecera de líneas o total).');
-  // LISTA BLANCA: solo se leen las líneas entre "Cnt. Descripción" y "TOTAL (€)"
-  const B=L.slice(i0+1,i1),out=[],kg=/^(\d+,\d{3})\s*kg\s+(\d+,\d{2})\s*€\s*\/\s*kg\s+(\d+,\d{2})$/;
-  let sec=null,pend=null;
-  const mk=(p,u,w,r,i)=>{const o={producto:p.toUpperCase()};if(sec)o.seccion=sec;o.unidades=u;o.peso_kg=w;o.precio_ref=r;o.importe=i;out.push(o)};
-  B.forEach((l,k)=>{
-    let m;
-    if((m=l.match(kg))&&pend){mk(pend,null,n(m[1]),n(m[2]),n(m[3]));pend=null;return}
-    if(pend)throw Error('Línea sin peso/importe: '+pend);
-    if(m=l.match(/^(\d+)\s+(.+?)\s+(\d+,\d{2})\s+(\d+,\d{2})$/)){sec=null;mk(m[2],+m[1],null,n(m[3]),n(m[4]));return}
-    if(m=l.match(/^(\d+)\s+(.+?)\s+(\d+,\d{2})$/)){sec=null;mk(m[2],+m[1],null,r2(n(m[3])/+m[1]),n(m[3]));return}
-    if(m=l.match(/^\d+\s+(.+)$/)){sec=null;pend=m[1];return}   // "1 PEPINO" + línea de kg
-    if(B[k+1]&&kg.test(B[k+1]))pend=l;else sec=l;               // texto + kg = producto; texto + texto = sección
-  });
-  if(pend)throw Error('Línea sin peso/importe: '+pend);
-  return{fecha,hora,supermercado:'Mercadona',total,lineas:out};
-}
-
-function validate(d){
-  const E=[],T=d&&d.tickets;
-  if(!d||d.version!==1||!Array.isArray(T)||!T.length)return['Formato inválido: se espera {"version":1,"tickets":[...]}'];
-  Object.keys(d).forEach(k=>{if(!['version','tickets','diccionario'].includes(k))E.push('Campo no permitido: '+k)});
-  T.forEach((t,i)=>{
-    const p=`Ticket ${i+1}: `;
-    Object.keys(t).forEach(k=>{if(!KT.includes(k))E.push(p+'campo no permitido "'+k+'"')});
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(t.fecha))E.push(p+'fecha inválida');
-    if(t.hora!=null&&!/^\d{2}:\d{2}$/.test(t.hora))E.push(p+'hora inválida');
-    if(typeof t.supermercado!=='string'||!t.supermercado)E.push(p+'falta supermercado');
-    if(typeof t.total!=='number')E.push(p+'total inválido');
-    if(!Array.isArray(t.lineas)||!t.lineas.length){E.push(p+'sin líneas');return}
-    let s=0;
-    t.lineas.forEach((l,j)=>{
-      const q=`${p}línea ${j+1}: `;
-      Object.keys(l).forEach(k=>{if(!KL.includes(k))E.push(q+'campo no permitido "'+k+'"')});
-      if(typeof l.producto!=='string'||!l.producto)E.push(q+'falta producto');
-      if((l.unidades==null)===(l.peso_kg==null))E.push(q+'debe tener exactamente uno de unidades o peso_kg');
-      if(typeof l.precio_ref!=='number'||typeof l.importe!=='number')E.push(q+'precio_ref/importe inválidos');
-      s+=l.importe||0;
-    });
-    if(Math.abs(s-t.total)>0.011)E.push(`${p}las líneas suman ${s.toFixed(2)} y el total es ${t.total} (no cuadra)`);
-    if(PRIV.test(JSON.stringify(t)))E.push(p+'⛔ contiene datos que parecen privados (tarjeta, teléfono, autorización...). Bloqueado.');
-  });
-  (d.diccionario||[]).forEach((x,i)=>{
-    if(!x||typeof x.producto!=='string'||typeof x.categoria!=='string'||(x.nombre!=null&&typeof x.nombre!=='string')||Object.keys(x).some(k=>!['producto','nombre','categoria'].includes(k))||PRIV.test(JSON.stringify(x)))E.push('Diccionario: entrada '+(i+1)+' inválida');
-  });
-  return E;
-}
-const huella=t=>[t.fecha,t.hora||'',t.supermercado,t.total.toFixed(2),t.lineas.length].join('|');
-function resumen(T,D,mes){
-  const S=mes?T.filter(t=>t.fecha.startsWith(mes)):T,cat={},sup={},m={};let tot=0;
-  const c=x=>Math.round(x*100);
-  T.forEach(t=>{const k=t.fecha.slice(0,7);m[k]=(m[k]||0)+c(t.total)});   // meses: siempre todos
-  S.forEach(t=>{tot+=c(t.total);sup[t.supermercado]=(sup[t.supermercado]||0)+c(t.total);
-    t.lineas.forEach(l=>{const k=(D[l.producto]||{}).categoria||'Sin categoría';cat[k]=(cat[k]||0)+c(l.importe)})});
-  return{n:S.length,tot,cat,sup,m};
-}
-// Series de precio: mismo nombre legible + mismo tipo (kg/ud) + mismo supermercado
-function precios(T,D){
-  const S={};
-  T.forEach(t=>t.lineas.forEach(l=>{
-    const nom=(D[l.producto]||{}).nombre||l.producto,tipo=l.peso_kg!=null?'kg':'ud',k=[nom,tipo,t.supermercado].join('|');
-    (S[k]=S[k]||{k,nom,tipo,sup:t.supermercado,p:[]}).p.push({f:t.fecha+' '+(t.hora||''),fecha:t.fecha,v:l.precio_ref});
-  }));
-  Object.values(S).forEach(s=>s.p.sort((a,b)=>a.f.localeCompare(b.f)));
-  return Object.values(S);
-}
-// Variación primera -> última compra (solo series con compras en 2+ fechas distintas)
-function variaciones(S){
-  return S.filter(s=>new Set(s.p.map(x=>x.fecha)).size>=2).map(s=>{
-    const a=s.p[0],b=s.p[s.p.length-1];return{...s,a,b,pct:(b.v-a.v)/a.v*100,dif:b.v-a.v}}).filter(x=>isFinite(x.pct));
-}
-function catMes(T,D){
-  const m={},cat={};
-  T.forEach(t=>{const k=t.fecha.slice(0,7);m[k]=1;t.lineas.forEach(l=>{const c=(D[l.producto]||{}).categoria||'Sin categoría';(cat[c]=cat[c]||{})[k]=(cat[c][k]||0)+Math.round(l.importe*100)})});
-  return{meses:Object.keys(m).sort(),cat};
-}
-//#endcore
-
-// ---------- Almacenamiento (IndexedDB) ----------
-const DB=new Promise((ok,ko)=>{const q=indexedDB.open('compras',2);q.onupgradeneeded=()=>{const d=q.result;if(!d.objectStoreNames.contains('tickets'))d.createObjectStore('tickets',{keyPath:'id'});if(!d.objectStoreNames.contains('dic'))d.createObjectStore('dic',{keyPath:'producto'})};q.onsuccess=()=>ok(q.result);q.onerror=()=>ko(q.error)});
-const tx=async(m,f,st='tickets')=>{const db=await DB;return new Promise((ok,ko)=>{const t=db.transaction(st,m),s=t.objectStore(st),r=f(s);t.oncomplete=()=>ok(r&&r.result);t.onerror=()=>ko(t.error)})};
-const all=()=>tx('readonly',s=>s.getAll());
-const allDic=()=>tx('readonly',s=>s.getAll(),'dic');
-const putDic=x=>tx('readwrite',s=>s.put(x),'dic');
-async function addDic(a){const have=new Set((await allDic()).map(x=>x.producto));let k=0;for(const x of a)if(!have.has(x.producto)){await putDic({producto:x.producto,nombre:x.nombre||'',categoria:x.categoria});k++}return k} // SUMA: no pisa lo existente
-async function addTickets(ts){ // SUMA: nunca sobrescribe
-  const have=new Set((await all()).map(x=>x.id));let add=0,dup=0;
-  for(const t of ts){const id=huella(t);if(have.has(id)){dup++;continue}have.add(id);await tx('readwrite',s=>s.put({id,...t}));add++}
-  return{add,dup};
-}
-
-// ---------- PDF ----------
-async function pdfLines(file){
-  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,L=[];
-  for(let p=1;p<=pdf.numPages;p++){
-    const c=await(await pdf.getPage(p)).getTextContent(),rows={};
-    c.items.forEach(t=>{if(!t.str.trim())return;const y=Math.round(t.transform[5]/3);(rows[y]=rows[y]||[]).push(t)});
-    Object.keys(rows).map(Number).sort((a,b)=>b-a).forEach(y=>L.push(rows[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(t=>t.str.trim()).join(' ')));
+  :root {
+    --rosewood: #24120e;
+    --rosewood-2: #34201a;
+    --rosewood-3: #44291f;
+    --brass: #d4a64f;
+    --pearl: #f1ebdd;
+    --muted: #bfae98;
+    --ember: #e07a4f;
+    --font: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color-scheme: dark;
   }
-  return L;
-}
-
-// ---------- UI ----------
-const $=id=>document.getElementById(id),eur=x=>x.toFixed(2).replace('.',',')+' €';
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let pending=[],pdic=[];
-const say=(h,c='')=>$('msg').innerHTML=`<div class="card ${c}">${h}</div>`;
-
-$('file').onchange=async e=>{
-  const errs=[],ok=[];pdic=[];
-  for(const f of e.target.files){
-    try{
-      let d;
-      if(/\.pdf$/i.test(f.name)){d={version:1,tickets:[parseMercadona(await pdfLines(f))]}}
-      else d=JSON.parse(await f.text());
-      const E=validate(d);
-      if(E.length)errs.push(`<b>${esc(f.name)}</b><br>`+E.map(esc).join('<br>'));else{ok.push(...d.tickets);pdic.push(...(d.diccionario||[]))}
-    }catch(x){errs.push(`<b>${esc(f.name)}</b><br>${esc(x.message)}`)}
+  * { box-sizing: border-box; margin: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    font-family: var(--font);
+    color: var(--pearl);
+    background:
+      radial-gradient(120% 60% at 50% 0%, #3a2019 0%, transparent 60%),
+      var(--rosewood);
+    padding:
+      calc(env(safe-area-inset-top, 0px) + 28px)
+      calc(env(safe-area-inset-right, 0px) + 20px)
+      calc(env(safe-area-inset-bottom, 0px) + 40px)
+      calc(env(safe-area-inset-left, 0px) + 20px);
+    line-height: 1.5;
   }
-  e.target.value='';pending=ok;
-  say(errs.length?errs.join('<hr>'):'Revisa la vista previa y pulsa Guardar.',errs.length?'err':'ok');
-  preview();
-};
-function preview(){
-  if(!pending.length){$('pend').innerHTML='';return}
-  $('pend').innerHTML=`<h2>Vista previa (${pending.length})</h2>`+pending.map(ticketHTML).join('')+
-   `<div class="row"><button id="save">Guardar ${pending.length} ticket(s)</button><button class="sec" id="drop">Descartar</button></div>`;
-  $('save').onclick=async()=>{const r=await addTickets(pending);await addDic(pdic);pending=[];pdic=[];preview();say(`Añadidos: ${r.add}. Duplicados ignorados: ${r.dup}.`,r.dup?'warn':'ok');render()};
-  $('drop').onclick=()=>{pending=[];pdic=[];preview();say('Descartado.')};
-}
-const ticketHTML=t=>`<details class="card"><summary><b>${t.fecha}</b> ${t.hora||''} · ${esc(t.supermercado)} · <b>${eur(t.total)}</b> <span class="mut">(${t.lineas.length} líneas)</span></summary>
-<table><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr>${t.lineas.map(l=>`<tr><td>${esc(l.producto)}${l.seccion?` <span class="mut">· ${esc(l.seccion)}</span>`:''}</td><td>${l.unidades!=null?l.unidades:l.peso_kg.toFixed(3)+' kg'}</td><td>${eur(l.precio_ref)}${l.peso_kg!=null?'/kg':''}</td><td>${eur(l.importe)}</td></tr>`).join('')}</table></details>`;
-async function render(){
-  const T=(await all()).sort((a,b)=>(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||'')));
-  renderDic();$('count').textContent=T.length?`(${T.length})`:'';
-  $('list').innerHTML=T.length?T.map(ticketHTML).join(''):'<p class="mut">Aún no hay tickets. Importa un PDF de ticket digital.</p>';
-}
-$('exp').onclick=async()=>{
-  const T=(await all()).map(({id,...t})=>t);
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({version:1,tickets:T,diccionario:(await allDic()).map(x=>({producto:x.producto,nombre:x.nombre,categoria:x.categoria}))},null,1)],{type:'application/json'}));
-  a.download=`copia-compras-${new Date().toISOString().slice(0,10)}.json`;a.click();
-};
-// ---------- Diccionario (fase 3) ----------
-const CATS=['Frutas y verduras','Carne','Pescado','Lácteos y huevos','Panadería y bollería','Despensa','Bebidas','Congelados','Snacks y dulces','Higiene y belleza','Limpieza y hogar','Otros'];
-const SUG=[
- [/MEJILL|NAVAJA|CHIRLA|DORADA|LUBINA|SEPIA|LANGOSTINO|SALM[OÓ]N|MERLUZA|GAMBA|PULPO|CALAMAR|AT[UÚ]N/i,'Pescado'],
- [/LECHE|YOGUR|QUESO|GRANA|NATA\b|MANTEQ|HUEVO|\bQ /i,'Lácteos y huevos'],
- [/^PAN\b|BAGEL|BOLLO|CROISS|GALLETA/i,'Panadería y bollería'],
- [/BEBIDA|AGUA|CERVEZA|VINO|ZUMO|REFRESCO|CAFE|CAP\./i,'Bebidas'],
- [/JAM[OÓ]N|POLLO|PAVO|CERDO|TERNERA|SALCHICH|LOMO|CHORIZO|BACON/i,'Carne'],
- [/TORTITAS|CHOCOL|SNACK|PATATAS FRIT/i,'Snacks y dulces'],
- [/\bGEL\b|DESMAQ|M[ÁA]SCARA|CHAMP|ACONDIC|LEAVE-IN|CREMA|JAB[OÓ]N|DENTIFR|PAPEL HIG|FACIAL/i,'Higiene y belleza'],
- [/DETERG|LAVAVAJ|FREGON|LEJ[IÍ]A|SUAVIZ|LIMPI/i,'Limpieza y hogar'],
- [/PEPINO|TOMATE|MANZ|MELOCOT|PL[AÁ]TANO|CALABAC|PIMIENTO|NARANJ|LIM[OÓ]N|CEBOLLA|ZANAH|LECHUGA|SETAS|^ESP |FRESA/i,'Frutas y verduras']];
-const suggest=(p,sec)=>sec&&/PESCADO/i.test(sec)?'Pescado':((SUG.find(([r])=>r.test(p))||[])[1]||'');
+  .wrap { max-width: 980px; margin: 0 auto; }
 
-async function renderDic(){renderPanel();
-  const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),P={};
-  T.forEach(t=>t.lineas.forEach(l=>{const p=P[l.producto]=P[l.producto]||{sec:l.seccion};}));
-  const names=Object.keys(P).sort((a,b)=>(!D[a]-!D[b])||a.localeCompare(b)),unk=names.filter(p=>!D[p]).length;
-  $('dcount').textContent=names.length?`(${names.length}${unk?` · ${unk} sin categoría`:''})`:'';
-  const cats=[...new Set([...CATS,...Object.values(D).map(x=>x.categoria)])];
-  $('dic').innerHTML=names.length?(unk?'<div class="row" style="margin-bottom:8px"><button id="acc">Guardar las sugerencias de los sin categoría</button><span class="mut">Revisa antes las que estén en blanco.</span></div>':'')+
-   '<table><tr><th>Producto en el ticket</th><th>Nombre legible</th><th>Categoría</th></tr>'+names.map(p=>{
-     const d=D[p],c=d?d.categoria:suggest(p,P[p].sec);
-     return `<tr${d?'':' style="background:color-mix(in srgb,var(--warn) 15%,transparent)"'}><td>${esc(p)}</td><td><input class="nm" data-p="${esc(p)}" value="${esc(d?d.nombre:'')}" placeholder="opcional" style="width:100%"></td><td><select class="ct" data-p="${esc(p)}"><option value="">Elegir…</option>${cats.map(x=>`<option${x===c?' selected':''}>${esc(x)}</option>`).join('')}<option value="__new">+ Nueva categoría…</option></select></td></tr>`}).join('')+'</table>'
-   :'<p class="mut">Se llenará al importar tickets.</p>';
-  document.querySelectorAll('#dic .ct,#dic .nm').forEach(el=>el.onchange=async()=>{
-    const row=el.closest('tr');let c=row.querySelector('.ct').value;
-    if(c==='__new'){c=(prompt('Nombre de la nueva categoría')||'').trim();if(!c){renderDic();return}}
-    if(!c)return;
-    await putDic({producto:el.dataset.p,nombre:row.querySelector('.nm').value.trim(),categoria:c});renderDic();
-  });
-  const b=$('acc');if(b)b.onclick=async()=>{
-    for(const r of document.querySelectorAll('#dic tr')){const sel=r.querySelector('.ct');
-      if(sel&&sel.value&&sel.value!=='__new'&&!D[sel.dataset.p])await putDic({producto:sel.dataset.p,nombre:r.querySelector('.nm').value.trim(),categoria:sel.value})}
-    renderDic();
-  };
-}
-// ---------- Panel de gasto (fase 4) ----------
-const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim(),ch={};
-const mesNom=m=>{const[y,k]=m.split('-');return new Date(y,k-1).toLocaleDateString('es-ES',{month:'long',year:'numeric'})};
-function draw(id,cfg){if(typeof Chart==='undefined')return false;if(ch[id])ch[id].destroy();ch[id]=new Chart($(id),cfg);return true}
-const sorted=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);
-const tabla=(R,tot)=>'<table><tr><th></th><th>Importe</th><th>%</th></tr>'+R.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${eur(v/100)}</td><td>${(tot?v/tot*100:0).toFixed(1).replace('.',',')} %</td></tr>`).join('')+'</table>';
-$('per').onchange=()=>renderPanel();
-async function renderPanel(){renderPrecios();
-  const T=await all();
-  $('pempty').style.display=T.length?'none':'';$('pbody').style.display=T.length?'':'none';
-  if(!T.length)return;
-  const D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),cur=$('per').value;
-  const months=[...new Set(T.map(t=>t.fecha.slice(0,7)))].sort().reverse();
-  $('per').innerHTML='<option value="">Todo el periodo</option>'+months.map(m=>`<option value="${m}"${m===cur?' selected':''}>${mesNom(m)}</option>`).join('');
-  const R=resumen(T,D,$('per').value),C=sorted(R.cat),S=sorted(R.sup),dif=Math.abs(C.reduce((a,x)=>a+x[1],0)-R.tot);
-  $('kpi').innerHTML=[['Gasto',eur(R.tot/100)],['Tickets',R.n],['Media por ticket',R.n?eur(R.tot/100/R.n):'—']].map(([a,b])=>`<div class="card" style="flex:1;min-width:110px;margin:0"><div class="mut">${a}</div><b style="font-size:1.2rem">${b}</b></div>`).join('');
-  const sc=R.cat['Sin categoría'];
-  $('pnote').innerHTML=(sc?`<p class="warn">⚠ ${eur(sc/100)} sin categoría: asígnala en “Productos y categorías”.</p>`:'')+
-    `<p class="mut">${dif<=R.n?'✓ Los totales cuadran con la suma de los tickets'+(dif?` (${dif} cént. de redondeo)`:''):'⚠ Los totales no cuadran: revisa los tickets'}</p>`;
-  const ax={ticks:{color:css('--fg')},grid:{color:css('--bd')}},base={maintainAspectRatio:false,plugins:{legend:{display:false}}};
-  $('wCat').style.height=Math.max(120,C.length*34+40)+'px';
-  const ok=draw('cCat',{type:'bar',data:{labels:C.map(x=>x[0]),datasets:[{data:C.map(x=>x[1]/100),backgroundColor:css('--ac')}]},options:{...base,indexAxis:'y',scales:{x:ax,y:{ticks:ax.ticks,grid:{display:false}}}}});
-  const M=Object.entries(R.m).sort();
-  draw('cMes',{type:'bar',data:{labels:M.map(x=>x[0]),datasets:[{data:M.map(x=>x[1]/100),backgroundColor:css('--ac')}]},options:{...base,scales:{x:{ticks:ax.ticks,grid:{display:false}},y:ax}}});
-  if(!ok)$('pnote').innerHTML+='<p class="mut">Las gráficas necesitan internet la primera vez; las tablas funcionan sin ella.</p>';
-  $('tCat').innerHTML=tabla(C,R.tot);$('tSup').innerHTML=tabla(S,R.tot);
-}
-// ---------- Precios (fase 5) ----------
-$('ps').onchange=()=>renderPrecios();
-const pct=x=>(x>0?'+':'')+x.toFixed(1).replace('.',',')+' %';
-const filas=a=>a.length?'<table><tr><th>Producto</th><th>Antes</th><th>Ahora</th><th>Cambio</th></tr>'+a.map(x=>`<tr><td>${esc(x.nom)} <span class="mut">· ${esc(x.sup)}</span></td><td>${eur(x.a.v)}/${x.tipo}<br><span class="mut">${x.a.fecha}</span></td><td>${eur(x.b.v)}/${x.tipo}<br><span class="mut">${x.b.fecha}</span></td><td class="${x.pct>0?'err':'ok'}"><b>${pct(x.pct)}</b></td></tr>`).join('')+'</table>':'<p class="mut">Ninguno por ahora.</p>';
-async function renderPrecios(){
-  const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x]));
-  const S=precios(T,D),V=variaciones(S),cur=$('ps').value;
-  $('prempty').style.display=V.length?'none':'';$('prbody').style.display=V.length?'':'none';
-  if(V.length){
-    $('tUp').innerHTML=filas(V.filter(x=>x.pct>=0.5).sort((a,b)=>b.pct-a.pct).slice(0,10));
-    $('tDown').innerHTML=filas(V.filter(x=>x.pct<=-0.5).sort((a,b)=>a.pct-b.pct).slice(0,5));
-    const O=[...V].sort((a,b)=>a.nom.localeCompare(b.nom));
-    $('ps').innerHTML=O.map(x=>`<option value="${esc(x.k)}"${x.k===cur?' selected':''}>${esc(x.nom)} · ${esc(x.sup)} (${x.tipo})</option>`).join('');
-    const sel=O.find(x=>x.k===$('ps').value)||O[0];
-    const ax={ticks:{color:css('--fg')},grid:{color:css('--bd')}};
-    draw('cPre',{type:'line',data:{labels:sel.p.map(x=>x.fecha),datasets:[{data:sel.p.map(x=>x.v),borderColor:css('--ac'),backgroundColor:css('--ac'),tension:.2}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:ax,y:{...ax,title:{display:true,text:'€/'+sel.tipo,color:css('--fg')}}}}});
+  header { padding: 8px 0 36px; }
+  .strings { display: block; width: 100%; height: 44px; margin-bottom: 28px; }
+  h1 {
+    font-size: clamp(2.3rem, 7.5vw, 4.6rem);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    max-width: 12ch;
   }
-  const M=catMes(T,D),ms=M.meses.slice(-6);
-  $('mmbody').style.display=ms.length?'':'none';
-  if(ms.length){
-    const lab=m=>{const[y,k]=m.split('-');return new Date(y,k-1).toLocaleDateString('es-ES',{month:'short',year:'2-digit'})},last=ms[ms.length-1],prev=ms[ms.length-2];
-    const R=Object.entries(M.cat).sort((a,b)=>(b[1][last]||0)-(a[1][last]||0));
-    const tot=m=>R.reduce((a,[,v])=>a+(v[m]||0),0);
-    const d=(v)=>prev&&v[prev]?`<td class="${v[last]>v[prev]?'err':'ok'}"><b>${pct(((v[last]||0)-v[prev])/v[prev]*100)}</b></td>`:'<td class="mut">—</td>';
-    $('tMes').innerHTML=`<table><tr><th></th>${ms.map(m=>`<th>${lab(m)}</th>`).join('')}${prev?`<th>${lab(prev)}→${lab(last)}</th>`:''}</tr>`+
-      R.map(([c,v])=>`<tr><td>${esc(c)}</td>${ms.map(m=>`<td>${v[m]?eur(v[m]/100):'—'}</td>`).join('')}${prev?d(v):''}</tr>`).join('')+
-      `<tr><td><b>Total</b></td>${ms.map(m=>`<td><b>${eur(tot(m)/100)}</b></td>`).join('')}${prev?d(Object.fromEntries(ms.map(m=>[m,tot(m)]))):''}</tr></table><p class="mut">El mes en curso puede estar incompleto. La comparación usa los dos últimos meses con datos.</p>`;
+  .lead {
+    margin-top: 16px;
+    max-width: 46ch;
+    color: var(--muted);
+    font-size: clamp(1rem, 2.4vw, 1.2rem);
   }
-}
-render();
-</script></body></html>
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    list-style: none;
+    padding: 0;
+  }
+  @media (min-width: 620px) {
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  }
+
+  .tile {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    height: 100%;
+    min-height: 190px;
+    padding: 24px;
+    color: inherit;
+    text-decoration: none;
+    background: linear-gradient(160deg, var(--rosewood-3), var(--rosewood-2));
+    border: 1px solid rgba(212, 166, 79, 0.22);
+    border-radius: 22px;
+    position: relative;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  .tile::after {
+    /* traste de latón en el borde inferior */
+    content: "";
+    position: absolute; left: 24px; right: 24px; bottom: 0; height: 3px;
+    background: var(--brass);
+    border-radius: 3px 3px 0 0;
+    opacity: .55;
+    transition: opacity .18s ease, left .18s ease, right .18s ease;
+  }
+  .tile:hover, .tile:focus-visible {
+    transform: translateY(-3px);
+    border-color: var(--brass);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, .35);
+  }
+  .tile:hover::after, .tile:focus-visible::after { opacity: 1; left: 0; right: 0; }
+  .tile:active { transform: translateY(0) scale(.99); }
+  .tile:focus-visible { outline: 3px solid var(--pearl); outline-offset: 3px; }
+
+  .icon {
+    width: 56px; height: 56px; flex: none;
+    display: grid; place-items: center;
+    border-radius: 16px;
+    background: var(--rosewood);
+    border: 1px solid rgba(212, 166, 79, 0.35);
+    color: var(--brass);
+  }
+  .icon svg { width: 30px; height: 30px; }
+  .tile h2 { font-size: 1.55rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; }
+  .tile p { margin-top: 6px; color: var(--muted); font-size: 1rem; }
+  .tile:hover .icon, .tile:focus-visible .icon { color: var(--ember); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg class="strings" viewBox="0 0 600 44" preserveAspectRatio="none" aria-hidden="true">
+      <g stroke="#d4a64f" stroke-linecap="round">
+        <line x1="0" y1="4"  x2="600" y2="4"  stroke-width="0.8" opacity=".6"/>
+        <line x1="0" y1="12" x2="600" y2="12" stroke-width="1.1" opacity=".7"/>
+        <line x1="0" y1="20" x2="600" y2="20" stroke-width="1.5" opacity=".8"/>
+        <line x1="0" y1="28" x2="600" y2="28" stroke-width="2"   opacity=".85"/>
+        <line x1="0" y1="36" x2="600" y2="36" stroke-width="2.6" opacity=".9"/>
+        <line x1="0" y1="43" x2="600" y2="43" stroke-width="3.2" opacity="1"/>
+      </g>
+    </svg>
+    <h1>Aplicaciones para guitarra</h1>
+    <p class="lead">Elige una herramienta y ponte a tocar.</p>
+  </header>
+
+  <main>
+    <ul class="grid">
+      <li>
+        <a class="tile" href="metronomo/">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8l3.5 17h-15L8 3Z"/><path d="M12 16 16.5 7"/><circle cx="16.5" cy="7" r="1.2" fill="currentColor"/></svg>
+          </span>
+          <span>
+            <h2>Metrónomo</h2>
+            <p>Practica con un pulso constante a tu ritmo.</p>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a class="tile" href="afinador/">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16a8 8 0 0 1 16 0"/><path d="M12 16l3.5-5"/><circle cx="12" cy="16" r="1.2" fill="currentColor"/><path d="M12 5V3"/><path d="M5.6 7.6 4.2 6.2"/><path d="m18.4 7.6 1.4-1.4"/></svg>
+          </span>
+          <span>
+            <h2>Afinador de guitarra</h2>
+            <p>Afina cada cuerda con el micrófono.</p>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a class="tile" href="loop/">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>
+          </span>
+          <span>
+            <h2>Bucles</h2>
+            <p>Repite un fragmento hasta que te salga.</p>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a class="tile" href="teoria/">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6c2-1.5 5-1.5 8 0v14c-3-1.5-6-1.5-8 0V6Z"/><path d="M12 6c3-1.5 6-1.5 8 0v14c-2-1.5-5-1.5-8 0"/></svg>
+          </span>
+          <span>
+            <h2>Teoría de guitarra</h2>
+            <p>Escalas, acordes y todo lo que necesitas saber.</p>
+          </span>
+        </a>
+      </li>
+    </ul>
+  </main>
+</div>
+</body>
+</html>
