@@ -29,7 +29,7 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
 .idea textarea{width:100%;resize:vertical}.idea.done textarea{text-decoration:line-through;color:var(--mut)}
 #toast{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:10;max-width:90%;box-shadow:0 2px 8px #0004}#toast.err{background:var(--err);color:#fff}
 </style></head><body>
-<h1>🛒 Mis compras <small class="mut">v9</small></h1>
+<h1>🛒 Mis compras <small class="mut">v10</small></h1>
 <p class="mut">Tus datos se guardan solo en este navegador. Nada se envía a ningún servidor.</p>
 <div id="aviso"></div>
 <div id="msg"></div>
@@ -124,14 +124,14 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
 </div>
 <div class="sub" id="s-copia">
   <div class="card"><b>Importar y exportar</b>
-    <p class="mut">Importar <b>suma</b> tickets (PDF o JSON) y diccionario. La copia (JSON) incluye tickets, diccionario, lista de la compra e ideas.</p>
+    <p class="mut">Importar <b>fusiona</b> tickets, diccionario, ideas, lista y categorías (añade lo nuevo y completa lo vacío, sin pisar lo que ya tienes). La copia (JSON) incluye tickets, diccionario, lista de la compra e ideas.</p>
     <div class="row"><label class="btn">Importar PDF o JSON<input id="file" type="file" accept=".pdf,.json,application/pdf,application/json" multiple></label>
     <button class="sec" id="exp">Exportar copia (JSON)</button></div></div>
 <div class="card"><b>Instalar como app (PWA)</b>
     <p class="mut" id="pwast"></p><button id="inst" style="display:none">Instalar app</button>
     <p class="mut">En iPhone: Compartir → “Añadir a pantalla de inicio”. Los datos de la app instalada son independientes de los del navegador: exporta una copia y restáurala dentro de la app.</p></div>
 <details class="card" style="margin-top:12px"><summary><b>Zona de riesgo</b>: restaurar o borrar todo</summary>
-  <p class="mut">El botón principal de importar <b>suma</b>. Aquí, <b>Restaurar</b> sustituye todo lo que tienes por el contenido de una copia. Antes de cualquier cambio se descarga una copia de lo actual y se te pide escribir una palabra para confirmar.</p>
+  <p class="mut">El importar normal <b>fusiona</b>. Aquí, <b>Restaurar</b> sustituye todo lo que tienes por el contenido de una copia. Antes de cualquier cambio se descarga una copia de lo actual y se te pide escribir una palabra para confirmar.</p>
   <div class="row"><button class="sec" id="restb">Restaurar copia (reemplaza todo)</button><input id="rest" type="file" accept=".json,application/json">
   <button class="sec" id="wipe" style="color:var(--err)">Borrar todos los datos</button></div>
 </details>
@@ -250,11 +250,23 @@ const tx=async(m,f,st='tickets')=>{const db=await DB;return new Promise((ok,ko)=
 const all=()=>tx('readonly',s=>s.getAll());
 const allDic=()=>tx('readonly',s=>s.getAll(),'dic');
 const putDic=x=>tx('readwrite',s=>s.put(x),'dic');
-async function addDic(a){const have=new Set((await allDic()).map(x=>x.producto));let k=0;for(const x of a)if(!have.has(x.producto)){await putDic({producto:x.producto,nombre:x.nombre||'',categoria:x.categoria});k++}return k} // SUMA: no pisa lo existente
-async function addTickets(ts){ // SUMA: nunca sobrescribe
-  const have=new Set((await all()).map(x=>x.id));let add=0,dup=0;
-  for(const t of ts){const id=huella(t);if(have.has(id)){dup++;continue}have.add(id);await tx('readwrite',s=>s.put({id,...t}));add++}
-  return{add,dup};
+async function addDic(a){ // FUSIONA: añade nuevas y completa vacías; nunca pisa un valor que ya tengas
+  const have=Object.fromEntries((await allDic()).map(x=>[x.producto,x]));let add=0,upd=0,conf=0;
+  for(const x of a){const h=have[x.producto];
+    if(!h){await putDic({producto:x.producto,nombre:x.nombre||'',categoria:x.categoria});add++;continue}
+    const n={...h};let ch=false;
+    if(!h.categoria&&x.categoria){n.categoria=x.categoria;ch=true}else if(x.categoria&&x.categoria!==h.categoria)conf++;
+    if(!h.nombre&&x.nombre){n.nombre=x.nombre;ch=true}else if(x.nombre&&x.nombre!==h.nombre)conf++;
+    if(ch){await putDic(n);upd++}}
+  return{add,upd,conf};
+}
+async function addTickets(ts){ // SUMA: nunca borra; en duplicados solo recoge textos editados
+  const have=new Map((await all()).map(x=>[x.id,x]));let add=0,dup=0,upd=0;
+  for(const t of ts){const id=huella(t),ex=have.get(id);
+    if(ex){let ch=false;if(ex.lineas.length===t.lineas.length)t.lineas.forEach((l,j)=>{const e=ex.lineas[j];if(l.original&&!e.original&&e.importe===l.importe&&e.producto===l.original){e.producto=l.producto;e.original=l.original;ch=true}});
+      if(ch){await tx('readwrite',s=>s.put(ex));upd++}else dup++;continue}
+    have.set(id,t);await tx('readwrite',s=>s.put({id,...t}));add++}
+  return{add,dup,upd};
 }
 
 // ---------- PDF ----------
@@ -272,19 +284,20 @@ async function pdfLines(file){
 // ---------- UI ----------
 const $=id=>document.getElementById(id),eur=x=>x.toFixed(2).replace('.',',')+' €';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let pending=[],pdic=[];
+let pending=[],pdic=[],pex={lista:[],ideas:[],cats:[]};
+const rex=()=>pex={lista:[],ideas:[],cats:[]};
 const say=(h,c='')=>{$('msg').innerHTML=`<div class="card ${c}">${h}</div>`;scrollTo(0,0)};
 let tt;const toast=(m,c)=>{const e=$('toast');e.textContent=m;e.className=c||'';e.style.display='block';clearTimeout(tt);tt=setTimeout(()=>e.style.display='none',3500)};
 
 $('file').onchange=async e=>{
-  const errs=[],ok=[];pdic=[];
+  const errs=[],ok=[];pdic=[];rex();
   for(const f of e.target.files){
     try{
       let d;
       if(/\.pdf$/i.test(f.name)){d={version:1,tickets:[parseMercadona(await pdfLines(f))]}}
       else d=JSON.parse(await f.text());
       const E=validate(d);
-      if(E.length)errs.push(`<b>${esc(f.name)}</b><br>`+E.map(esc).join('<br>'));else{ok.push(...d.tickets);pdic.push(...(d.diccionario||[]))}
+      if(E.length)errs.push(`<b>${esc(f.name)}</b><br>`+E.map(esc).join('<br>'));else{ok.push(...d.tickets);pdic.push(...(d.diccionario||[]));pex.lista.push(...(d.lista||[]));pex.ideas.push(...(d.ideas||[]));pex.cats.push(...(d.categorias||[]))}
     }catch(x){errs.push(`<b>${esc(f.name)}</b><br>${esc(x.message)}`)}
   }
   e.target.value='';pending=ok;
@@ -293,10 +306,11 @@ $('file').onchange=async e=>{
 };
 function preview(){
   if(!pending.length){$('pend').innerHTML='';return}
-  $('pend').innerHTML=`<h2>Vista previa (${pending.length})</h2>`+pending.map(t=>ticketHTML(t)).join('')+
+  $('pend').innerHTML=`<h2>Vista previa (${pending.length})</h2>`+(pdic.length||pex.ideas.length||pex.lista.length||pex.cats.length?`<p class="mut">Además se fusionarán: ${pdic.length} entradas de diccionario, ${pex.ideas.length} ideas, ${pex.lista.length} productos de lista y ${pex.cats.length} categorías. Se añade lo nuevo y se completan campos vacíos; no se pisa nada que ya tengas.</p>`:'')+pending.map(t=>ticketHTML(t)).join('')+
    `<div class="row"><button id="save">Guardar ${pending.length} ticket(s)</button><button class="sec" id="drop">Descartar</button></div>`;
-  $('save').onclick=async()=>{const r=await addTickets(pending);await addDic(pdic);pending=[];pdic=[];preview();say(`Añadidos: ${r.add}. Duplicados ignorados: ${r.dup}.`,r.dup?'warn':'ok');render()};
-  $('drop').onclick=()=>{pending=[];pdic=[];preview();say('Descartado.')};
+  $('save').onclick=async()=>{const r=await addTickets(pending),dr=await addDic(pdic),ex=await addExtras();pending=[];pdic=[];rex();preview();
+    say(`Tickets: ${r.add} añadidos, ${r.upd} con textos editados recogidos, ${r.dup} duplicados ignorados.<br>Diccionario: ${dr.add} nuevas, ${dr.upd} completadas${dr.conf?`, ${dr.conf} con un valor distinto al tuyo (no se han pisado)`:''}.<br>Ideas: ${ex.i} nuevas · Lista: ${ex.l} nuevos · Categorías: ${ex.c} nuevas.`,r.dup||dr.conf?'warn':'ok');render()};
+  $('drop').onclick=()=>{pending=[];pdic=[];rex();preview();say('Descartado.')};
 }
 const ticketHTML=(t,ed)=>`<details class="card"><summary><b>${t.fecha}</b> ${t.hora||''} · ${esc(t.supermercado)} · <b>${eur(t.total)}</b> <span class="mut">(${t.lineas.length} líneas)</span></summary>
 <table><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr>${t.lineas.map((l,j)=>`<tr><td>${esc(l.producto)}${l.original?` <span class="mut" title="Original: ${esc(l.original)}">(editado)</span>`:''}${ed?` <button class="sec edl" data-t="${esc(t.id)}" data-j="${j}" style="padding:0 7px">✎</button>`:''}${l.seccion?` <span class="mut">· ${esc(l.seccion)}</span>`:''}</td><td>${l.unidades!=null?l.unidades:l.peso_kg.toFixed(3)+' kg'}</td><td>${eur(l.precio_ref)}${l.peso_kg!=null?'/kg':''}</td><td>${eur(l.importe)}</td></tr>`).join('')}</table></details>`;
@@ -449,7 +463,7 @@ $('wipe').onclick=async()=>{
   say('Datos borrados. Tienes la copia descargada: restáurala desde “Zona de riesgo”.','warn');
 };
 // ---------- v7: navegación, IA, lista de la compra, ideas ----------
-const VERSION=9,al=(a,b)=>a.localeCompare(b,'es'),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const VERSION=10,al=(a,b)=>a.localeCompare(b,'es'),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const put=(st,x)=>tx('readwrite',s=>s.put(x),st),del=(st,id)=>tx('readwrite',s=>s.delete(id),st),list=st=>tx('readonly',s=>s.getAll(),st);
 const xi=I=>[...I].sort((a,b)=>a.id.localeCompare(b.id)).map(x=>[x.texto,!!x.hecho]);
 async function addLista(a){for(const x of a)await put('lista',{id:x.id||uid(),producto:x.producto,cat:x.cat||'Otros',cant:x.cant||'',nota:x.nota||'',ok:!!x.ok})}
@@ -632,6 +646,14 @@ $('inst').onclick=async()=>{if(ipr){ipr.prompt();await ipr.userChoice;ipr=null;$
   let per='';try{if(navigator.storage&&navigator.storage.persist){await navigator.storage.persist();per=(await navigator.storage.persisted())?' Almacenamiento protegido: sí.':' Almacenamiento protegido: no (el navegador podría borrarlo si falta espacio; haz copias).'}}catch(e){}
   $('pwast').textContent=(st?'✓ Estás usando la app instalada.':web?'Puedes instalarla desde el menú del navegador (“Instalar app” / “Añadir a pantalla de inicio”).':'Para instalarla hay que abrirla desde una dirección https (ver LEEME del paquete PWA).')+per})();
 
+async function addExtras(){
+  const I=await list('ideas'),L=await list('lista'),hi=new Set(I.flatMap(x=>[x.id,x.texto])),hl=new Set(L.flatMap(x=>[x.id,x.producto.toLowerCase()]));let i=0,l=0,c=0;
+  for(const x of pex.ideas)if(!hi.has(x.id)&&!hi.has(x.texto)){await put('ideas',{id:x.id||uid(),texto:x.texto,hecho:!!x.hecho,f:x.f||new Date().toISOString()});hi.add(x.id);hi.add(x.texto);i++}
+  for(const x of pex.lista)if(!hl.has(x.id)&&!hl.has(x.producto.toLowerCase())){await put('lista',{id:x.id||uid(),producto:x.producto,cat:x.cat||'Sin categoría',cant:x.cant||'',nota:x.nota||'',ok:!!x.ok});hl.add(x.id);hl.add(x.producto.toLowerCase());l++}
+  for(const k of pex.cats)if(!CATL.includes(k)){CATL.push(k);c++}
+  if(c)await saveCats();
+  return{i,l,c};
+}
 // ----- Editar texto de una línea de ticket -----
 $('list').onclick=async e=>{const b=e.target.closest('.edl');if(!b)return;
   const t=(await all()).find(x=>x.id===b.dataset.t),l=t&&t.lineas[+b.dataset.j];if(!l)return;

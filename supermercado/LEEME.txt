@@ -1,4 +1,4 @@
-MIS COMPRAS - PAQUETE PWA (v9)
+MIS COMPRAS - PAQUETE PWA (v10)
 
 Una PWA solo se puede instalar si se abre desde una dirección https (no desde un archivo local).
 Sube TODOS estos archivos a la misma carpeta de un alojamiento estático gratuito:
