@@ -2,6 +2,7 @@
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mis compras</title>
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1b7f5c"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Compras">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
@@ -28,7 +29,7 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
 .idea textarea{width:100%;resize:vertical}.idea.done textarea{text-decoration:line-through;color:var(--mut)}
 #toast{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:10;max-width:90%;box-shadow:0 2px 8px #0004}#toast.err{background:var(--err);color:#fff}
 </style></head><body>
-<h1>🛒 Mis compras <small class="mut">v8</small></h1>
+<h1>🛒 Mis compras <small class="mut">v9</small></h1>
 <p class="mut">Tus datos se guardan solo en este navegador. Nada se envía a ningún servidor.</p>
 <div id="aviso"></div>
 <div id="msg"></div>
@@ -43,6 +44,7 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
   <h2 style="font-size:1rem">Por categoría</h2>
   <div class="card"><div id="wCat" style="position:relative"><canvas id="cCat"></canvas></div></div>
   <div id="tCat"></div>
+  <div id="tPC"></div>
   <h2 style="font-size:1rem">Por mes</h2>
   <div class="card"><div style="position:relative;height:220px"><canvas id="cMes"></canvas></div></div>
   <h2 style="font-size:1rem">Por supermercado</h2>
@@ -95,7 +97,7 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
 </section>
 
 <section class="tab" id="t-mas">
-<div class="pills" id="sub"><button data-t="ia">🤖 IA</button><button data-t="prod">📖 Productos</button><button data-t="copia">💾 Datos</button></div>
+<div class="pills" id="sub"><button data-t="ia">🤖 IA</button><button data-t="cat">🏷️ Categorías</button><button data-t="prod">📖 Productos</button><button data-t="copia">💾 Datos</button></div>
 <div class="sub" id="s-ia">
   <div class="card"><b>1. Analizar mi gasto</b>
     <p class="mut">Genera un resumen con datos agregados (sin tickets individuales) y el prompt de análisis. Pégalo en Gemini, ChatGPT o Claude.</p>
@@ -108,6 +110,12 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
     <p class="mut">Envía todo el diccionario (producto, nombre legible y categoría) para que la IA compruebe si son correctas y proponga cambios o categorías nuevas. Los cambios los aplicas tú en Más → Productos.</p>
     <button id="pd">Copiar prompt de revisión de categorías</button></div>
 </div>
+<div class="sub" id="s-cat">
+  <h2>Categorías</h2>
+  <div class="row"><button id="cnew">＋ Nueva categoría</button></div>
+  <p class="mut">Productos por categoría, en orden alfabético. Al <b>eliminar</b> una categoría, sus productos quedan “sin asignar” para que les pongas otra. Al <b>renombrar</b> a un nombre que ya existe, se fusionan.</p>
+  <div id="cbody"></div>
+</div>
 <div class="sub" id="s-prod">
   <h2>Productos y categorías <span class="mut" id="dcount"></span></h2>
   <p class="mut">Pon la misma categoría a cada producto. Si dos productos (o de dos súper) tienen el mismo <b>nombre legible</b>, la app los tratará como el mismo producto.</p>
@@ -119,6 +127,9 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
     <p class="mut">Importar <b>suma</b> tickets (PDF o JSON) y diccionario. La copia (JSON) incluye tickets, diccionario, lista de la compra e ideas.</p>
     <div class="row"><label class="btn">Importar PDF o JSON<input id="file" type="file" accept=".pdf,.json,application/pdf,application/json" multiple></label>
     <button class="sec" id="exp">Exportar copia (JSON)</button></div></div>
+<div class="card"><b>Instalar como app (PWA)</b>
+    <p class="mut" id="pwast"></p><button id="inst" style="display:none">Instalar app</button>
+    <p class="mut">En iPhone: Compartir → “Añadir a pantalla de inicio”. Los datos de la app instalada son independientes de los del navegador: exporta una copia y restáurala dentro de la app.</p></div>
 <details class="card" style="margin-top:12px"><summary><b>Zona de riesgo</b>: restaurar o borrar todo</summary>
   <p class="mut">El botón principal de importar <b>suma</b>. Aquí, <b>Restaurar</b> sustituye todo lo que tienes por el contenido de una copia. Antes de cualquier cambio se descarga una copia de lo actual y se te pide escribir una palabra para confirmar.</p>
   <div class="row"><button class="sec" id="restb">Restaurar copia (reemplaza todo)</button><input id="rest" type="file" accept=".json,application/json">
@@ -166,7 +177,7 @@ function parseMercadona(L){
 function validate(d){
   const E=[],T=d&&d.tickets;
   if(!d||d.version!==1||!Array.isArray(T)||!T.length)return['Formato inválido: se espera {"version":1,"tickets":[...]}'];
-  Object.keys(d).forEach(k=>{if(!['version','tickets','diccionario','lista','ideas'].includes(k))E.push('Campo no permitido: '+k)});
+  Object.keys(d).forEach(k=>{if(!['version','tickets','diccionario','lista','ideas','categorias'].includes(k))E.push('Campo no permitido: '+k)});
   T.forEach((t,i)=>{
     const p=`Ticket ${i+1}: `;
     Object.keys(t).forEach(k=>{if(!KT.includes(k))E.push(p+'campo no permitido "'+k+'"')});
@@ -191,9 +202,10 @@ function validate(d){
   (d.diccionario||[]).forEach((x,i)=>{
     if(!x||typeof x.producto!=='string'||typeof x.categoria!=='string'||(x.nombre!=null&&typeof x.nombre!=='string')||Object.keys(x).some(k=>!['producto','nombre','categoria'].includes(k))||PRIV.test(JSON.stringify(x)))E.push('Diccionario: entrada '+(i+1)+' inválida');
   });
-  ['lista','ideas'].forEach(k=>{if(d[k]!=null&&!Array.isArray(d[k]))E.push(k+': formato inválido')});
+  ['lista','ideas','categorias'].forEach(k=>{if(d[k]!=null&&!Array.isArray(d[k]))E.push(k+': formato inválido')});
   (Array.isArray(d.lista)?d.lista:[]).forEach((x,i)=>{if(!x||typeof x.producto!=='string'||!x.producto)E.push('Lista: entrada '+(i+1)+' inválida')});
   (Array.isArray(d.ideas)?d.ideas:[]).forEach((x,i)=>{if(!x||typeof x.texto!=='string')E.push('Ideas: entrada '+(i+1)+' inválida')});
+  (Array.isArray(d.categorias)?d.categorias:[]).forEach((c,i)=>{if(typeof c!=='string'||!c)E.push('Categorías: entrada '+(i+1)+' inválida')});
   return E;
 }
 const huella=t=>[t.fecha,t.hora||'',t.supermercado,t.total.toFixed(2),t.lineas.length].join('|');
@@ -233,7 +245,7 @@ function resumenCopia(d){const u=new Map();(d.tickets||[]).forEach(t=>u.set(huel
 //#endcore
 
 // ---------- Almacenamiento (IndexedDB) ----------
-const DB=new Promise((ok,ko)=>{const q=indexedDB.open('compras',3);q.onupgradeneeded=()=>{const d=q.result;if(!d.objectStoreNames.contains('tickets'))d.createObjectStore('tickets',{keyPath:'id'});if(!d.objectStoreNames.contains('dic'))d.createObjectStore('dic',{keyPath:'producto'});['lista','ideas'].forEach(n=>{if(!d.objectStoreNames.contains(n))d.createObjectStore(n,{keyPath:'id'})})};q.onsuccess=()=>ok(q.result);q.onerror=()=>ko(q.error)});
+const DB=new Promise((ok,ko)=>{const q=indexedDB.open('compras',4);q.onupgradeneeded=()=>{const d=q.result;if(!d.objectStoreNames.contains('tickets'))d.createObjectStore('tickets',{keyPath:'id'});if(!d.objectStoreNames.contains('dic'))d.createObjectStore('dic',{keyPath:'producto'});['lista','ideas'].forEach(n=>{if(!d.objectStoreNames.contains(n))d.createObjectStore(n,{keyPath:'id'})});if(!d.objectStoreNames.contains('cfg'))d.createObjectStore('cfg',{keyPath:'k'})};q.onsuccess=()=>ok(q.result);q.onerror=()=>ko(q.error)});
 const tx=async(m,f,st='tickets')=>{const db=await DB;return new Promise((ok,ko)=>{const t=db.transaction(st,m),s=t.objectStore(st),r=f(s);t.oncomplete=()=>ok(r&&r.result);t.onerror=()=>ko(t.error)})};
 const all=()=>tx('readonly',s=>s.getAll());
 const allDic=()=>tx('readonly',s=>s.getAll(),'dic');
@@ -289,14 +301,15 @@ function preview(){
 const ticketHTML=(t,ed)=>`<details class="card"><summary><b>${t.fecha}</b> ${t.hora||''} · ${esc(t.supermercado)} · <b>${eur(t.total)}</b> <span class="mut">(${t.lineas.length} líneas)</span></summary>
 <table><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr>${t.lineas.map((l,j)=>`<tr><td>${esc(l.producto)}${l.original?` <span class="mut" title="Original: ${esc(l.original)}">(editado)</span>`:''}${ed?` <button class="sec edl" data-t="${esc(t.id)}" data-j="${j}" style="padding:0 7px">✎</button>`:''}${l.seccion?` <span class="mut">· ${esc(l.seccion)}</span>`:''}</td><td>${l.unidades!=null?l.unidades:l.peso_kg.toFixed(3)+' kg'}</td><td>${eur(l.precio_ref)}${l.peso_kg!=null?'/kg':''}</td><td>${eur(l.importe)}</td></tr>`).join('')}</table></details>`;
 async function render(){
+  await loadCats();
   const T=(await all()).sort((a,b)=>(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||'')));
-  renderDic();renderLista();renderIdeas();$('count').textContent=T.length?`(${T.length})`:'';
+  renderDic();renderLista();renderIdeas();renderCat();$('count').textContent=T.length?`(${T.length})`:'';
   $('list').innerHTML=T.length?T.map(t=>ticketHTML(t,1)).join(''):'<p class="mut">Aún no hay tickets. Importa un PDF en Más → Datos.</p>';
 }
 // ---------- Diccionario (fase 3) ----------
-const CATS=['Frutas y verduras','Carne','Pescado','Lácteos y huevos','Panadería y bollería','Despensa','Bebidas','Congelados','Snacks y dulces','Higiene y belleza','Limpieza y hogar','Otros'];
+const CATS=['Frutas y verduras','Carne','Pescado y marisco','Lácteos y huevos','Panadería y bollería','Despensa','Conservas y encurtidos','Bebidas','Congelados','Snacks y dulces','Higiene y belleza','Limpieza y hogar','Otros'];
 const SUG=[
- [/MEJILL|NAVAJA|CHIRLA|DORADA|LUBINA|SEPIA|LANGOSTINO|SALM[OÓ]N|MERLUZA|GAMBA|PULPO|CALAMAR|AT[UÚ]N/i,'Pescado'],
+ [/MEJILL|NAVAJA|CHIRLA|DORADA|LUBINA|SEPIA|LANGOSTINO|SALM[OÓ]N|MERLUZA|GAMBA|PULPO|CALAMAR|AT[UÚ]N/i,'Pescado y marisco'],
  [/LECHE|YOGUR|QUESO|GRANA|NATA\b|MANTEQ|HUEVO|\bQ /i,'Lácteos y huevos'],
  [/^PAN\b|BAGEL|BOLLO|CROISS|GALLETA/i,'Panadería y bollería'],
  [/BEBIDA|AGUA|CERVEZA|VINO|ZUMO|REFRESCO|CAFE|CAP\./i,'Bebidas'],
@@ -305,28 +318,28 @@ const SUG=[
  [/\bGEL\b|DESMAQ|M[ÁA]SCARA|CHAMP|ACONDIC|LEAVE-IN|CREMA|JAB[OÓ]N|DENTIFR|PAPEL HIG|FACIAL/i,'Higiene y belleza'],
  [/DETERG|LAVAVAJ|FREGON|LEJ[IÍ]A|SUAVIZ|LIMPI/i,'Limpieza y hogar'],
  [/PEPINO|TOMATE|MANZ|MELOCOT|PL[AÁ]TANO|CALABAC|PIMIENTO|NARANJ|LIM[OÓ]N|CEBOLLA|ZANAH|LECHUGA|SETAS|^ESP |FRESA/i,'Frutas y verduras']];
-const suggest=(p,sec)=>sec&&/PESCADO/i.test(sec)?'Pescado':((SUG.find(([r])=>r.test(p))||[])[1]||'');
+const suggest=(p,sec)=>sec&&/PESCADO/i.test(sec)?'Pescado y marisco':((SUG.find(([r])=>r.test(p))||[])[1]||'');
 
 async function renderDic(){renderPanel();renderCopia();
   const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),P={};
   T.slice().sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))).forEach(t=>t.lineas.forEach(l=>{const p=P[l.producto]=P[l.producto]||{sec:l.seccion};p.v=l.precio_ref;p.t=l.peso_kg!=null?'/kg':'/ud';p.f=t.fecha}));
-  const names=Object.keys(P).sort((a,b)=>al(a,b)),unk=names.filter(p=>!D[p]).length;
+  const names=Object.keys(P).sort((a,b)=>al(a,b)),unk=names.filter(p=>!(D[p]&&D[p].categoria)).length;
   $('dcount').textContent=names.length?`(${names.length}${unk?` · ${unk} sin categoría`:''})`:'';
-  const cats=[...new Set([...CATS,...Object.values(D).map(x=>x.categoria)])].sort(al);
+  const cats=catUnion(Object.values(D).map(x=>x.categoria));
   $('dic').innerHTML=names.length?(unk?'<div class="row" style="margin-bottom:8px"><button id="acc">Guardar las sugerencias de los sin categoría</button><span class="mut">Revisa antes las que estén en blanco.</span></div>':'')+
    '<table><tr><th>Producto en el ticket</th><th>Nombre legible</th><th>Categoría</th><th>Último precio</th></tr>'+names.map(p=>{
-     const d=D[p],c=d?d.categoria:suggest(p,P[p].sec);
-     return `<tr data-q="${esc(p.toLowerCase())}" data-u="${d?'':1}"${d?'':' style="background:color-mix(in srgb,var(--warn) 15%,transparent)"'}><td>${esc(p)}</td><td><input class="nm" data-p="${esc(p)}" value="${esc(d?d.nombre:'')}" placeholder="opcional" style="width:100%"></td><td><select class="ct" data-p="${esc(p)}"><option value="">Elegir…</option>${cats.map(x=>`<option${x===c?' selected':''}>${esc(x)}</option>`).join('')}<option value="__new">+ Nueva categoría…</option></select></td><td class="mut" style="white-space:nowrap">${eur(P[p].v)}${P[p].t}<br>${P[p].f}</td></tr>`}).join('')+'</table>'
+     const d=D[p],cd=d&&d.categoria,c=cd?d.categoria:suggest(p,P[p].sec);
+     return `<tr data-q="${esc(p.toLowerCase())}" data-u="${cd?'':1}"${cd?'':' style="background:color-mix(in srgb,var(--warn) 15%,transparent)"'}><td>${esc(p)}</td><td><input class="nm" data-p="${esc(p)}" value="${esc(d?d.nombre:'')}" placeholder="opcional" style="width:100%"></td><td><select class="ct" data-p="${esc(p)}"><option value="">Elegir…</option>${cats.map(x=>`<option${x===c?' selected':''}>${esc(x)}</option>`).join('')}<option value="__new">+ Nueva categoría…</option></select></td><td class="mut" style="white-space:nowrap">${eur(P[p].v)}${P[p].t}<br>${P[p].f}</td></tr>`}).join('')+'</table>'
    :'<p class="mut">Se llenará al importar tickets.</p>';fdic();
   document.querySelectorAll('#dic .ct,#dic .nm').forEach(el=>el.onchange=async()=>{
     const row=el.closest('tr');let c=row.querySelector('.ct').value;
-    if(c==='__new'){c=(prompt('Nombre de la nueva categoría')||'').trim();if(!c){renderDic();return}}
+    if(c==='__new'){c=(prompt('Nombre de la nueva categoría')||'').trim();if(!c){renderDic();return}await addCat(c)}
     if(!c)return;
     await putDic({producto:el.dataset.p,nombre:row.querySelector('.nm').value.trim(),categoria:c});renderDic();
   });
   const b=$('acc');if(b)b.onclick=async()=>{
     for(const r of document.querySelectorAll('#dic tr')){const sel=r.querySelector('.ct');
-      if(sel&&sel.value&&sel.value!=='__new'&&!D[sel.dataset.p])await putDic({producto:sel.dataset.p,nombre:r.querySelector('.nm').value.trim(),categoria:sel.value})}
+      if(sel&&sel.value&&sel.value!=='__new'&&!(D[sel.dataset.p]&&D[sel.dataset.p].categoria))await putDic({producto:sel.dataset.p,nombre:r.querySelector('.nm').value.trim(),categoria:sel.value})}
     renderDic();
   };
 }
@@ -355,7 +368,7 @@ async function renderPanel(){renderPrecios();
   const M=Object.entries(R.m).sort();
   draw('cMes',{type:'bar',data:{labels:M.map(x=>x[0]),datasets:[{data:M.map(x=>x[1]/100),backgroundColor:css('--ac')}]},options:{...base,scales:{x:{ticks:ax.ticks,grid:{display:false}},y:ax}}});
   if(!ok)$('pnote').innerHTML+='<p class="mut">Las gráficas necesitan internet la primera vez; las tablas funcionan sin ella.</p>';
-  $('tCat').innerHTML=tabla(C,R.tot);$('tSup').innerHTML=tabla(S,R.tot);
+  $('tCat').innerHTML=tabla(C,R.tot);$('tPC').innerHTML=prodCat(T,D,$('per').value);$('tSup').innerHTML=tabla(S,R.tot);
 }
 // ---------- Precios (fase 5) ----------
 $('ps').onchange=()=>renderPrecios();
@@ -391,10 +404,10 @@ const meta=()=>{try{return JSON.parse(localStorage.getItem('compras_copia'))}cat
 const setMeta=m=>{try{localStorage.setItem('compras_copia',JSON.stringify(m))}catch(e){}};
 async function crearCopia(){
   const T=(await all()).map(({id,...t})=>t),D=(await allDic()).map(x=>({producto:x.producto,nombre:x.nombre,categoria:x.categoria}));
-  return{version:1,tickets:T,diccionario:D,lista:await list('lista'),ideas:await list('ideas')};
+  return{version:1,tickets:T,diccionario:D,lista:await list('lista'),ideas:await list('ideas'),categorias:[...CATL]};
 }
 function bajar(d,pre){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,1)],{type:'application/json'}));a.download=`${pre}-${new Date().toISOString().slice(0,10)}.json`;a.click()}
-const vaciar=async()=>{await tx('readwrite',s=>s.clear());await tx('readwrite',s=>s.clear(),'dic');await tx('readwrite',s=>s.clear(),'lista');await tx('readwrite',s=>s.clear(),'ideas')};
+const vaciar=async()=>{await tx('readwrite',s=>s.clear());await tx('readwrite',s=>s.clear(),'dic');await tx('readwrite',s=>s.clear(),'lista');await tx('readwrite',s=>s.clear(),'ideas');await tx('readwrite',s=>s.clear(),'cfg')};
 const marcar=d=>setMeta({f:new Date().toISOString(),n:d.tickets.length,s:firma(d.tickets,d.diccionario,xi(d.ideas||[]))});
 
 async function renderCopia(){
@@ -421,7 +434,7 @@ $('rest').onchange=async e=>{
   const w=prompt(`Esta copia tiene ${r.n} tickets (${eur(r.tot/100)}) y ${r.dic} entradas de diccionario.\nAhora tienes ${a.n} tickets (${eur(a.tot/100)}).\n\nSe BORRARÁ todo lo actual y se sustituirá por la copia. Antes se descargará una copia de lo actual.\n\nEscribe REEMPLAZAR para continuar:`);
   if(w!=='REEMPLAZAR'){say('Cancelado. No se ha cambiado nada.');return}
   if(act.tickets.length)bajar(act,'copia-previa');
-  await vaciar();await addTickets(d.tickets);await addDic(d.diccionario||[]);await addLista(d.lista||[]);await addIdeas(d.ideas||[]);
+  await vaciar();await addTickets(d.tickets);await addDic(d.diccionario||[]);await addLista(d.lista||[]);await addIdeas(d.ideas||[]);if(d.categorias)await put('cfg',{k:'cats',v:d.categorias});
   const nuevo=await crearCopia(),v=resumenCopia(nuevo),ok=v.n===r.n&&v.tot===r.tot&&v.dic===r.dic;
   marcar(nuevo);
   say(ok?`✓ Restauración verificada: ${v.n} tickets, ${eur(v.tot/100)} y ${v.dic} entradas de diccionario. Coincide con la copia.`
@@ -436,7 +449,7 @@ $('wipe').onclick=async()=>{
   say('Datos borrados. Tienes la copia descargada: restáurala desde “Zona de riesgo”.','warn');
 };
 // ---------- v7: navegación, IA, lista de la compra, ideas ----------
-const VERSION=8,al=(a,b)=>a.localeCompare(b,'es'),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const VERSION=9,al=(a,b)=>a.localeCompare(b,'es'),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const put=(st,x)=>tx('readwrite',s=>s.put(x),st),del=(st,id)=>tx('readwrite',s=>s.delete(id),st),list=st=>tx('readonly',s=>s.getAll(),st);
 const xi=I=>[...I].sort((a,b)=>a.id.localeCompare(b.id)).map(x=>[x.texto,!!x.hecho]);
 async function addLista(a){for(const x of a)await put('lista',{id:x.id||uid(),producto:x.producto,cat:x.cat||'Otros',cant:x.cant||'',nota:x.nota||'',ok:!!x.ok})}
@@ -446,7 +459,7 @@ const cp=async(t,m)=>{const ok=await copiar(t);toast(ok?m:'No se pudo copiar aut
 const grp=(bs,ps,n)=>{document.querySelectorAll(bs).forEach(b=>b.classList.toggle('on',b.dataset.t===n));document.querySelectorAll(ps).forEach(p=>p.style.display=p.id.slice(2)===n?'':'none')};
 let cursub='ia';
 const tab=n=>{grp('#nav button','.tab',n);scrollTo(0,0);if(n==='lista')renderLista();if(n==='ideas')renderIdeas();if(n==='mas')sub(cursub);Object.values(ch).forEach(c=>c.resize())};
-const sub=n=>{cursub=n;grp('#sub button','.sub',n);if(n==='ia')renderIA()};
+const sub=n=>{cursub=n;grp('#sub button','.sub',n);if(n==='ia')renderIA();if(n==='cat')renderCat()};
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>tab(b.dataset.t));
 document.querySelectorAll('#sub button').forEach(b=>b.onclick=()=>sub(b.dataset.t));
 
@@ -518,7 +531,7 @@ let LST=[],HAB={};
 const cap=s=>s.charAt(0)+s.slice(1).toLowerCase();
 async function habituales(){
   const T=(await all()).sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),H={};
-  T.forEach(t=>{const seen=new Set();t.lineas.forEach(l=>{const d=D[l.producto]||{},nom=d.nombre||cap(l.producto),k=nom.toLowerCase(),h=H[k]=H[k]||{nom,cat:suggest(l.producto,l.seccion)||'Otros',cd:true,n:0,s:{},ws:0,wn:0};
+  T.forEach(t=>{const seen=new Set();t.lineas.forEach(l=>{const d=D[l.producto]||{},nom=d.nombre||cap(l.producto),k=nom.toLowerCase(),h=H[k]=H[k]||{nom,cat:(g=>CATL.includes(g)?g:'Sin categoría')(suggest(l.producto,l.seccion)),cd:true,n:0,s:{},ws:0,wn:0};
     h.cd=h.cd&&!!d.categoria;if(d.categoria)h.cat=d.categoria;
     if(!seen.has(k)){seen.add(k);h.n++;h.s[t.supermercado]=(h.s[t.supermercado]||0)+1}
     h.pv=l.precio_ref;h.tipo=l.peso_kg!=null?'kg':'ud';if(l.peso_kg!=null){h.ws+=l.peso_kg;h.wn++}})});
@@ -530,7 +543,7 @@ const estim=x=>{const h=HAB[x.producto.toLowerCase()];if(!h||h.pv==null)return n
 function agrupar(A,g){
   const s=(p,q)=>!!p.ok-!!q.ok||al(p.producto,q.producto);
   if(g==='no')return[['',[...A].sort(s)]];
-  const m={};A.forEach(x=>{const k=g==='cat'?(x.cat||'Otros'):supOf(x);(m[k]=m[k]||[]).push(x)});
+  const m={};A.forEach(x=>{const k=g==='cat'?(x.cat||'Sin categoría'):supOf(x);(m[k]=m[k]||[]).push(x)});
   return Object.entries(m).sort((a,b)=>al(a[0],b[0])).map(([k,a])=>[k,a.sort(s)]);
 }
 async function renderLista(){
@@ -541,11 +554,11 @@ async function renderLista(){
   const gc={};C.forEach(h=>(gc[h.cat]=gc[h.cat]||[]).push(h.nom));
   $('hab').innerHTML=Object.keys(gc).sort(al).map(c=>`<div class="mut" style="margin-top:6px"><b>${esc(c)}</b></div>`+gc[c].sort(al).map(n=>`<button class="sec chip" data-n="${esc(n)}">${esc(n)}</button>`).join('')).join('')||'<span class="mut">Se llenará con tus tickets.</span>';
   const cv=$('lc').value;
-  $('lc').innerHTML='<option value="">Categoría (auto)</option>'+[...new Set([...CATS,...HV.map(h=>h.cat)])].sort(al).map(c=>`<option${c===cv?' selected':''}>${esc(c)}</option>`).join('');
+  $('lc').innerHTML='<option value="">Categoría (auto)</option>'+catUnion(HV.map(h=>h.cat)).filter(c=>c!=='Sin categoría').map(c=>`<option${c===cv?' selected':''}>${esc(c)}</option>`).join('');
   const P=LST.filter(x=>!x.ok);$('lcnt').textContent=LST.length?`${P.length} pendientes · ${LST.length-P.length} marcados`:'';
   $('lbody').innerHTML=LST.length?agrupar(LST,g).map(([k,a])=>(k?`<h2 style="font-size:1rem">${esc(k)}</h2>`:'')+a.map(x=>{const v=estim(x);return `<div class="li${x.ok?' done':''}"><input type="checkbox" class="ck" data-i="${x.id}"${x.ok?' checked':''}><span class="tx">${esc(x.producto)}${v!=null?` <span class="mut">≈ ${eur(v)}</span>`:''}</span><input class="qt" data-i="${x.id}" placeholder="cant." value="${esc(x.cant||'')}"><button class="sec del" data-i="${x.id}">✕</button><input class="nt" data-i="${x.id}" placeholder="nota" value="${esc(x.nota||'')}"></div>`}).join('')).join(''):'<p class="mut">La lista está vacía. Añade productos arriba o toca los habituales.</p>';
   const E=P.map(x=>[x,estim(x)]),tot=E.reduce((a,[,v])=>a+(v||0),0),sp=E.filter(([,v])=>v==null).map(([x])=>x.producto),
-    sc=P.filter(x=>{const h=HAB[x.producto.toLowerCase()];return h?!h.cd:(!x.cat||x.cat==='Otros')}).map(x=>x.producto);
+    sc=P.filter(x=>{const h=HAB[x.producto.toLowerCase()];return h?!h.cd:(!x.cat||x.cat==='Sin categoría')}).map(x=>x.producto);
   $('lest').innerHTML=P.length?`<div class="card"><b>Total aproximado: ≈ ${eur(tot)}</b> <span class="mut">(último precio visto de cada producto; cantidad numérica = unidades o kg; sin cantidad: 1 ud o el peso medio que sueles comprar)</span>${sp.length?`<p class="warn">⚠ Sin precio (no aparecen en tus tickets): ${esc(sp.join(', '))}</p>`:''}${sc.length?`<p class="warn">⚠ Sin categorizar en el diccionario: ${esc(sc.join(', '))}. Asígnala en Más → Productos.</p>`:''}</div>`:'';
 }
 async function addItem(nom,cant,nota,cat){
@@ -553,7 +566,7 @@ async function addItem(nom,cant,nota,cat){
   if(!Object.keys(HAB).length)HAB=await habituales();
   const h=HAB[nom.toLowerCase()];
   if(LST.some(x=>!x.ok&&x.producto.toLowerCase()===nom.toLowerCase())){toast(`“${nom}” ya está en la lista.`);return}
-  await put('lista',{id:uid(),producto:h?h.nom:nom,cat:h?h.cat:(cat||'Otros'),cant:cant||'',nota:nota||'',ok:false});renderLista();
+  await put('lista',{id:uid(),producto:h?h.nom:nom,cat:h?h.cat:(cat||'Sin categoría'),cant:cant||'',nota:nota||'',ok:false});renderLista();
 }
 $('ladd').onclick=async()=>{await addItem($('ln').value,$('lq').value.trim(),$('lnt').value.trim(),$('lc').value);$('ln').value=$('lq').value=$('lnt').value='';$('ln').focus()};
 $('ln').onkeydown=e=>{if(e.key==='Enter')$('ladd').click()};
@@ -571,6 +584,53 @@ function textoLista(){
   return `🛒 *Lista de la compra* (${P.length})\n`+agrupar(P,g).map(([k,a])=>(k?`\n*${k}*\n`:'')+a.map(ln).join('\n')).join('\n')+(tot>0?`\n\n_Total aprox.: ${eur(tot)}_`:'');
 }
 $('lcopy').onclick=()=>{const t=textoLista();t?cp(t,'Lista copiada. Pégala en WhatsApp y se verá con formato.'):toast('No hay productos pendientes en la lista.')};
+
+// ----- Categorías (v9) -----
+let CATL=[...CATS];
+const catUnion=(x=[])=>[...new Set([...CATL,...x])].filter(Boolean).sort(al);
+const saveCats=()=>put('cfg',{k:'cats',v:CATL});
+const addCat=async c=>{if(!CATL.includes(c)){CATL.push(c);await saveCats()}};
+async function renCat(a,b){for(const x of await allDic())if(x.categoria===a)await putDic({...x,categoria:b});for(const x of await list('lista'))if(x.cat===a)await put('lista',{...x,cat:b});CATL=[...new Set(CATL.map(c=>c===a?b:c))];await saveCats()}
+async function delCat(a){let n=0;for(const x of await allDic())if(x.categoria===a){await putDic({...x,categoria:''});n++}for(const x of await list('lista'))if(x.cat===a)await put('lista',{...x,cat:'Sin categoría'});CATL=CATL.filter(c=>c!==a);await saveCats();return n}
+const MIGR=[['Pescado','Pescado y marisco']],MIGD=['Conservas/Legumbres','Conservas y platos preparados'];
+async function loadCats(){
+  const r=await tx('readonly',s=>s.get('cats'),'cfg'),D=await allDic();
+  CATL=[...new Set([...(r?r.v:CATS),...D.map(x=>x.categoria)])].filter(Boolean);
+  if(r)return;
+  let n=0;for(const [a,b] of MIGR)if(CATL.includes(a))await renCat(a,b);
+  for(const a of MIGD)if(CATL.includes(a))n+=await delCat(a);
+  await saveCats();
+  if(n)say(`Categorías reorganizadas. ${n} producto(s) han quedado <b>sin asignar</b>: asígnalos en Más → Productos (filtro “Solo sin categoría”).`,'warn');
+}
+async function renderCat(){
+  const T=(await all()).sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),P={},G={'Sin categoría':[]};
+  T.forEach(t=>t.lineas.forEach(l=>{P[l.producto]={v:l.precio_ref,t:l.peso_kg!=null?'/kg':'/ud',f:t.fecha}}));
+  CATL.forEach(c=>G[c]=[]);
+  Object.keys(P).forEach(p=>{const d=D[p]||{},c=d.categoria||'Sin categoría';(G[c]=G[c]||[]).push([d.nombre||p,p])});
+  const ks=Object.keys(G).filter(k=>k!=='Sin categoría').sort(al);if(G['Sin categoría'].length)ks.unshift('Sin categoría');
+  $('cbody').innerHTML=ks.map(c=>{const a=G[c].sort((x,y)=>al(x[0],y[0]));
+    return `<details class="card"><summary><b>${esc(c)}</b> <span class="mut">(${a.length})</span></summary>${a.length?'<table>'+a.map(([n,p])=>`<tr><td>${esc(n)}${n!==p?` <span class="mut">· ${esc(p)}</span>`:''}</td><td class="mut" style="white-space:nowrap">${eur(P[p].v)}${P[p].t}<br>${P[p].f}</td></tr>`).join('')+'</table>':'<p class="mut">Sin productos.</p>'}${c==='Sin categoría'?'':`<div class="row" style="margin-top:8px"><button class="sec crn" data-c="${esc(c)}">Renombrar</button><button class="sec cdl" data-c="${esc(c)}" data-n="${a.length}" style="color:var(--err)">Eliminar</button></div>`}</details>`}).join('')||'<p class="mut">Sin categorías.</p>';
+}
+$('cnew').onclick=async()=>{const c=(prompt('Nombre de la nueva categoría')||'').trim();if(c){await addCat(c);renderCat()}};
+$('cbody').onclick=async e=>{const b=e.target.closest('button');if(!b)return;const c=b.dataset.c;
+  if(b.classList.contains('crn')){const v=(prompt(`Nuevo nombre para “${c}”.\nSi ya existe otra categoría con ese nombre, se fusionarán.`,c)||'').trim();if(!v||v===c)return;
+    if(CATL.includes(v)&&!confirm(`Ya existe “${v}”. ¿Fusionar “${c}” dentro de ella?`))return;
+    await renCat(c,v);await render();toast('Categoría renombrada.')}
+  else if(b.classList.contains('cdl')){if(!confirm(`¿Eliminar “${c}”?\nSus ${b.dataset.n} producto(s) quedarán “sin asignar” y podrás darles otra categoría.`))return;
+    await delCat(c);await render();toast('Categoría eliminada. Sus productos están sin asignar.')}};
+function prodCat(T,D,mes){
+  const S=mes?T.filter(t=>t.fecha.startsWith(mes)):T,G={};
+  S.forEach(t=>t.lineas.forEach(l=>{const d=D[l.producto]||{},c=d.categoria||'Sin categoría',k=d.nombre||l.producto,o=G[c]=G[c]||{t:0,p:{}},q=o.p[k]=o.p[k]||{v:0,n:0},v=Math.round(l.importe*100);q.v+=v;q.n++;o.t+=v}));
+  const tot=Object.values(G).reduce((a,o)=>a+o.t,0),pc=(v,t)=>(t?v/t*100:0).toFixed(1).replace('.',',')+' %';
+  return '<h2 style="font-size:1rem">Productos por categoría <span class="mut">(de más a menos gasto)</span></h2>'+Object.entries(G).sort((a,b)=>b[1].t-a[1].t).map(([c,o])=>`<details class="card"><summary><b>${esc(c)}</b> · ${eur(o.t/100)} <span class="mut">(${pc(o.t,tot)})</span></summary><table><tr><th>Producto</th><th>Compras</th><th>Importe</th><th>% cat.</th></tr>`+Object.entries(o.p).sort((a,b)=>b[1].v-a[1].v).map(([k,q])=>`<tr><td>${esc(k)}</td><td>${q.n}</td><td>${eur(q.v/100)}</td><td>${pc(q.v,o.t)}</td></tr>`).join('')+'</table></details>').join('');
+}
+// ----- PWA -----
+if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
+let ipr;addEventListener('beforeinstallprompt',e=>{e.preventDefault();ipr=e;$('inst').style.display=''});
+$('inst').onclick=async()=>{if(ipr){ipr.prompt();await ipr.userChoice;ipr=null;$('inst').style.display='none'}};
+(async()=>{const st=matchMedia('(display-mode: standalone)').matches||navigator.standalone,web=/^https?:/.test(location.protocol);
+  let per='';try{if(navigator.storage&&navigator.storage.persist){await navigator.storage.persist();per=(await navigator.storage.persisted())?' Almacenamiento protegido: sí.':' Almacenamiento protegido: no (el navegador podría borrarlo si falta espacio; haz copias).'}}catch(e){}
+  $('pwast').textContent=(st?'✓ Estás usando la app instalada.':web?'Puedes instalarla desde el menú del navegador (“Instalar app” / “Añadir a pantalla de inicio”).':'Para instalarla hay que abrirla desde una dirección https (ver LEEME del paquete PWA).')+per})();
 
 // ----- Editar texto de una línea de ticket -----
 $('list').onclick=async e=>{const b=e.target.closest('.edl');if(!b)return;
@@ -595,7 +655,7 @@ Tareas:
 Formato de respuesta: SOLO los cambios, en una tabla con las columnas: Producto | Categoría actual | Categoría propuesta | Motivo (breve). Después, la lista de categorías nuevas propuestas. No repitas los productos que están bien. Usa exactamente los nombres de producto tal como te los doy y no inventes productos.`;
 $('pd').onclick=async()=>{const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),N=[...new Set(T.flatMap(t=>t.lineas.map(l=>l.producto)))].sort(al);
   if(!N.length){toast('Aún no hay productos.');return}
-  cp(PDIC+'\n\nCategorías actuales: '+[...new Set(Object.values(D).map(x=>x.categoria))].sort(al).join(', ')+'\n\n--- DICCIONARIO ---\n'+N.map(p=>`${p} | ${(D[p]||{}).nombre||''} | ${(D[p]||{}).categoria||'SIN CATEGORÍA'}`).join('\n'),`Prompt copiado (${N.length} productos).`)};
+  cp(PDIC+'\n\nCategorías actuales: '+catUnion(Object.values(D).map(x=>x.categoria)).join(', ')+'\n\n--- DICCIONARIO ---\n'+N.map(p=>`${p} | ${(D[p]||{}).nombre||''} | ${(D[p]||{}).categoria||'SIN CATEGORÍA'}`).join('\n'),`Prompt copiado (${N.length} productos).`)};
 
 // ----- Ideas -----
 let IDS=[];const tm={};

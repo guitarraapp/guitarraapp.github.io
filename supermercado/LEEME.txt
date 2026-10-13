@@ -1,0 +1,19 @@
+MIS COMPRAS - PAQUETE PWA (v9)
+
+Una PWA solo se puede instalar si se abre desde una dirección https (no desde un archivo local).
+Sube TODOS estos archivos a la misma carpeta de un alojamiento estático gratuito:
+  - Netlify Drop (app.netlify.com/drop): arrastras la carpeta y te da una URL https.
+  - GitHub Pages o Cloudflare Pages: subes los archivos a un repositorio y activas Pages.
+Archivos: index.html, manifest.webmanifest, sw.js, icon-192.png, icon-512.png
+
+Instalar en el móvil:
+  - Android (Chrome): menú ⋮ > "Instalar app" (o botón "Instalar app" en Más > Datos).
+  - iPhone (Safari): Compartir > "Añadir a pantalla de inicio".
+
+IMPORTANTE:
+  1) Tus datos NO se trasladan solos: la app instalada tiene su propia base de datos.
+     En la versión antigua: Exportar copia (JSON). En la app instalada: Más > Datos > Restaurar copia.
+  2) Haz copias con frecuencia; en iPhone el navegador puede borrar datos de webs poco usadas.
+  3) El código de la app es público si el alojamiento lo es, pero NUNCA contiene tus tickets:
+     los datos se quedan en tu móvil.
+  4) Para publicar una versión nueva: sustituye index.html y cambia V (p. ej. 'compras-v10') en sw.js.
