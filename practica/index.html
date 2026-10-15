@@ -37,6 +37,7 @@ input[type=checkbox]:checked{background:var(--amber)}input[type=checkbox]:checke
 #sg i.m{opacity:.3}#sg i.ok{background:var(--ok);color:#111}#sg i.bad{background:var(--bad);color:#fff}
 #ans{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:1rem;color:var(--dim);gap:4px}
 #ans b{font-size:2.3rem;color:var(--ok)}
+#mtx{white-space:pre-line}
 #fb{min-height:24px;font-weight:700;color:var(--amber)}
 .rt{display:flex;gap:8px;margin-bottom:6px;flex:none}
 .rt button{flex:1;height:48px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--tx);font-size:1rem;font-weight:700}
@@ -71,6 +72,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 <div class="row"><input type="checkbox" id="ex" aria-label="Octava exacta"><span>Exigir octava exacta (cuerda correcta)</span></div>
 <div class="row"><input type="checkbox" id="see" aria-label="Ver diagrama"><span>Ver el diagrama desde el principio (formas)</span></div>
 <div class="row"><button class="btn" id="mt">Probar micrófono</button></div>
+<p class="d" id="mtx"></p>
 <div class="row"><span>Sensibilidad</span><input type="range" id="th" min="0.0005" max="0.03" step="0.0005" aria-label="Umbral de volumen"></div>
 <div class="row"><span>Duración de la rutina</span><input type="number" id="mn" min="2" max="60"><span>min</span></div>
 </div></details>
@@ -166,10 +168,12 @@ function yin(b,sr){let r=0;for(let i=0;i<b.length;i+=4)r+=b[i]*b[i];lvl=Math.sqr
   for(let t=lo;t<hi;t++)if(cm[t]<.15){while(t+1<hi&&cm[t+1]<cm[t])t++;
     const a=cm[t-1],c0=cm[t],c=cm[t+1],q=a-2*c0+c;return sr/(t+(q?(a-c)/(2*q):0))}
   return null}
+let b8;
+function rd(){if(an.getFloat32TimeDomainData)an.getFloat32TimeDomainData(buf);else{b8=b8||new Uint8Array(4096);an.getByteTimeDomainData(b8);for(let i=0;i<4096;i++)buf[i]=(b8[i]-128)/128}}
 function bars(){const f=v=>Math.min(10,Math.round(Math.sqrt(v/.1)*10)),n=f(lvl);return '█'.repeat(n)+'░'.repeat(10-n)+' umbral '+f(S.th)+'/10'}
 function tick(){if(!playing||!mic||!cur)return;
   try{if(ac.state!=='running')ac.resume();
-    an.getFloat32TimeDomainData(buf);const f=yin(buf,ac.sampleRate);
+    rd();const f=yin(buf,ac.sampleRate);
     zeros=lvl===0?zeros+1:0;
     if(zeros>30){$('#hear').textContent='🎤 No llega señal: revisa que el navegador use el micrófono correcto';return}
     if(f==null){$('#hear').textContent='🎤 '+bars();cnt=0;lastM=null;return}
@@ -207,11 +211,11 @@ async function lock(on){try{if(on)wl=await navigator.wakeLock.request('screen');
 let tt=null;
 async function micTest(){
   if(playing)return;
-  if(tt){clearInterval(tt);tt=null;micOff();$('#mt').textContent='Probar micrófono';$('#hear').textContent='';return}
+  if(tt){clearInterval(tt);tt=null;micOff();$('#mt').textContent='Probar micrófono';$('#hear').textContent=$('#mtx').textContent='';return}
   await micOn();if(!mic)return;
   $('#mt').textContent='Parar prueba';const lab=(ms.getAudioTracks()[0]||{}).label||'sin nombre';
-  tt=setInterval(()=>{try{if(ac.state!=='running')ac.resume();an.getFloat32TimeDomainData(buf);const f=yin(buf,ac.sampleRate);
-    $('#hear').textContent=`🎤 ${lab} · ${bars()}${f?' · '+sn(Math.round(69+12*Math.log2(f/440))):''} · ${ac.state}`}catch(e){$('#hear').textContent='Error: '+e.message}},100)}
+  tt=setInterval(()=>{try{if(ac.state!=='running')ac.resume();rd();const f=yin(buf,ac.sampleRate);
+    const t=`🎤 ${lab}\nVolumen ${bars()}${f?'\nNota: '+sn(Math.round(69+12*Math.log2(f/440))):''}\nAudio: ${ac.state}`;$('#hear').textContent=t.replace(/\n/g,' · ');$('#mtx').textContent=t}catch(e){$('#hear').textContent=$('#mtx').textContent='Error: '+e.message}},100)}
 $('#mt').onclick=micTest;
 async function start(){
   if(tt){clearInterval(tt);tt=null;micOff();$('#mt').textContent='Probar micrófono'}
