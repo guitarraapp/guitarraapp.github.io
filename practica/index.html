@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#15171d">
-<title>Entrenador de mástil</title>
+<title>Entrenador de mástil v5</title>
 <style>
 :root{--bg:#15171d;--panel:#1e2128;--line:#32363f;--amber:#ffb224;--ok:#6fd68e;--bad:#ff5a4d;--tx:#f4f2ec;--dim:#9a9ca6}
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
@@ -37,7 +37,6 @@ input[type=checkbox]:checked{background:var(--amber)}input[type=checkbox]:checke
 #sg i.m{opacity:.3}#sg i.ok{background:var(--ok);color:#111}#sg i.bad{background:var(--bad);color:#fff}
 #ans{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:1rem;color:var(--dim);gap:4px}
 #ans b{font-size:2.3rem;color:var(--ok)}
-#mtx{white-space:pre-line}
 #fb{min-height:24px;font-weight:700;color:var(--amber)}
 .rt{display:flex;gap:8px;margin-bottom:6px;flex:none}
 .rt button{flex:1;height:48px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--tx);font-size:1rem;font-weight:700}
@@ -65,26 +64,28 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 <section id="v0">
 <div class="chips" id="cm"></div>
 <details><summary class="chip">⚙ Ajustes</summary><div class="aj">
-<div class="row"><span>Notas</span><select id="ln"><option value="1">1 · Cuerdas al aire</option><option value="2">2 · + naturales trastes 0-3 (cuerdas 1-4)</option><option value="3">3 · + naturales cuerdas 6 y 5</option><option value="4">4 · + alteradas cuerdas 6 y 5</option></select></div>
-<div class="row"><span>Formas</span><select id="lf"><option value="1">1 · Formas E y A (naturales)</option><option value="2">2 · Las 5 formas (naturales)</option><option value="3">3 · Las 5 formas, 12 notas</option></select></div>
+<div class="row"><span>Cuerdas</span><span id="ns" class="chips" style="margin:0"></span></div>
+<div class="row"><span>Trastes</span><input type="number" id="f0" min="0" max="12"><span>a</span><input type="number" id="f1" min="0" max="12"></div>
+<div class="row"><input type="checkbox" id="alt" aria-label="Alteradas"><span>Incluir sostenidos y bemoles</span></div>
+<div class="row"><span>Acordes</span><span id="gg" class="chips" style="margin:0"></span></div>
+<div class="row"><span>Nivel CAGED</span><select id="lf"><option value="1">1 · Formas E y A (naturales)</option><option value="2">2 · Las 5 formas (naturales)</option><option value="3">3 · Las 5 formas, 12 notas</option></select></div>
 <div class="row"><span>Tiempo por orden</span><select id="tl"><option value="0">Sin límite</option><option value="10">10 s</option><option value="20">20 s</option><option value="40">40 s</option></select></div>
+<div class="row"><input type="checkbox" id="study" aria-label="Modo estudio"><span>Modo estudio (sin micrófono ni tiempo)</span></div>
 <div class="row"><input type="checkbox" id="mic" aria-label="Micrófono"><span>Escuchar con el micrófono</span></div>
 <div class="row"><input type="checkbox" id="ex" aria-label="Octava exacta"><span>Exigir octava exacta (cuerda correcta)</span></div>
 <div class="row"><input type="checkbox" id="see" aria-label="Ver diagrama"><span>Ver el diagrama desde el principio (formas)</span></div>
-<div class="row"><button class="btn" id="mt">Probar micrófono</button></div>
-<p class="d" id="mtx"></p>
-<div class="row"><span>Sensibilidad</span><input type="range" id="th" min="0.0005" max="0.03" step="0.0005" aria-label="Umbral de volumen"></div>
+<div class="row"><span>Sensibilidad</span><input type="range" id="th" min="0.002" max="0.05" step="0.001" aria-label="Umbral de volumen"></div>
 <div class="row"><span>Duración de la rutina</span><input type="number" id="mn" min="2" max="60"><span>min</span></div>
 </div></details>
 <div id="card"><div id="q"></div><div id="qs"></div><div id="sg"></div><div id="ans"></div><div id="fb"></div></div>
 <div id="hear" class="d"></div>
-<div class="rt"><button id="bv">Ver</button><button class="f" id="bf">Fallé</button><button class="r" id="bb">Bien ✓</button></div>
+<div class="rt"><button id="bp" style="flex:.5" aria-label="Anterior">◀</button><button id="bv">Ver</button><button class="f" id="bf">Fallé</button><button class="r" id="bb">Bien ✓</button></div>
 </section>
 <section id="v1" hidden>
 <div class="st"><div><b id="s1">0</b><span>min esta semana</span></div><div><b id="s2">0</b><span>sesiones</span></div></div>
 <p class="d">Gris: sin ver · Rojo: fallo · Naranja: en progreso · Verde: dominada</p>
-<h3>Notas por cuerda</h3><div id="gn"></div>
-<h3>Acorde mayor por forma</h3><div id="gc"></div>
+<h3>Notas en el mástil (más oscuro: fuera de tu selección)</h3><div id="gn"></div>
+<h3>Acordes por forma</h3><div id="gc"></div>
 <div class="row" style="margin-top:12px"><button class="btn" id="exp">Exportar datos</button><label class="btn">Importar<input type="file" id="imp" accept=".json" hidden></label></div>
 <p class="d">Los datos se guardan solo en este navegador. Exporta de vez en cuando una copia.</p>
 </section>
@@ -101,27 +102,42 @@ const NM=['Do','Do♯/Re♭','Re','Re♯/Mi♭','Mi','Fa','Fa♯/Sol♭','Sol','
 const NAT=[0,2,4,5,7,9,11],ALL=[...Array(12).keys()],ORD=['C','A','G','E','D'];
 const OPEN={6:4,5:9,4:2,3:7,2:11,1:4},MID={6:40,5:45,4:50,3:55,2:59,1:64};
 /* f: traste relativo por cuerda (6→1); o: traste de la raíz respecto a la base de la forma */
-const SH={E:{s:6,o:0,f:[0,2,2,1,0,0]},A:{s:5,o:0,f:[null,0,2,2,2,0]},C:{s:5,o:3,f:[null,3,2,0,1,0]},G:{s:6,o:3,f:[3,2,0,0,0,3]},D:{s:4,o:0,f:[null,null,0,2,3,2]}};
-const HELP={n:'Te digo una nota y una cuerda. Tócala y te escucho.',c:'Te digo un acorde y una forma. Móntalo y arpégialo despacio, cuerda a cuerda.',r:'Notas y formas seguidas, con un temporizador.'};
-let S={mode:'n',ln:1,lf:1,tl:0,mic:true,ex:true,see:true,th:.002,min:10,box:{},log:[],ideas:''};
-try{Object.assign(S,JSON.parse(localStorage.getItem('prac4')||localStorage.getItem('prac3')||'{}'))}catch(e){}
-if(!S.thv){S.th=.002;S.thv=1}
-const save=()=>{try{localStorage.setItem('prac4',JSON.stringify(S))}catch(e){}};
+const TPN={M:' mayor',m:' menor','7':'7','5':'5'},GR={caged:'CAGED mayores',cagedm:'CAGED menores',ab:'Abiertos',a7:'Séptimas',pw:'Power chords'};
+const SH={E:{s:6,o:0,f:[0,2,2,1,0,0]},A:{s:5,o:0,f:[null,0,2,2,2,0]},C:{s:5,o:3,f:[null,3,2,0,1,0]},G:{s:6,o:3,f:[3,2,0,0,0,3]},D:{s:4,o:0,f:[null,null,0,2,3,2]},
+Em:{s:6,o:0,f:[0,2,2,0,0,0],tp:'m'},Am:{s:5,o:0,f:[null,0,2,2,1,0],tp:'m'},Dm:{s:4,o:0,f:[null,null,0,2,3,1],tp:'m'},
+E7:{s:6,o:0,f:[0,2,0,1,0,0],tp:'7'},A7:{s:5,o:0,f:[null,0,2,0,2,0],tp:'7'},D7:{s:4,o:0,f:[null,null,0,2,1,2],tp:'7'},G7:{s:6,o:3,f:[3,2,0,0,0,1],tp:'7'},C7:{s:5,o:3,f:[null,3,2,3,1,0],tp:'7'},B7:{s:5,o:2,f:[null,2,1,2,0,2],tp:'7'},
+P6:{s:6,o:0,f:[0,2,2,null,null,null],tp:'5',l:'Power chord, cuerdas 6-5-4'},P5:{s:5,o:0,f:[null,0,2,2,null,null],tp:'5',l:'Power chord, cuerdas 5-4-3'}};
+ORD.forEach(h=>SH[h].tp='M');
+const HELP={n:'Te digo una nota y una cuerda. Tócala y te escucho.',c:'Te digo un acorde y una forma. Móntalo y arpégialo despacio, cuerda a cuerda.',p:'Un mismo acorde en sus 5 posiciones, de abajo arriba y de vuelta. Arpegia cada forma.',r:'Notas y acordes seguidos, con un temporizador.'};
+let S={mode:'n',ns:[1,2,3,4,5,6],f0:0,f1:0,alt:false,g:{caged:true},study:false,mg:0,lf:1,tl:0,mic:true,ex:true,see:true,th:.008,min:10,box:{},log:[],ideas:''};
+try{Object.assign(S,JSON.parse(localStorage.getItem('prac5')||localStorage.getItem('prac4')||localStorage.getItem('prac3')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('prac5',JSON.stringify(S))}catch(e){}};
+if(!S.mg){const b={};for(const k in S.box){const m=k.match(/^n(\d)\.(\d+)$/);b[m?'n'+m[1]+'.'+(((+m[2]-OPEN[m[1]])%12+12)%12):k]=S.box[k]}S.box=b;S.mg=1}
 
 /* ---------- elementos a practicar ---------- */
-function pool(m){const a=[];
-  if(m==='n'){const l=+S.ln;for(let s=1;s<=6;s++)for(const p of ALL){const f=(p-OPEN[s]+12)%12,nt=NAT.includes(p);
-    if(l===1?f===0:s<=4?nt&&f<=3:l===2?f===0:l===3?nt:true)a.push({k:'n'+s+'.'+p,t:'n',p,s,f})}}
-  else for(const p of +S.lf>2?ALL:NAT)for(const h of +S.lf>1?ORD:['E','A'])a.push({k:'c'+h+'.'+p,t:'c',p,h});
+function pool(m){let a=[];
+  if(m==='n'){const lo=Math.min(S.f0,S.f1),hi=Math.max(S.f0,S.f1);
+    for(const al of [S.alt,true]){for(const s of S.ns)for(let f=lo;f<=hi;f++){const p=(OPEN[s]+f)%12;if(al||NAT.includes(p))a.push({k:'n'+s+'.'+f,t:'n',p,s,f})}if(a.length)break}}
+  else if(m==='p'){const N=+S.lf>2?ALL:NAT;for(const p of N){if(S.g.caged||!S.g.cagedm)a.push({k:'pM.'+p,t:'p',p,ty:'M'});if(S.g.cagedm)a.push({k:'pm.'+p,t:'p',p,ty:'m'})}}
+  else{const N=+S.lf>2?ALL:NAT,g=S.g,L=+S.lf>1,mp=new Map,add=(h,p)=>mp.set('c'+h+'.'+p,{k:'c'+h+'.'+p,t:'c',p,h});
+    if(g.caged)for(const p of N)for(const h of L?ORD:['E','A'])add(h,p);
+    if(g.cagedm)for(const p of N)for(const h of L?['Em','Am','Dm']:['Em','Am'])add(h,p);
+    if(g.ab)[['C',0],['A',9],['G',7],['E',4],['D',2],['Em',4],['Am',9],['Dm',2]].forEach(x=>add(...x));
+    if(g.a7)[['E7',4],['A7',9],['D7',2],['G7',7],['C7',0],['B7',11]].forEach(x=>add(...x));
+    if(g.pw)for(const p of N){add('P6',p);add('P5',p)}
+    a=[...mp.values()]}
   return a}
-function pick(m){const a=pool(m).filter(x=>x.k!==last),w=a.map(x=>{const b=S.box[x.k];return b==null?4:[6,3,1.5,1][b]});
-  let r=Math.random()*w.reduce((x,y)=>x+y,0);for(let i=0;i<a.length;i++){r-=w[i];if(r<=0)return a[i]}return a[0]}
+let bag=[],bs='';
+function pick(m){const sg=m+JSON.stringify([S.ns,S.f0,S.f1,S.alt,S.g,S.lf]);
+  if(sg!==bs||!bag.length){bs=sg;bag=pool(m).map(x=>{const b=S.box[x.k],w=b==null?4:[6,3,1.5,1][b];return[x,Math.random()**(1/w)]}).sort((a,b)=>b[1]-a[1]).map(a=>a[0])}
+  let i=bag.findIndex(x=>x.k!==last);if(i<0)i=0;return bag.splice(i,1)[0]}
+const mkseq=c=>{const L=(c.ty==='M'?ORD:['Em','Am','Dm']).map(h=>({t:'c',p:c.p,h})).sort((a,b)=>cdata(a).base-cdata(b).base);return[...L,...L.slice(0,-1).reverse()]};
 function cdata(c){const h=SH[c.h];let base=(c.p-OPEN[h.s]+12)%12-h.o;if(base<0)base+=12;
   return{h,base,ex:h.f.map((f,i)=>f===null?null:{s:6-i,m:MID[6-i]+base+f})}}
 function fin(){if(!cur)return;const b=S.box[cur.k];S.box[cur.k]=rating===0?0:Math.min(3,(b==null?0:b)+(rating===2?2:1));save()}
 
 /* ---------- pantalla ---------- */
-let cur=null,last='',rating=1,done=false,idx=0,cd=null,tStart=0,lastP=0,playing=false,t0=0;
+let cur=null,last='',rating=1,done=false,idx=0,cd=null,tStart=0,lastP=0,playing=false,t0=0,stp=0,hist=[];
 function dg(h,base){
   const x=i=>22+i*24,s0=base>0?base:1;let g='<svg viewBox="0 0 164 140" width="170" height="145">';
   for(let r=0;r<=4;r++)g+=`<line x1="22" x2="142" y1="${30+r*24}" y2="${30+r*24}" stroke="#4a4f5a" stroke-width="${r===0&&base===0?4:1}"/>`;
@@ -135,97 +151,90 @@ function dg(h,base){
 function answer(c){
   if(c.t==='n'){return c.f?`<b>Traste ${c.f}</b><span>en la cuerda ${c.s}</span>`:`<b>Al aire</b><span>cuerda ${c.s} suelta</span>`}
   const d=cdata(c);return dg(d.h,d.base)+`<span>Raíz (naranja): cuerda ${d.h.s}, traste ${d.base+d.h.o}</span>`}
-const reveal=()=>{if(cur)$('#ans').innerHTML=answer(cur)};
+const ch=()=>cur.t==='p'?cur.seq[stp]:cur;
+const reveal=()=>{if(cur)$('#ans').innerHTML=answer(cur.t==='n'?cur:ch())};
 const lbl=()=>{$('#bb').textContent=done?'Siguiente ▶':'Bien ✓';$('#bf').style.visibility=done?'hidden':''};
-function show(c){const n=c.t==='n';
-  $('#q').textContent=n?NM[c.p].replace('/',' / '):NM[c.p]+' mayor';$('#qs').textContent=n?'Cuerda '+c.s:'Forma de '+c.h;
-  cd=n?null:cdata(c);
-  $('#sg').innerHTML=n?'':[6,5,4,3,2,1].map(s=>`<i id="g${s}" class="${SH[c.h].f[6-s]===null?'m':''}">${s}</i>`).join('');
-  $('#fb').textContent='';$('#ans').innerHTML=!n&&S.see?answer(c):'';lbl()}
-function idle(){$('#q').textContent={n:'Notas',c:'Formas',r:'Rutina'}[S.mode];$('#qs').textContent='';$('#sg').innerHTML='';$('#fb').textContent='';
+const cname=c=>c.t==='p'?NM[c.p]+TPN[c.ty]+' · 5 posiciones':NM[c.p]+TPN[SH[c.h].tp],lab=k=>SH[k.h].l||'Forma de '+k.h;
+function draw(){const c=cur,n=c.t==='n';
+  $('#q').textContent=n?NM[c.p].replace('/',' / '):cname(c);
+  if(n){$('#qs').textContent='Cuerda '+c.s;cd=null;$('#sg').innerHTML='';$('#ans').innerHTML=''}
+  else{const k=ch();cd=cdata(k);$('#qs').textContent=(c.t==='p'?`Posición ${stp+1}/${c.seq.length} · `:'')+lab(k);
+    $('#sg').innerHTML=[6,5,4,3,2,1].map(s=>`<i id="g${s}" class="${SH[k.h].f[6-s]===null?'m':''}">${s}</i>`).join('');
+    $('#ans').innerHTML=S.see?answer(k):''}
+  $('#fb').textContent='';lbl()}
+const show=c=>{stp=0;draw()};
+function idle(){$('#q').textContent={n:'Notas',c:'Acordes',p:'Posiciones',r:'Rutina'}[S.mode];$('#qs').textContent='';$('#sg').innerHTML='';$('#fb').textContent='';
   $('#ans').textContent=HELP[S.mode];$('#cnt').textContent='';$('#hear').textContent='';$('#play').textContent='Iniciar';$('#play').classList.remove('on');done=false;cur=null;lbl()}
 function ctl(){
-  $('#cm').innerHTML=[['n','Notas'],['c','Formas'],['r','Rutina']].map(([k,t])=>`<button class="chip${S.mode===k?' sel':''}" data-m="${k}">${t}</button>`).join('');
+  $('#cm').innerHTML=[['n','Notas'],['c','Acordes'],['p','Posiciones'],['r','Rutina']].map(([k,t])=>`<button class="chip${S.mode===k?' sel':''}" data-m="${k}">${t}</button>`).join('');
   $$('[data-m]').forEach(b=>b.onclick=()=>{if(playing)return;S.mode=b.dataset.m;save();ctl();idle()})}
 function bind(id,k,t){const e=$('#'+id);t==='c'?e.checked=S[k]:e.value=S[k];
-  e.onchange=e.oninput=()=>{if(playing&&(id==='ln'||id==='lf')){e.value=S[k];return}S[k]=t==='c'?e.checked:+e.value;save()}}
-[['ln','ln','n'],['lf','lf','n'],['tl','tl','n'],['mic','mic','c'],['ex','ex','c'],['see','see','c'],['th','th','n'],['mn','min','n']].forEach(a=>bind(...a));
+  e.onchange=e.oninput=()=>{if(playing&&['lf','f0','f1','alt'].includes(id)){e.value=S[k];return}S[k]=t==='c'?e.checked:+e.value;save()}}
+[['f0','f0','n'],['f1','f1','n'],['alt','alt','c'],['study','study','c'],['lf','lf','n'],['tl','tl','n'],['mic','mic','c'],['ex','ex','c'],['see','see','c'],['th','th','n'],['mn','min','n']].forEach(a=>bind(...a));
+function chips(){$('#ns').innerHTML=[6,5,4,3,2,1].map(s=>`<button class="chip${S.ns.includes(s)?' sel':''}" data-s="${s}">${s}</button>`).join('');
+  $('#gg').innerHTML=Object.entries(GR).map(([k,t])=>`<button class="chip${S.g[k]?' sel':''}" data-g="${k}">${t}</button>`).join('');
+  $$('[data-s]').forEach(b=>b.onclick=()=>{if(playing)return;const s=+b.dataset.s,i=S.ns.indexOf(s);if(i<0)S.ns.push(s);else if(S.ns.length>1)S.ns.splice(i,1);save();chips()});
+  $$('[data-g]').forEach(b=>b.onclick=()=>{if(playing)return;const k=b.dataset.g;if(S.g[k]&&Object.values(S.g).filter(Boolean).length<2)return;S.g[k]=!S.g[k];save();chips()})}
+chips();
 $('#ide').value=S.ideas;$('#ide').oninput=e=>{S.ideas=e.target.value;save()};
 
 /* ---------- micrófono y detección de tono (YIN) ---------- */
 let ac,an,buf,ms,mic=false,tm,ck,wl=null,lastM=null,cnt=0;
 async function micOn(){
   try{ac=new(window.AudioContext||window.webkitAudioContext)();await ac.resume();
-    ms=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}});
-    an=ac.createAnalyser();an.fftSize=4096;const z=ac.createGain();z.gain.value=0;ac.createMediaStreamSource(ms).connect(an);an.connect(z);z.connect(ac.destination);buf=new Float32Array(4096);mic=true}
+    ms=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    an=ac.createAnalyser();an.fftSize=4096;ac.createMediaStreamSource(ms).connect(an);buf=new Float32Array(4096);mic=true}
   catch(e){mic=false;alert('No se pudo usar el micrófono. Ábrela desde una dirección https o desactívalo en Ajustes.')}}
 function micOff(){mic=false;if(ms){ms.getTracks().forEach(t=>t.stop());ms=null}if(ac){ac.close();ac=null}}
-let lvl=0,zeros=0;
-function yin(b,sr){let r=0;for(let i=0;i<b.length;i+=4)r+=b[i]*b[i];lvl=Math.sqrt(r/(b.length/4));if(lvl<S.th)return null;
+function yin(b,sr){let r=0;for(let i=0;i<b.length;i+=4)r+=b[i]*b[i];if(Math.sqrt(r/(b.length/4))<S.th)return null;
   const hi=Math.floor(sr/70),lo=Math.floor(sr/700),W=2048,d=new Float32Array(hi+2),cm=new Float32Array(hi+2);
   for(let t=1;t<=hi;t++){let s=0;for(let i=0;i<W;i++){const x=b[i]-b[i+t];s+=x*x}d[t]=s}
   let run=0;cm[0]=1;for(let t=1;t<=hi;t++){run+=d[t];cm[t]=run?d[t]*t/run:1}
   for(let t=lo;t<hi;t++)if(cm[t]<.15){while(t+1<hi&&cm[t+1]<cm[t])t++;
     const a=cm[t-1],c0=cm[t],c=cm[t+1],q=a-2*c0+c;return sr/(t+(q?(a-c)/(2*q):0))}
   return null}
-let b8;
-function rd(){if(an.getFloat32TimeDomainData)an.getFloat32TimeDomainData(buf);else{b8=b8||new Uint8Array(4096);an.getByteTimeDomainData(b8);for(let i=0;i<4096;i++)buf[i]=(b8[i]-128)/128}}
-function bars(){const f=v=>Math.min(10,Math.round(Math.sqrt(v/.1)*10)),n=f(lvl);return '█'.repeat(n)+'░'.repeat(10-n)+' umbral '+f(S.th)+'/10'}
 function tick(){if(!playing||!mic||!cur)return;
-  try{if(ac.state!=='running')ac.resume();
-    rd();const f=yin(buf,ac.sampleRate);
-    zeros=lvl===0?zeros+1:0;
-    if(zeros>30){$('#hear').textContent='🎤 No llega señal: revisa que el navegador use el micrófono correcto';return}
-    if(f==null){$('#hear').textContent='🎤 '+bars();cnt=0;lastM=null;return}
-    const mf=69+12*Math.log2(f/440),mr=Math.round(mf),c=Math.round((mf-mr)*100);
-    $('#hear').textContent=`🎤 ${bars()} · ${sn(mr)} (${c>0?'+':''}${c}¢)`;
-    if(mr===lastM)cnt++;else{lastM=mr;cnt=1}
-    if(cnt>=3&&!done)handle(mr)}
-  catch(e){$('#hear').textContent='Error del micrófono: '+e.message}}
+  an.getFloat32TimeDomainData(buf);const f=yin(buf,ac.sampleRate);
+  if(f==null){$('#hear').textContent='🎤 …';cnt=0;lastM=null;return}
+  const mf=69+12*Math.log2(f/440),mr=Math.round(mf),c=Math.round((mf-mr)*100);
+  $('#hear').textContent=`🎤 ${sn(mr)} (${c>0?'+':''}${c}¢)`;
+  if(mr===lastM)cnt++;else{lastM=mr;cnt=1}
+  if(cnt>=3&&!done)handle(mr)}
 function handle(mr){
   if(cur.t==='n'){const e=MID[cur.s]+cur.f;
     if(mr===e||(!S.ex&&(mr-e)%12===0))return ok();
     $('#fb').textContent=(mr-e)%12===0?'Nota correcta, pero en otra octava: revisa la cuerda':`Oigo ${sn(mr)}, era ${sn(e)}`;return}
   const L=cd.ex.filter(Boolean),e=L[idx],pv=L[idx-1];
-  if(mr===e.m){$('#g'+e.s).classList.add('ok');idx++;lastP=Date.now();$('#fb').textContent='';if(idx>=L.length)ok();return}
+  if(mr===e.m){$('#g'+e.s).classList.add('ok');idx++;lastP=Date.now();$('#fb').textContent='';if(idx>=L.length){if(cur.t==='p'&&stp<cur.seq.length-1){stp++;idx=0;draw();return}ok()}return}
   if(pv&&mr===pv.m)return;
   const g=$('#g'+e.s);g.classList.add('bad');setTimeout(()=>g.classList.remove('bad'),500);
   $('#fb').textContent=`Cuerda ${e.s}: oigo ${sn(mr)}, esperaba ${sn(e.m)}`}
-function ok(){done=true;rating=Date.now()-tStart<(cur.t==='n'?3500:20000)?2:1;fin();reveal();$('#fb').textContent='✓ ¡Bien!';lbl();
+function ok(){done=true;rating=Date.now()-tStart<(cur.t==='n'?3500:cur.t==='p'?12e4:20000)?2:1;fin();reveal();$('#fb').textContent='✓ ¡Bien!';lbl();
   setTimeout(()=>{if(playing&&done&&cur)next()},cur.t==='n'?900:1800)}
 function clock(){if(!playing)return;
   const el=Date.now()-t0,r=S.mode==='r',tot=Math.max(2,S.min)*6e4,sec=r?Math.max(0,Math.ceil((tot-el)/1e3)):Math.floor(el/1e3),
-    tl=+S.tl&&!done?Math.max(0,S.tl-Math.floor((Date.now()-tStart)/1e3)):null;
+    tl=+S.tl&&!done&&!S.study?Math.max(0,S.tl-Math.floor((Date.now()-tStart)/1e3)):null;
   $('#cnt').textContent=(tl!=null?tl+'s · ':'')+Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
   if(r&&done&&el>=tot){stop();return}
   if(tl===0&&cur){rating=0;fin();done=true;reveal();$('#fb').textContent='Tiempo agotado';lbl();return}
-  if(cur&&cur.t==='c'&&!done&&mic&&Date.now()-lastP>6000){const e=cd.ex.filter(Boolean)[idx];if(e)$('#fb').textContent=`No oigo la cuerda ${e.s} (${sn(e.m)})`}}
+  if(cur&&cur.t!=='n'&&!done&&mic&&Date.now()-lastP>6000){const e=cd.ex.filter(Boolean)[idx];if(e)$('#fb').textContent=`No oigo la cuerda ${e.s} (${sn(e.m)})`}}
 
 /* ---------- sesión ---------- */
 function next(){
   const el=Date.now()-t0,tot=Math.max(2,S.min)*6e4;
   if(S.mode==='r'&&el>=tot){stop();return}
   const m=S.mode==='r'?(el<tot*.4?'n':'c'):S.mode;
-  cur=pick(m);last=cur.k;done=false;rating=1;idx=0;cnt=0;lastM=null;tStart=lastP=Date.now();show(cur)}
+  if(cur)hist.push(cur);if(hist.length>30)hist.shift();cur=pick(m);if(cur.t==='p')cur.seq=mkseq(cur);last=cur.k;done=false;rating=1;idx=0;cnt=0;lastM=null;tStart=lastP=Date.now();show(cur)}
 async function lock(on){try{if(on)wl=await navigator.wakeLock.request('screen');else if(wl){wl.release();wl=null}}catch(e){}}
-let tt=null;
-async function micTest(){
-  if(playing)return;
-  if(tt){clearInterval(tt);tt=null;micOff();$('#mt').textContent='Probar micrófono';$('#hear').textContent=$('#mtx').textContent='';return}
-  await micOn();if(!mic)return;
-  $('#mt').textContent='Parar prueba';const lab=(ms.getAudioTracks()[0]||{}).label||'sin nombre';
-  tt=setInterval(()=>{try{if(ac.state!=='running')ac.resume();rd();const f=yin(buf,ac.sampleRate);
-    const t=`🎤 ${lab}\nVolumen ${bars()}${f?'\nNota: '+sn(Math.round(69+12*Math.log2(f/440))):''}\nAudio: ${ac.state}`;$('#hear').textContent=t.replace(/\n/g,' · ');$('#mtx').textContent=t}catch(e){$('#hear').textContent=$('#mtx').textContent='Error: '+e.message}},100)}
-$('#mt').onclick=micTest;
 async function start(){
-  if(tt){clearInterval(tt);tt=null;micOff();$('#mt').textContent='Probar micrófono'}
-  playing=true;t0=Date.now();$('#play').textContent='Detener';$('#play').classList.add('on');lock(true);
-  if(S.mic)await micOn();
+  playing=true;hist=[];t0=Date.now();$('#play').textContent='Detener';$('#play').classList.add('on');lock(true);
+  if(S.mic&&!S.study)await micOn();
   $('#hear').textContent=mic?'🎤 …':'Sin micrófono: usa Ver, Fallé y Bien';
   tm=setInterval(tick,70);ck=setInterval(clock,250);next()}
 function stop(){if(!playing)return;playing=false;clearInterval(tm);clearInterval(ck);micOff();lock(false);
   const m=(Date.now()-t0)/6e4;if(m>.3){S.log.push({d:Date.now(),min:Math.round(m*10)/10,mode:S.mode});save()}idle()}
 $('#play').onclick=()=>playing?stop():start();
+$('#bp').onclick=()=>{if(!playing||!hist.length)return;cur=hist.pop();last=cur.k;done=false;rating=1;idx=0;cnt=0;lastM=null;tStart=lastP=Date.now();show(cur)};
 $('#bv').onclick=()=>{if(playing)reveal()};
 $('#card').onclick=()=>{if(playing)reveal()};
 $('#bf').onclick=()=>{if(!playing||!cur||done)return;rating=0;fin();done=true;reveal();$('#fb').textContent='Anotado como fallo';lbl()};
@@ -234,18 +243,18 @@ $('#bb').onclick=()=>{if(!playing||!cur)return;if(!done){rating=1;fin();done=tru
 /* ---------- mapa, ideas, datos ---------- */
 function mapa(){
   const wk=Date.now()-6048e5;$('#s1').textContent=Math.round(S.log.filter(l=>l.d>wk).reduce((a,l)=>a+l.min,0));$('#s2').textContent=S.log.length;
-  const l0=S.ln;S.ln=4;const inP=new Set(pool('n').map(x=>x.k));S.ln=l0;
-  const cl=(key,all)=>{const b=S.box[key];return b!=null?' b'+b:all&&!all.has(key)?' o':''};
-  let g='<div class="g" style="grid-template-columns:54px repeat(12,1fr)"><div class="c h"></div>'+ALL.map(p=>`<div class="c h">${sn(p).slice(0,3)}</div>`).join('');
-  for(let s=6;s>=1;s--)g+=`<div class="c h">Cuerda ${s}</div>`+ALL.map(p=>`<div class="c${cl('n'+s+'.'+p,inP)}"></div>`).join('');
+  const inP=new Set(pool('n').map(x=>x.k)),cl=(key,all)=>{const b=S.box[key];return b!=null?' b'+b:all&&!all.has(key)?' o':''},F=[...Array(13).keys()];
+  let g='<div class="g" style="grid-template-columns:54px repeat(13,1fr)"><div class="c h"></div>'+F.map(f=>`<div class="c h">${f}</div>`).join('');
+  for(let s=6;s>=1;s--)g+=`<div class="c h">Cuerda ${s}</div>`+F.map(f=>`<div class="c${cl('n'+s+'.'+f,inP)}">${sn(OPEN[s]+f)}</div>`).join('');
   $('#gn').innerHTML=g+'</div>';
-  g='<div class="g" style="grid-template-columns:70px repeat(5,1fr)"><div class="c h"></div>'+ORD.map(h=>`<div class="c h">${h}</div>`).join('');
-  ALL.forEach(p=>{g+=`<div class="c h">${sn(p)}</div>`+ORD.map(h=>`<div class="c${cl('c'+h+'.'+p)}"></div>`).join('')});
+  const pc=pool('c'),cols=Object.keys(SH).filter(h=>pc.some(x=>x.h===h)||Object.keys(S.box).some(k=>k.startsWith('c'+h+'.')));
+  g=`<div class="g" style="grid-template-columns:62px repeat(${cols.length},1fr)"><div class="c h"></div>`+cols.map(h=>`<div class="c h">${h}</div>`).join('');
+  ALL.forEach(p=>{g+=`<div class="c h">${sn(p)}</div>`+cols.map(h=>`<div class="c${cl('c'+h+'.'+p)}"></div>`).join('')});
   $('#gc').innerHTML=g+'</div>'}
 $$('nav button').forEach(b=>b.onclick=()=>{if(playing)return;const v=b.dataset.v;$$('nav button').forEach(x=>x.classList.toggle('sel',x===b));
   ['v0','v1','v2'].forEach((id,i)=>$('#'+id).hidden=String(i)!==v);$('#play').style.display=v==='0'?'':'none';if(v==='1')mapa()});
 $('#exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='entrenador-mastil.json';a.click()};
-$('#imp').onchange=async e=>{try{Object.assign(S,JSON.parse(await e.target.files[0].text()));save();location.reload()}catch(x){alert('Archivo no válido')}};
+$('#imp').onchange=async e=>{try{Object.assign(S,{mg:0},JSON.parse(await e.target.files[0].text()));save();location.reload()}catch(x){alert('Archivo no válido')}};
 ctl();idle();
 </script>
 </body>
