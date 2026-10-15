@@ -70,7 +70,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 <div class="row"><input type="checkbox" id="mic" aria-label="Micrófono"><span>Escuchar con el micrófono</span></div>
 <div class="row"><input type="checkbox" id="ex" aria-label="Octava exacta"><span>Exigir octava exacta (cuerda correcta)</span></div>
 <div class="row"><input type="checkbox" id="see" aria-label="Ver diagrama"><span>Ver el diagrama desde el principio (formas)</span></div>
-<div class="row"><span>Sensibilidad</span><input type="range" id="th" min="0.002" max="0.05" step="0.001" aria-label="Umbral de volumen"></div>
+<div class="row"><button class="btn" id="mt">Probar micrófono</button></div>
+<div class="row"><span>Sensibilidad</span><input type="range" id="th" min="0.0005" max="0.03" step="0.0005" aria-label="Umbral de volumen"></div>
 <div class="row"><span>Duración de la rutina</span><input type="number" id="mn" min="2" max="60"><span>min</span></div>
 </div></details>
 <div id="card"><div id="q"></div><div id="qs"></div><div id="sg"></div><div id="ans"></div><div id="fb"></div></div>
@@ -100,8 +101,9 @@ const OPEN={6:4,5:9,4:2,3:7,2:11,1:4},MID={6:40,5:45,4:50,3:55,2:59,1:64};
 /* f: traste relativo por cuerda (6→1); o: traste de la raíz respecto a la base de la forma */
 const SH={E:{s:6,o:0,f:[0,2,2,1,0,0]},A:{s:5,o:0,f:[null,0,2,2,2,0]},C:{s:5,o:3,f:[null,3,2,0,1,0]},G:{s:6,o:3,f:[3,2,0,0,0,3]},D:{s:4,o:0,f:[null,null,0,2,3,2]}};
 const HELP={n:'Te digo una nota y una cuerda. Tócala y te escucho.',c:'Te digo un acorde y una forma. Móntalo y arpégialo despacio, cuerda a cuerda.',r:'Notas y formas seguidas, con un temporizador.'};
-let S={mode:'n',ln:1,lf:1,tl:0,mic:true,ex:true,see:true,th:.008,min:10,box:{},log:[],ideas:''};
+let S={mode:'n',ln:1,lf:1,tl:0,mic:true,ex:true,see:true,th:.002,min:10,box:{},log:[],ideas:''};
 try{Object.assign(S,JSON.parse(localStorage.getItem('prac4')||localStorage.getItem('prac3')||'{}'))}catch(e){}
+if(!S.thv){S.th=.002;S.thv=1}
 const save=()=>{try{localStorage.setItem('prac4',JSON.stringify(S))}catch(e){}};
 
 /* ---------- elementos a practicar ---------- */
@@ -152,24 +154,30 @@ $('#ide').value=S.ideas;$('#ide').oninput=e=>{S.ideas=e.target.value;save()};
 let ac,an,buf,ms,mic=false,tm,ck,wl=null,lastM=null,cnt=0;
 async function micOn(){
   try{ac=new(window.AudioContext||window.webkitAudioContext)();await ac.resume();
-    ms=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
-    an=ac.createAnalyser();an.fftSize=4096;ac.createMediaStreamSource(ms).connect(an);buf=new Float32Array(4096);mic=true}
+    ms=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}});
+    an=ac.createAnalyser();an.fftSize=4096;const z=ac.createGain();z.gain.value=0;ac.createMediaStreamSource(ms).connect(an);an.connect(z);z.connect(ac.destination);buf=new Float32Array(4096);mic=true}
   catch(e){mic=false;alert('No se pudo usar el micrófono. Ábrela desde una dirección https o desactívalo en Ajustes.')}}
 function micOff(){mic=false;if(ms){ms.getTracks().forEach(t=>t.stop());ms=null}if(ac){ac.close();ac=null}}
-function yin(b,sr){let r=0;for(let i=0;i<b.length;i+=4)r+=b[i]*b[i];if(Math.sqrt(r/(b.length/4))<S.th)return null;
+let lvl=0,zeros=0;
+function yin(b,sr){let r=0;for(let i=0;i<b.length;i+=4)r+=b[i]*b[i];lvl=Math.sqrt(r/(b.length/4));if(lvl<S.th)return null;
   const hi=Math.floor(sr/70),lo=Math.floor(sr/700),W=2048,d=new Float32Array(hi+2),cm=new Float32Array(hi+2);
   for(let t=1;t<=hi;t++){let s=0;for(let i=0;i<W;i++){const x=b[i]-b[i+t];s+=x*x}d[t]=s}
   let run=0;cm[0]=1;for(let t=1;t<=hi;t++){run+=d[t];cm[t]=run?d[t]*t/run:1}
   for(let t=lo;t<hi;t++)if(cm[t]<.15){while(t+1<hi&&cm[t+1]<cm[t])t++;
     const a=cm[t-1],c0=cm[t],c=cm[t+1],q=a-2*c0+c;return sr/(t+(q?(a-c)/(2*q):0))}
   return null}
+function bars(){const f=v=>Math.min(10,Math.round(Math.sqrt(v/.1)*10)),n=f(lvl);return '█'.repeat(n)+'░'.repeat(10-n)+' umbral '+f(S.th)+'/10'}
 function tick(){if(!playing||!mic||!cur)return;
-  an.getFloat32TimeDomainData(buf);const f=yin(buf,ac.sampleRate);
-  if(f==null){$('#hear').textContent='🎤 …';cnt=0;lastM=null;return}
-  const mf=69+12*Math.log2(f/440),mr=Math.round(mf),c=Math.round((mf-mr)*100);
-  $('#hear').textContent=`🎤 ${sn(mr)} (${c>0?'+':''}${c}¢)`;
-  if(mr===lastM)cnt++;else{lastM=mr;cnt=1}
-  if(cnt>=3&&!done)handle(mr)}
+  try{if(ac.state!=='running')ac.resume();
+    an.getFloat32TimeDomainData(buf);const f=yin(buf,ac.sampleRate);
+    zeros=lvl===0?zeros+1:0;
+    if(zeros>30){$('#hear').textContent='🎤 No llega señal: revisa que el navegador use el micrófono correcto';return}
+    if(f==null){$('#hear').textContent='🎤 '+bars();cnt=0;lastM=null;return}
+    const mf=69+12*Math.log2(f/440),mr=Math.round(mf),c=Math.round((mf-mr)*100);
+    $('#hear').textContent=`🎤 ${bars()} · ${sn(mr)} (${c>0?'+':''}${c}¢)`;
+    if(mr===lastM)cnt++;else{lastM=mr;cnt=1}
+    if(cnt>=3&&!done)handle(mr)}
+  catch(e){$('#hear').textContent='Error del micrófono: '+e.message}}
 function handle(mr){
   if(cur.t==='n'){const e=MID[cur.s]+cur.f;
     if(mr===e||(!S.ex&&(mr-e)%12===0))return ok();
@@ -196,7 +204,17 @@ function next(){
   const m=S.mode==='r'?(el<tot*.4?'n':'c'):S.mode;
   cur=pick(m);last=cur.k;done=false;rating=1;idx=0;cnt=0;lastM=null;tStart=lastP=Date.now();show(cur)}
 async function lock(on){try{if(on)wl=await navigator.wakeLock.request('screen');else if(wl){wl.release();wl=null}}catch(e){}}
+let tt=null;
+async function micTest(){
+  if(playing)return;
+  if(tt){clearInterval(tt);tt=null;micOff();$('#mt').textContent='Probar micrófono';$('#hear').textContent='';return}
+  await micOn();if(!mic)return;
+  $('#mt').textContent='Parar prueba';const lab=(ms.getAudioTracks()[0]||{}).label||'sin nombre';
+  tt=setInterval(()=>{try{if(ac.state!=='running')ac.resume();an.getFloat32TimeDomainData(buf);const f=yin(buf,ac.sampleRate);
+    $('#hear').textContent=`🎤 ${lab} · ${bars()}${f?' · '+sn(Math.round(69+12*Math.log2(f/440))):''} · ${ac.state}`}catch(e){$('#hear').textContent='Error: '+e.message}},100)}
+$('#mt').onclick=micTest;
 async function start(){
+  if(tt){clearInterval(tt);tt=null;micOff();$('#mt').textContent='Probar micrófono'}
   playing=true;t0=Date.now();$('#play').textContent='Detener';$('#play').classList.add('on');lock(true);
   if(S.mic)await micOn();
   $('#hear').textContent=mic?'🎤 …':'Sin micrófono: usa Ver, Fallé y Bien';
