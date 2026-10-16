@@ -1,4 +1,4 @@
-MIS COMPRAS - PAQUETE PWA (v10)
+MIS COMPRAS - PAQUETE PWA (v12)
 
 Una PWA solo se puede instalar si se abre desde una dirección https (no desde un archivo local).
 Sube TODOS estos archivos a la misma carpeta de un alojamiento estático gratuito:
@@ -16,4 +16,4 @@ IMPORTANTE:
   2) Haz copias con frecuencia; en iPhone el navegador puede borrar datos de webs poco usadas.
   3) El código de la app es público si el alojamiento lo es, pero NUNCA contiene tus tickets:
      los datos se quedan en tu móvil.
-  4) Para publicar una versión nueva: sustituye index.html y cambia V (p. ej. 'compras-v10') en sw.js.
+  4) Para publicar una versión nueva: sustituye index.html y cambia V (p. ej. 'compras-v12') en sw.js.
