@@ -28,10 +28,9 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
 .li{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd)}.li .tx{flex:1;min-width:100px}.li.done .tx{text-decoration:line-through;color:var(--mut)}.li .qt{width:5rem}.li .nt{flex-basis:100%;margin-left:30px;max-width:calc(100% - 30px)}
 .idea textarea{width:100%;resize:vertical}.idea.done textarea{text-decoration:line-through;color:var(--mut)}
 #toast{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:10;max-width:90%;box-shadow:0 2px 8px #0004}#toast.err{background:var(--err);color:#fff}
+body{padding-bottom:130px}#lbar{position:fixed;left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--bd);padding:8px 16px;text-align:center;z-index:8}#lbar:empty{display:none}
 </style></head><body>
-<h1>🛒 Mis compras <small class="mut">v10</small></h1>
-<p class="mut">Tus datos se guardan solo en este navegador. Nada se envía a ningún servidor.</p>
-<div id="aviso"></div>
+<h1>🛒 Mis compras <small class="mut">v11</small></h1>
 <div id="msg"></div>
 
 <section class="tab" id="t-panel">
@@ -73,12 +72,14 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
 <div class="card">
   <div class="row"><input id="ln" list="dl" placeholder="Producto (escribe o elige)" style="flex:2;min-width:150px" autocomplete="off"><input id="lq" placeholder="Cant." style="width:5rem"></div>
   <datalist id="dl"></datalist>
-  <div class="row" style="margin-top:6px"><input id="lnt" placeholder="Nota (opcional)" style="flex:2;min-width:150px"><select id="lc"></select><button id="ladd">Añadir</button></div>
+  <div class="row" style="margin-top:6px"><select id="lc" style="flex:1"></select><button id="ladd">Añadir</button></div>
 </div>
 <details class="card"><summary>Habituales (toca para añadir)</summary><div class="row" style="margin:6px 0"><select id="hf"><option value="top">Más frecuentes (40)</option><option value="all">Todos</option></select><span class="mut">Por categoría y en orden alfabético</span></div><div id="hab"></div></details>
 <div class="row"><label class="mut">Agrupar por <select id="lg"><option value="cat">categoría</option><option value="sup">supermercado</option><option value="no">sin agrupar</option></select></label><span class="mut" id="lcnt"></span></div>
 <div id="lbody"></div>
 <div id="lest"></div>
+<h2 style="font-size:1rem">Nota de la lista</h2><textarea id="lnota" rows="3" placeholder="Comentarios para toda la lista (admite varias líneas)…" style="width:100%;resize:vertical"></textarea>
+<div id="lbar"></div>
 <div class="row" style="margin-top:10px"><button id="lcopy">Copiar para WhatsApp</button><button class="sec" id="lquit">Quitar marcados</button><button class="sec" id="lclr">Vaciar</button></div>
 <p class="mut">Se copian solo los productos sin marcar. En WhatsApp, pega el texto y se verá con negritas y casillas.</p>
 </section>
@@ -123,6 +124,8 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
   <div id="dic"></div>
 </div>
 <div class="sub" id="s-copia">
+  <p class="mut">Tus datos se guardan solo en este navegador. Nada se envía a ningún servidor.</p>
+  <div id="aviso"></div>
   <div class="card"><b>Importar y exportar</b>
     <p class="mut">Importar <b>fusiona</b> tickets, diccionario, ideas, lista y categorías (añade lo nuevo y completa lo vacío, sin pisar lo que ya tienes). La copia (JSON) incluye tickets, diccionario, lista de la compra e ideas.</p>
     <div class="row"><label class="btn">Importar PDF o JSON<input id="file" type="file" accept=".pdf,.json,application/pdf,application/json" multiple></label>
@@ -144,7 +147,7 @@ input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac);flex:none;pad
 <script>
 //#core
 const PRIV=/\*{2,}|\b(VISA|MASTERCARD|MAESTRO|AMEX|IBAN)\b|\b(AUT|ARC|AID|OP|TARJ)\b\.?\s*:|\b\d{9,}\b|\d{4}[ -]\d{4}[ -]\d{4}|@|TEL[ÉE]FONO/i;
-const KT=['fecha','hora','supermercado','total','lineas'], KL=['producto','seccion','unidades','peso_kg','precio_ref','importe','original'];
+const KT=['fecha','hora','supermercado','total','lineas'], KL=['producto','seccion','unidades','peso_kg','precio_ref','importe','original','descuento'];
 const n=s=>parseFloat(String(s).replace(',','.'));
 const r2=x=>Math.round(x*100)/100;
 
@@ -174,10 +177,43 @@ function parseMercadona(L){
   return{fecha,hora,supermercado:'Mercadona',total,lineas:out};
 }
 
+function parseLidl(L){
+  let fecha,hora,total,pie,i0=-1,i1=-1;
+  L.forEach((l,i)=>{
+    if(i0<0&&/^EUR\s*$/i.test(l))i0=i;
+    if(i0>=0&&i1<0&&i>i0&&/^TOTAL\s+\d+[.,]\d{2}\s*$/i.test(l)){i1=i;total=n(l.match(/(\d+[.,]\d{2})\s*$/)[1])}
+    let m=l.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}:\d{2})/);if(m&&!fecha){fecha=`${m[3]}-${m[2]}-${m[1]}`;hora=m[4]}
+    if(m=l.match(/(\d{2})\.(\d{2})\.(\d{2})\s+\d{2}:\d{2}/))pie=`20${m[3]}-${m[2]}-${m[1]}`;
+  });
+  if(!fecha||i0<0||i1<0)throw Error('No parece un ticket de Lidl (no encuentro fecha, cabecera EUR o total).');
+  if(pie&&pie!==fecha)throw Error(`La fecha de la línea de pago (${fecha}) no coincide con la del pie del ticket (${pie}). Revisa el ticket original y corrige el texto.`);
+  // LISTA BLANCA: solo se leen las líneas entre "EUR" y "TOTAL"
+  const N='(\\d+[.,]\\d{2})',out=[],
+    D=/^Desc\.?\s*-?\s*(\d+[.,]\d{2})$/i,KG=/^(\d+[.,]\d{3})\s*kg\s*x\s*(\d+[.,]\d{2})\s*EUR\s*\/\s*kg$/i,
+    rW=new RegExp('^(.+?)\\s+(\\d+[.,]\\d{3})\\s*kg\\s*x\\s*'+N+'\\s*EUR\\s*/\\s*kg\\s+'+N+'\\s*[A-C]?$','i'),
+    rU=new RegExp('^(.+?)\\s+'+N+'\\s*x\\s*(\\d+)\\s+'+N+'\\s*[A-C]?$','i'),
+    r1=new RegExp('^(.+?)\\s+'+N+'\\s*[A-C]?$','i');
+  L.slice(i0+1,i1).forEach(raw=>{const l=raw.trim();let m,o;if(!l)return;
+    if(m=l.match(D)){o=out[out.length-1];if(!o)throw Error('Descuento sin producto: '+l);o.importe=r2(o.importe-n(m[1]));o.descuento=r2((o.descuento||0)+n(m[1]));return}
+    if(m=l.match(KG)){o=out[out.length-1];if(!o||!o._u)throw Error('Línea de peso sin producto: '+l);delete o._u;o.peso_kg=n(m[1]);o.precio_ref=n(m[2]);return}
+    if(m=l.match(rW)){out.push({producto:m[1].toUpperCase(),peso_kg:n(m[2]),precio_ref:n(m[3]),importe:n(m[4])});return}
+    if(m=l.match(rU)){out.push({producto:m[1].toUpperCase(),unidades:+m[3],precio_ref:n(m[2]),importe:n(m[4])});return}
+    if(m=l.match(r1)){if(n(m[2])!==0)out.push({producto:m[1].toUpperCase(),_u:1,importe:n(m[2])});return}   // importe 0,00 (p. ej. Parking): se ignora
+    throw Error('Línea no reconocida: '+l)});
+  out.forEach(o=>{if(o._u){delete o._u;o.unidades=1;o.precio_ref=r2(o.importe+(o.descuento||0))}});
+  return{fecha,hora,supermercado:'Lidl',total,lineas:out};
+}
+// Registro de supermercados: para añadir otro, solo hace falta su detector y su lector
+const SUPERS={
+  Lidl:{det:L=>L.slice(0,14).some(l=>/A60195278|\bL[I1l]DL\b/i.test(l)),parse:parseLidl},
+  Mercadona:{det:L=>L.some(l=>/MERCADONA/i.test(l)||/^(Cnt\.?\s+)?Descripci/i.test(l)),parse:parseMercadona}};
+const canonSup=x=>{x=String(x||'').trim();return Object.keys(SUPERS).find(k=>new RegExp(k,'i').test(x))||x};
+function parseTicket(L){const k=Object.keys(SUPERS).find(k=>SUPERS[k].det(L));if(!k)throw Error('No reconozco el supermercado. Usa el JSON (prompt de Más → IA) indicando el supermercado.');return SUPERS[k].parse(L)}
+
 function validate(d){
   const E=[],T=d&&d.tickets;
   if(!d||d.version!==1||!Array.isArray(T)||!T.length)return['Formato inválido: se espera {"version":1,"tickets":[...]}'];
-  Object.keys(d).forEach(k=>{if(!['version','tickets','diccionario','lista','ideas','categorias'].includes(k))E.push('Campo no permitido: '+k)});
+  Object.keys(d).forEach(k=>{if(!['version','tickets','diccionario','lista','ideas','categorias','notaLista'].includes(k))E.push('Campo no permitido: '+k)});
   T.forEach((t,i)=>{
     const p=`Ticket ${i+1}: `;
     Object.keys(t).forEach(k=>{if(!KT.includes(k))E.push(p+'campo no permitido "'+k+'"')});
@@ -195,6 +231,10 @@ function validate(d){
       if((l.unidades==null)===(l.peso_kg==null))E.push(q+'debe tener exactamente uno de unidades o peso_kg');
       if(typeof l.precio_ref!=='number'||typeof l.importe!=='number')E.push(q+'precio_ref/importe inválidos');
       s+=l.importe||0;
+      if(l.descuento!=null&&typeof l.descuento!=='number')E.push(q+'descuento inválido');
+      if(typeof l.precio_ref==='number'&&typeof l.importe==='number'&&(l.unidades==null)!==(l.peso_kg==null)){
+        const bruto=l.importe+(l.descuento||0),esp=(l.unidades!=null?l.unidades:l.peso_kg)*l.precio_ref;
+        if(Math.abs(esp-bruto)>0.05+0.01*(l.unidades||1))E.push(`${q}${l.producto}: cantidad × precio = ${esp.toFixed(2)} pero el importe es ${bruto.toFixed(2)} (¿número mal leído?)`)}
     });
     if(Math.abs(s-t.total)>0.011)E.push(`${p}las líneas suman ${s.toFixed(2)} y el total es ${t.total} (no cuadra)`);
     if(PRIV.test(JSON.stringify(t)))E.push(p+'⛔ contiene datos que parecen privados (tarjeta, teléfono, autorización...). Bloqueado.');
@@ -203,6 +243,7 @@ function validate(d){
     if(!x||typeof x.producto!=='string'||typeof x.categoria!=='string'||(x.nombre!=null&&typeof x.nombre!=='string')||Object.keys(x).some(k=>!['producto','nombre','categoria'].includes(k))||PRIV.test(JSON.stringify(x)))E.push('Diccionario: entrada '+(i+1)+' inválida');
   });
   ['lista','ideas','categorias'].forEach(k=>{if(d[k]!=null&&!Array.isArray(d[k]))E.push(k+': formato inválido')});
+  if(d.notaLista!=null&&typeof d.notaLista!=='string')E.push('notaLista: formato inválido');
   (Array.isArray(d.lista)?d.lista:[]).forEach((x,i)=>{if(!x||typeof x.producto!=='string'||!x.producto)E.push('Lista: entrada '+(i+1)+' inválida')});
   (Array.isArray(d.ideas)?d.ideas:[]).forEach((x,i)=>{if(!x||typeof x.texto!=='string')E.push('Ideas: entrada '+(i+1)+' inválida')});
   (Array.isArray(d.categorias)?d.categorias:[]).forEach((c,i)=>{if(typeof c!=='string'||!c)E.push('Categorías: entrada '+(i+1)+' inválida')});
@@ -284,8 +325,8 @@ async function pdfLines(file){
 // ---------- UI ----------
 const $=id=>document.getElementById(id),eur=x=>x.toFixed(2).replace('.',',')+' €';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let pending=[],pdic=[],pex={lista:[],ideas:[],cats:[]};
-const rex=()=>pex={lista:[],ideas:[],cats:[]};
+let pending=[],pdic=[],pex={lista:[],ideas:[],cats:[],nota:''};
+const rex=()=>pex={lista:[],ideas:[],cats:[],nota:''};
 const say=(h,c='')=>{$('msg').innerHTML=`<div class="card ${c}">${h}</div>`;scrollTo(0,0)};
 let tt;const toast=(m,c)=>{const e=$('toast');e.textContent=m;e.className=c||'';e.style.display='block';clearTimeout(tt);tt=setTimeout(()=>e.style.display='none',3500)};
 
@@ -294,10 +335,10 @@ $('file').onchange=async e=>{
   for(const f of e.target.files){
     try{
       let d;
-      if(/\.pdf$/i.test(f.name)){d={version:1,tickets:[parseMercadona(await pdfLines(f))]}}
+      if(/\.pdf$/i.test(f.name)){d={version:1,tickets:[parseTicket(await pdfLines(f))]}}
       else d=JSON.parse(await f.text());
       const E=validate(d);
-      if(E.length)errs.push(`<b>${esc(f.name)}</b><br>`+E.map(esc).join('<br>'));else{ok.push(...d.tickets);pdic.push(...(d.diccionario||[]));pex.lista.push(...(d.lista||[]));pex.ideas.push(...(d.ideas||[]));pex.cats.push(...(d.categorias||[]))}
+      if(E.length)errs.push(`<b>${esc(f.name)}</b><br>`+E.map(esc).join('<br>'));else{d.tickets.forEach(t=>t.supermercado=canonSup(t.supermercado));ok.push(...d.tickets);pdic.push(...(d.diccionario||[]));pex.lista.push(...(d.lista||[]));pex.ideas.push(...(d.ideas||[]));pex.cats.push(...(d.categorias||[]));if(d.notaLista)pex.nota=(pex.nota?pex.nota+'\n':'')+d.notaLista}
     }catch(x){errs.push(`<b>${esc(f.name)}</b><br>${esc(x.message)}`)}
   }
   e.target.value='';pending=ok;
@@ -313,7 +354,7 @@ function preview(){
   $('drop').onclick=()=>{pending=[];pdic=[];rex();preview();say('Descartado.')};
 }
 const ticketHTML=(t,ed)=>`<details class="card"><summary><b>${t.fecha}</b> ${t.hora||''} · ${esc(t.supermercado)} · <b>${eur(t.total)}</b> <span class="mut">(${t.lineas.length} líneas)</span></summary>
-<table><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr>${t.lineas.map((l,j)=>`<tr><td>${esc(l.producto)}${l.original?` <span class="mut" title="Original: ${esc(l.original)}">(editado)</span>`:''}${ed?` <button class="sec edl" data-t="${esc(t.id)}" data-j="${j}" style="padding:0 7px">✎</button>`:''}${l.seccion?` <span class="mut">· ${esc(l.seccion)}</span>`:''}</td><td>${l.unidades!=null?l.unidades:l.peso_kg.toFixed(3)+' kg'}</td><td>${eur(l.precio_ref)}${l.peso_kg!=null?'/kg':''}</td><td>${eur(l.importe)}</td></tr>`).join('')}</table></details>`;
+<table><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr>${t.lineas.map((l,j)=>`<tr><td>${esc(l.producto)}${l.original?` <span class="mut" title="Original: ${esc(l.original)}">(editado)</span>`:''}${ed?` <button class="sec edl" data-t="${esc(t.id)}" data-j="${j}" style="padding:0 7px">✎</button>`:''}${l.seccion?` <span class="mut">· ${esc(l.seccion)}</span>`:''}</td><td>${l.unidades!=null?l.unidades:l.peso_kg.toFixed(3)+' kg'}</td><td>${eur(l.precio_ref)}${l.peso_kg!=null?'/kg':''}</td><td>${eur(l.importe)}${l.descuento?`<br><span class="mut">dto −${eur(l.descuento)}</span>`:''}</td></tr>`).join('')}</table></details>`;
 async function render(){
   await loadCats();
   const T=(await all()).sort((a,b)=>(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||'')));
@@ -324,14 +365,14 @@ async function render(){
 const CATS=['Frutas y verduras','Carne','Pescado y marisco','Lácteos y huevos','Panadería y bollería','Despensa','Conservas y encurtidos','Bebidas','Congelados','Snacks y dulces','Higiene y belleza','Limpieza y hogar','Otros'];
 const SUG=[
  [/MEJILL|NAVAJA|CHIRLA|DORADA|LUBINA|SEPIA|LANGOSTINO|SALM[OÓ]N|MERLUZA|GAMBA|PULPO|CALAMAR|AT[UÚ]N/i,'Pescado y marisco'],
- [/LECHE|YOGUR|QUESO|GRANA|NATA\b|MANTEQ|HUEVO|\bQ /i,'Lácteos y huevos'],
+ [/LECHE|YOGUR|QUESO|GRANA\b|NATA\b|MANTEQ|HUEVO|\bQ /i,'Lácteos y huevos'],
  [/^PAN\b|BAGEL|BOLLO|CROISS|GALLETA/i,'Panadería y bollería'],
  [/BEBIDA|AGUA|CERVEZA|VINO|ZUMO|REFRESCO|CAFE|CAP\./i,'Bebidas'],
  [/JAM[OÓ]N|POLLO|PAVO|CERDO|TERNERA|SALCHICH|LOMO|CHORIZO|BACON/i,'Carne'],
  [/TORTITAS|CHOCOL|SNACK|PATATAS FRIT/i,'Snacks y dulces'],
  [/\bGEL\b|DESMAQ|M[ÁA]SCARA|CHAMP|ACONDIC|LEAVE-IN|CREMA|JAB[OÓ]N|DENTIFR|PAPEL HIG|FACIAL/i,'Higiene y belleza'],
  [/DETERG|LAVAVAJ|FREGON|LEJ[IÍ]A|SUAVIZ|LIMPI/i,'Limpieza y hogar'],
- [/PEPINO|TOMATE|MANZ|MELOCOT|PL[AÁ]TANO|CALABAC|PIMIENTO|NARANJ|LIM[OÓ]N|CEBOLLA|ZANAH|LECHUGA|SETAS|^ESP |FRESA/i,'Frutas y verduras']];
+ [/PEPINO|TOMATE|MANZ|MELOCOT|PL[AÁ]TANO|CALABAC|PIMIENTO|NARANJ|LIM[OÓ]N|CEBOLLA|ZANAH|LECHUGA|SETAS|^ESP |FRESA|GRANADA/i,'Frutas y verduras']];
 const suggest=(p,sec)=>sec&&/PESCADO/i.test(sec)?'Pescado y marisco':((SUG.find(([r])=>r.test(p))||[])[1]||'');
 
 async function renderDic(){renderPanel();renderCopia();
@@ -418,7 +459,7 @@ const meta=()=>{try{return JSON.parse(localStorage.getItem('compras_copia'))}cat
 const setMeta=m=>{try{localStorage.setItem('compras_copia',JSON.stringify(m))}catch(e){}};
 async function crearCopia(){
   const T=(await all()).map(({id,...t})=>t),D=(await allDic()).map(x=>({producto:x.producto,nombre:x.nombre,categoria:x.categoria}));
-  return{version:1,tickets:T,diccionario:D,lista:await list('lista'),ideas:await list('ideas'),categorias:[...CATL]};
+  return{version:1,tickets:T,diccionario:D,lista:await list('lista'),ideas:await list('ideas'),categorias:[...CATL],notaLista:await getNota()};
 }
 function bajar(d,pre){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,1)],{type:'application/json'}));a.download=`${pre}-${new Date().toISOString().slice(0,10)}.json`;a.click()}
 const vaciar=async()=>{await tx('readwrite',s=>s.clear());await tx('readwrite',s=>s.clear(),'dic');await tx('readwrite',s=>s.clear(),'lista');await tx('readwrite',s=>s.clear(),'ideas');await tx('readwrite',s=>s.clear(),'cfg')};
@@ -432,6 +473,7 @@ async function renderCopia(){
   el.innerHTML=!m?`<p class="warn">⚠ Aún no has hecho ninguna copia de seguridad. Si limpias los datos del navegador, lo perderías todo.</p>`
    :cambios?`<p class="${dias>=7?'warn':'mut'}">${dias>=7?'⚠ ':''}Última copia ${cuando}. Desde entonces hay cambios sin copiar${nuevos?` (${nuevos} ticket${nuevos>1?'s':''} nuevo${nuevos>1?'s':''})`:''}.</p>`
    :`<p class="ok">✓ Copia al día (${cuando}).</p>`;
+  document.querySelector('#nav button[data-t=mas] span').textContent=(!m||(cambios&&dias>=7))?'🔴':'⋯';
 }
 $('exp').onclick=async()=>{
   const d=await crearCopia();
@@ -448,7 +490,7 @@ $('rest').onchange=async e=>{
   const w=prompt(`Esta copia tiene ${r.n} tickets (${eur(r.tot/100)}) y ${r.dic} entradas de diccionario.\nAhora tienes ${a.n} tickets (${eur(a.tot/100)}).\n\nSe BORRARÁ todo lo actual y se sustituirá por la copia. Antes se descargará una copia de lo actual.\n\nEscribe REEMPLAZAR para continuar:`);
   if(w!=='REEMPLAZAR'){say('Cancelado. No se ha cambiado nada.');return}
   if(act.tickets.length)bajar(act,'copia-previa');
-  await vaciar();await addTickets(d.tickets);await addDic(d.diccionario||[]);await addLista(d.lista||[]);await addIdeas(d.ideas||[]);if(d.categorias)await put('cfg',{k:'cats',v:d.categorias});
+  await vaciar();await addTickets(d.tickets);await addDic(d.diccionario||[]);await addLista(d.lista||[]);await addIdeas(d.ideas||[]);if(d.categorias)await put('cfg',{k:'cats',v:d.categorias});await put('cfg',{k:'lnota',v:d.notaLista||''});
   const nuevo=await crearCopia(),v=resumenCopia(nuevo),ok=v.n===r.n&&v.tot===r.tot&&v.dic===r.dic;
   marcar(nuevo);
   say(ok?`✓ Restauración verificada: ${v.n} tickets, ${eur(v.tot/100)} y ${v.dic} entradas de diccionario. Coincide con la copia.`
@@ -463,7 +505,7 @@ $('wipe').onclick=async()=>{
   say('Datos borrados. Tienes la copia descargada: restáurala desde “Zona de riesgo”.','warn');
 };
 // ---------- v7: navegación, IA, lista de la compra, ideas ----------
-const VERSION=10,al=(a,b)=>a.localeCompare(b,'es'),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const VERSION=11,al=(a,b)=>a.localeCompare(b,'es'),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const put=(st,x)=>tx('readwrite',s=>s.put(x),st),del=(st,id)=>tx('readwrite',s=>s.delete(id),st),list=st=>tx('readonly',s=>s.getAll(),st);
 const xi=I=>[...I].sort((a,b)=>a.id.localeCompare(b.id)).map(x=>[x.texto,!!x.hecho]);
 async function addLista(a){for(const x of a)await put('lista',{id:x.id||uid(),producto:x.producto,cat:x.cat||'Otros',cant:x.cant||'',nota:x.nota||'',ok:!!x.ok})}
@@ -472,7 +514,7 @@ async function copiar(t){try{await navigator.clipboard.writeText(t);return true}
 const cp=async(t,m)=>{const ok=await copiar(t);toast(ok?m:'No se pudo copiar automáticamente. Selecciona el texto y cópialo a mano.',ok?'':'err')};
 const grp=(bs,ps,n)=>{document.querySelectorAll(bs).forEach(b=>b.classList.toggle('on',b.dataset.t===n));document.querySelectorAll(ps).forEach(p=>p.style.display=p.id.slice(2)===n?'':'none')};
 let cursub='ia';
-const tab=n=>{grp('#nav button','.tab',n);scrollTo(0,0);if(n==='lista')renderLista();if(n==='ideas')renderIdeas();if(n==='mas')sub(cursub);Object.values(ch).forEach(c=>c.resize())};
+const tab=n=>{grp('#nav button','.tab',n);scrollTo(0,0);if(n!=='tickets')$('msg').innerHTML='';if(n==='lista')renderLista();if(n==='ideas')renderIdeas();if(n==='mas')sub(cursub);Object.values(ch).forEach(c=>c.resize())};
 const sub=n=>{cursub=n;grp('#sub button','.sub',n);if(n==='ia')renderIA();if(n==='cat')renderCat()};
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>tab(b.dataset.t));
 document.querySelectorAll('#sub button').forEach(b=>b.onclick=()=>sub(b.dataset.t));
@@ -488,7 +530,7 @@ const PIA=`Actúa como analista de economía doméstica. Te paso un resumen AGRE
 Termina con un resumen de 5 líneas y las 3 acciones prioritarias.
 
 --- MIS DATOS ---`;
-const PPDF=`Te adjunto la foto de un ticket de supermercado (Mercadona). Genera un PDF con la TRANSCRIPCIÓN LITERAL del ticket completo.
+const PPDF=`Te adjunto la foto de un ticket de supermercado. Genera un PDF con la TRANSCRIPCIÓN LITERAL del ticket completo.
 
 Reglas estrictas:
 1. Transcribe TODO lo impreso en el ticket, de arriba abajo, incluida la CABECERA (nombre de la tienda, dirección, fecha y hora, número de factura simplificada, la línea "Descripción", etc.) y el PIE (línea "TOTAL (€)", IVA, forma de pago, etc.). No omitas ni resumas ninguna línea.
@@ -500,12 +542,16 @@ Reglas estrictas:
 7. Responde solo con el PDF, sin explicaciones.`;
 const PJSON=`Te adjunto la foto de un ticket de supermercado. Devuélveme SOLO un JSON válido (sin explicaciones ni bloques de markdown) con exactamente esta estructura:
 
-{"version":1,"tickets":[{"fecha":"AAAA-MM-DD","hora":"HH:MM","supermercado":"Mercadona","total":0.00,"lineas":[{"producto":"NOMBRE TAL CUAL EN MAYÚSCULAS","seccion":"opcional (p. ej. PESCADO)","unidades":2,"precio_ref":1.50,"importe":3.00},{"producto":"PEPINO","peso_kg":0.350,"precio_ref":1.99,"importe":0.70}]}]}
+{"version":1,"tickets":[{"fecha":"AAAA-MM-DD","hora":"HH:MM","supermercado":"NOMBRE DEL SÚPER (Mercadona, Lidl...)","total":0.00,"lineas":[{"producto":"NOMBRE TAL CUAL EN MAYÚSCULAS","seccion":"opcional (p. ej. PESCADO)","unidades":2,"precio_ref":1.50,"importe":3.00},{"producto":"PEPINO","peso_kg":0.350,"precio_ref":1.99,"importe":0.70}]}]}
 
 Reglas estrictas:
 - Cada línea lleva "unidades" (productos por unidad) O "peso_kg" (productos por peso), nunca los dos ni ninguno. Omite el que no aplique.
 - "precio_ref" es el precio por unidad o por kg tal como figura en el ticket; "importe" es el importe de la línea. Números con punto decimal, sin símbolo €.
 - Copia los nombres de producto literalmente, sin corregir ni traducir.
+- Líneas "precio x cantidad importe" (p. ej. 3,06 x 4 12,24): unidades=4, precio_ref=3.06. Comprueba que unidades × precio_ref = importe; si no cuadra, relee los números (el ticket puede estar arrugado).
+- Si una línea de descuento (p. ej. "Desc. -1,25") sigue a un producto, réstala del "importe" de ese producto y añade "descuento":1.25 (positivo) a esa línea; precio_ref queda sin descuento.
+- Ignora las líneas de importe 0,00 (p. ej. Parking).
+- La fecha es la de la línea de pago; compárala con la del pie del ticket y, si difieren, dímelo fuera del JSON.
 - La suma de los importes debe ser igual al "total". Si no cuadra, revisa tu lectura; no inventes ni ajustes líneas.
 - No incluyas datos de tarjeta, números de autorización, teléfonos ni ningún otro dato personal.
 - Si algo es ilegible, no lo adivines: dímelo fuera del JSON.`;
@@ -541,7 +587,7 @@ $('pp').onclick=()=>cp(PPDF,'Prompt (PDF) copiado. Pégalo en la IA y adjunta la
 $('pj').onclick=()=>cp(PJSON,'Prompt (JSON) copiado. Pégalo en la IA, adjunta la foto y guarda la respuesta como .json para importarla.');
 
 // ----- Lista de la compra -----
-let LST=[],HAB={};
+let LST=[],HAB={},LNOTA='';const getNota=async()=>{const r=await tx('readonly',s=>s.get('lnota'),'cfg');return r?r.v:''};
 const cap=s=>s.charAt(0)+s.slice(1).toLowerCase();
 async function habituales(){
   const T=(await all()).sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),H={};
@@ -561,7 +607,9 @@ function agrupar(A,g){
   return Object.entries(m).sort((a,b)=>al(a[0],b[0])).map(([k,a])=>[k,a.sort(s)]);
 }
 async function renderLista(){
-  LST=await list('lista');HAB=await habituales();
+  LST=await list('lista');HAB=await habituales();LNOTA=await getNota();
+  const old=LST.filter(x=>x.nota);if(old.length){LNOTA=(LNOTA?LNOTA+'\n':'')+old.map(x=>x.producto+': '+x.nota).join('\n');await put('cfg',{k:'lnota',v:LNOTA});for(const x of old){x.nota='';await put('lista',x)}}
+  if(document.activeElement!==$('lnota')){$('lnota').value=LNOTA;fit($('lnota'))}
   const HV=Object.values(HAB),have=new Set(LST.filter(x=>!x.ok).map(x=>x.producto.toLowerCase())),g=$('lg').value;
   $('dl').innerHTML=HV.map(h=>h.nom).sort(al).map(n=>`<option value="${esc(n)}">`).join('');
   let C=HV.filter(h=>!have.has(h.nom.toLowerCase()));if($('hf').value==='top')C=[...C].sort((a,b)=>b.n-a.n).slice(0,40);
@@ -570,9 +618,10 @@ async function renderLista(){
   const cv=$('lc').value;
   $('lc').innerHTML='<option value="">Categoría (auto)</option>'+catUnion(HV.map(h=>h.cat)).filter(c=>c!=='Sin categoría').map(c=>`<option${c===cv?' selected':''}>${esc(c)}</option>`).join('');
   const P=LST.filter(x=>!x.ok);$('lcnt').textContent=LST.length?`${P.length} pendientes · ${LST.length-P.length} marcados`:'';
-  $('lbody').innerHTML=LST.length?agrupar(LST,g).map(([k,a])=>(k?`<h2 style="font-size:1rem">${esc(k)}</h2>`:'')+a.map(x=>{const v=estim(x);return `<div class="li${x.ok?' done':''}"><input type="checkbox" class="ck" data-i="${x.id}"${x.ok?' checked':''}><span class="tx">${esc(x.producto)}${v!=null?` <span class="mut">≈ ${eur(v)}</span>`:''}</span><input class="qt" data-i="${x.id}" placeholder="cant." value="${esc(x.cant||'')}"><button class="sec del" data-i="${x.id}">✕</button><input class="nt" data-i="${x.id}" placeholder="nota" value="${esc(x.nota||'')}"></div>`}).join('')).join(''):'<p class="mut">La lista está vacía. Añade productos arriba o toca los habituales.</p>';
+  $('lbody').innerHTML=LST.length?agrupar(LST,g).map(([k,a])=>(k?`<h2 style="font-size:1rem">${esc(k)}</h2>`:'')+a.map(x=>{const v=estim(x);return `<div class="li${x.ok?' done':''}"><input type="checkbox" class="ck" data-i="${x.id}"${x.ok?' checked':''}><span class="tx">${esc(x.producto)}${v!=null?` <span class="mut">≈ ${eur(v)}</span>`:''}</span><input class="qt" data-i="${x.id}" placeholder="cant." value="${esc(x.cant||'')}"><button class="sec del" data-i="${x.id}">✕</button></div>`}).join('')).join(''):'<p class="mut">La lista está vacía. Añade productos arriba o toca los habituales.</p>';
   const E=P.map(x=>[x,estim(x)]),tot=E.reduce((a,[,v])=>a+(v||0),0),sp=E.filter(([,v])=>v==null).map(([x])=>x.producto),
     sc=P.filter(x=>{const h=HAB[x.producto.toLowerCase()];return h?!h.cd:(!x.cat||x.cat==='Sin categoría')}).map(x=>x.producto);
+  $('lbar').innerHTML=P.length?`🛒 ${P.length} pendientes · <b>≈ ${eur(tot)}</b>`:'';
   $('lest').innerHTML=P.length?`<div class="card"><b>Total aproximado: ≈ ${eur(tot)}</b> <span class="mut">(último precio visto de cada producto; cantidad numérica = unidades o kg; sin cantidad: 1 ud o el peso medio que sueles comprar)</span>${sp.length?`<p class="warn">⚠ Sin precio (no aparecen en tus tickets): ${esc(sp.join(', '))}</p>`:''}${sc.length?`<p class="warn">⚠ Sin categorizar en el diccionario: ${esc(sc.join(', '))}. Asígnala en Más → Productos.</p>`:''}</div>`:'';
 }
 async function addItem(nom,cant,nota,cat){
@@ -582,7 +631,7 @@ async function addItem(nom,cant,nota,cat){
   if(LST.some(x=>!x.ok&&x.producto.toLowerCase()===nom.toLowerCase())){toast(`“${nom}” ya está en la lista.`);return}
   await put('lista',{id:uid(),producto:h?h.nom:nom,cat:h?h.cat:(cat||'Sin categoría'),cant:cant||'',nota:nota||'',ok:false});renderLista();
 }
-$('ladd').onclick=async()=>{await addItem($('ln').value,$('lq').value.trim(),$('lnt').value.trim(),$('lc').value);$('ln').value=$('lq').value=$('lnt').value='';$('ln').focus()};
+$('ladd').onclick=async()=>{await addItem($('ln').value,$('lq').value.trim(),'',$('lc').value);$('ln').value=$('lq').value='';$('ln').focus()};
 $('ln').onkeydown=e=>{if(e.key==='Enter')$('ladd').click()};
 $('hab').onclick=e=>{const b=e.target.closest('[data-n]');if(b)addItem(b.dataset.n)};
 $('lg').onchange=$('hf').onchange=renderLista;
@@ -591,12 +640,13 @@ $('lbody').onchange=async e=>{const el=e.target,x=LST.find(y=>y.id===el.dataset.
   await put('lista',x);if(el.classList.contains('ck'))renderLista()};
 $('lbody').onclick=async e=>{const b=e.target.closest('.del');if(!b)return;await del('lista',b.dataset.i);renderLista()};
 $('lquit').onclick=async()=>{for(const x of LST.filter(y=>y.ok))await del('lista',x.id);renderLista()};
-$('lclr').onclick=async()=>{if(LST.length&&confirm('¿Vaciar toda la lista?')){for(const x of LST)await del('lista',x.id);renderLista()}};
+$('lclr').onclick=async()=>{if(LST.length&&confirm('¿Vaciar toda la lista?')){for(const x of LST)await del('lista',x.id);await put('cfg',{k:'lnota',v:''});renderLista()}};
 function textoLista(){
   const P=LST.filter(x=>!x.ok);if(!P.length)return '';
-  const ln=x=>`⬜ ${x.producto}${x.cant?' ('+x.cant+')':''}${x.nota?' — _'+x.nota.replace(/\s*\n\s*/g,' ')+'_':''}`,g=$('lg').value,tot=P.reduce((a,x)=>a+(estim(x)||0),0);
-  return `🛒 *Lista de la compra* (${P.length})\n`+agrupar(P,g).map(([k,a])=>(k?`\n*${k}*\n`:'')+a.map(ln).join('\n')).join('\n')+(tot>0?`\n\n_Total aprox.: ${eur(tot)}_`:'');
+  const ln=x=>`⬜ ${x.producto}${x.cant?' ('+x.cant+')':''}`,g=$('lg').value,tot=P.reduce((a,x)=>a+(estim(x)||0),0);
+  return `🛒 *Lista de la compra* (${P.length})\n`+agrupar(P,g).map(([k,a])=>(k?`\n*${k}*\n`:'')+a.map(ln).join('\n')).join('\n')+(tot>0?`\n\n_Total aprox.: ${eur(tot)}_`:'')+(LNOTA.trim()?`\n\n📝 ${LNOTA.trim()}`:'');
 }
+$('lnota').oninput=()=>{LNOTA=$('lnota').value;fit($('lnota'));clearTimeout(tm.ln);tm.ln=setTimeout(()=>put('cfg',{k:'lnota',v:LNOTA}),400)};
 $('lcopy').onclick=()=>{const t=textoLista();t?cp(t,'Lista copiada. Pégala en WhatsApp y se verá con formato.'):toast('No hay productos pendientes en la lista.')};
 
 // ----- Categorías (v9) -----
@@ -652,6 +702,7 @@ async function addExtras(){
   for(const x of pex.lista)if(!hl.has(x.id)&&!hl.has(x.producto.toLowerCase())){await put('lista',{id:x.id||uid(),producto:x.producto,cat:x.cat||'Sin categoría',cant:x.cant||'',nota:x.nota||'',ok:!!x.ok});hl.add(x.id);hl.add(x.producto.toLowerCase());l++}
   for(const k of pex.cats)if(!CATL.includes(k)){CATL.push(k);c++}
   if(c)await saveCats();
+  if(pex.nota&&!(await getNota()).trim())await put('cfg',{k:'lnota',v:pex.nota});
   return{i,l,c};
 }
 // ----- Editar texto de una línea de ticket -----
