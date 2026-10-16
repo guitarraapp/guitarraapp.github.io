@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#15171d">
-<title>Tareas del hogar</title>
+<title>Tareas del hogar v2</title>
 <style>
 :root{--bg:#15171d;--panel:#1e2128;--line:#32363f;--amber:#ffb224;--ok:#6fd68e;--bad:#ff5a4d;--tx:#f4f2ec;--dim:#9a9ca6}
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
@@ -40,9 +40,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 </head>
 <body>
 <div id="app">
-<header><span>Tareas del hogar</span><select id="hs" aria-label="Domicilio"></select></header>
+<header><span>Tareas del hogar</span></header>
+<div id="hc" class="row" style="flex:none"></div>
 <main id="mn"></main>
-<footer><nav><button data-v="0" class="sel">Hoy</button><button data-v="1">Tareas</button><button data-v="2">Ajustes</button></nav></footer>
+<footer><nav><button data-v="0" class="sel">Hoy</button><button data-v="1">Tareas</button><button data-v="2">Historial</button><button data-v="3">Ajustes</button></nav></footer>
 </div>
 <div id="sh" hidden><div class="sc"></div></div>
 <div id="tt" hidden></div>
@@ -79,21 +80,27 @@ const row=(t,T,pre)=>`<div class="r"><div class="rn" data-t="${t.id}"><b>${esc(t
 const mine=()=>S.tasks.filter(t=>t.hs.includes(S.h));
 function hoy(){const T=tk(),G=[[],[],[],[]],N=['Atrasadas','Hoy','Mañana','Pasado mañana'];let o='';
   mine().forEach(t=>{const d=due(t,S.h,T);if(d==null)return;const i=d<T?0:d>T+2?-1:d-T+1;if(i>=0)G[i].push([t,d])});
-  G.forEach((g,i)=>{if(!g.length)return;g.sort((a,b)=>a[1]-b[1]);
+  G.forEach((g,i)=>{if(!g.length){if(i>0&&mine().length)o+=`<h3>${N[i]}</h3><p class="d">Nada.</p>`;return}g.sort((a,b)=>a[1]-b[1]);
     o+=`<h3>${N[i]}</h3>`+g.map(([t,d])=>row(t,T,i===0?`<b class="bad">${pl(T-d,'día','días')} de retraso</b> · `:'')).join('')});
   [['l','Al llegar'],['x','Al salir']].forEach(([m,n])=>{const l=mine().filter(t=>t.m===m);if(l.length)o+=`<h3>${n}</h3>`+l.map(t=>row(t,T,'')).join('')});
-  if(!o)o=mine().length?'<p class="d">Nada pendiente hoy ni en los dos días siguientes.</p>':'<p class="d">Aún no hay tareas en este domicilio. Ve a Tareas para añadirlas.</p>';
+  if(!mine().length)o='<p class="d">Este domicilio no tiene tareas todavía.</p><div class="row"><button class="btn" id="tp">Añadir desde plantilla</button><button class="btn" id="nt">＋ Nueva tarea</button></div>';
   return o}
 function lista(){const T=tk(),l=mine().map(t=>[t,due(t,S.h,T)]).sort((a,b)=>(a[1]==null)-(b[1]==null)||a[1]-b[1]);
   return `<div class="row"><button class="btn" id="nt">＋ Nueva tarea</button><button class="btn" id="tp">Desde plantilla</button></div>`+
     l.map(([t,d])=>row(t,T,frq(t)+(d!=null?' · '+dl(d,T):'')+' · ')).join('')}
+function hist(){const T=tk(),q=(window.hq||'').toLowerCase(),ts=mine().filter(t=>t.n.toLowerCase().includes(q));
+  let o=`<input id="hq" placeholder="Buscar tarea…" value="${esc(window.hq||'')}" style="width:100%;margin:8px 0"><h3>Última vez de cada tarea</h3>`+
+    ts.map(t=>{const L=lg(t,S.h)[0];return `<div class="r"><div class="rn" data-t="${t.id}"><b>${esc(t.n)}</b><span>${L?L.d+' ('+ago(T-dn(L.d))+') · '+esc(pn(L.w)):'nunca hecha'}</span></div></div>`}).join('');
+  const ids=new Set(ts.map(t=>t.id)),lo=S.log.filter(l=>l.h===S.h&&ids.has(l.t)).sort((a,b)=>b.d.localeCompare(a.d)).slice(0,60);
+  return o+'<h3>Registros recientes</h3>'+(lo.map(l=>`<div class="row">${l.d} · ${esc((S.tasks.find(t=>t.id===l.t)||{n:'?'}).n)} · ${esc(pn(l.w))}</div>`).join('')||'<p class="d">Sin registros todavía.</p>')}
 function ajustes(){return `<h3>Yo soy</h3><div class="row"><select id="me">${S.people.map(p=>`<option value="${p.id}"${p.id===S.me?' selected':''}>${esc(p.n)}</option>`).join('')}</select></div>
 <h3>Personas</h3>${S.people.map(p=>`<div class="row"><input data-pn="${p.id}" value="${esc(p.n)}"></div>`).join('')}<button class="btn" id="ap">＋ Persona</button>
 <h3>Domicilios</h3>${S.homes.map(h=>`<div class="row"><input data-hn="${h.id}" value="${esc(h.n)}"></div>`).join('')}<button class="btn" id="ah">＋ Domicilio</button>
 <h3>Copia de seguridad</h3><div class="row"><button class="btn" id="ex">Exportar</button><label class="btn">Importar<input type="file" id="im" accept=".json" hidden></label></div>
 <p class="d">Los datos se guardan solo en este navegador. Exporta de vez en cuando una copia.</p>`}
-function render(){$('#hs').innerHTML=S.homes.map(h=>`<option value="${h.id}"${h.id===S.h?' selected':''}>${esc(h.n)}</option>`).join('');
-  $('#mn').innerHTML=[hoy,lista,ajustes][V]();
+const hc=()=>$('#hc').innerHTML=S.homes.map(h=>`<button class="chip${h.id===S.h?' sel':''}" data-home="${h.id}">${esc(h.n)}</button>`).join('');
+function render(){hc();
+  $('#mn').innerHTML=[hoy,lista,hist,ajustes][V]();
   $$('nav button').forEach(b=>b.classList.toggle('sel',+b.dataset.v===V))}
 
 /* ---------- registro ---------- */
@@ -117,6 +124,7 @@ function edit(id){const t=id?S.tasks.find(x=>x.id===id):{n:'',m:'s',e:14,w:[],hs
 <div class="row" id="fs"><span>Cada</span><input type="number" id="en2" min="1" value="${t.e/u}"><select id="eu">${[[1,'días'],[7,'semanas'],[30,'meses'],[365,'años']].map(([v,n])=>`<option value="${v}"${v===u?' selected':''}>${n}</option>`).join('')}</select></div>
 <div class="row" id="fw">${DN.map((d,i)=>`<button class="chip${t.w.includes(i)?' sel':''}" data-wd="${i}">${d}</button>`).join('')}</div>
 <div class="row">${S.homes.map(h=>`<label class="row"><input type="checkbox" data-hh="${h.id}"${t.hs.includes(h.id)?' checked':''}>${esc(h.n)}</label>`).join('')}</div>
+${id?'':'<div class="row"><span>Última vez que se hizo</span><input type="date" id="ela"></div>'}
 <textarea id="eno" placeholder="Notas (producto, temperatura…)">${esc(t.note||'')}</textarea>
 <button class="btn" id="sv">Guardar</button>${id?'<button class="btn" id="dt">Eliminar</button>':''}`);
   const sy=()=>{const m=$('#em').value;$('#fs').hidden=m!=='s';$('#fw').hidden=m!=='f'};sy();$('#em').onchange=sy;
@@ -124,7 +132,7 @@ function edit(id){const t=id?S.tasks.find(x=>x.id===id):{n:'',m:'s',e:14,w:[],hs
   $('#sv').onclick=()=>{const n=$('#en').value.trim(),hs=$$('[data-hh]').filter(c=>c.checked).map(c=>c.dataset.hh);
     if(!n||!hs.length){alert('Pon un nombre y elige al menos un domicilio');return}
     const o={id:id||uid(),n,m:$('#em').value,e:Math.max(1,+$('#en2').value||1)*+$('#eu').value,w:$$('[data-wd]').filter(b=>b.classList.contains('sel')).map(b=>+b.dataset.wd),hs,note:$('#eno').value.trim()};
-    if(id)S.tasks[S.tasks.findIndex(x=>x.id===id)]=o;else S.tasks.push(o);save();render();close()};
+    if(id)S.tasks[S.tasks.findIndex(x=>x.id===id)]=o;else{S.tasks.push(o);const la=$('#ela');if(la&&la.value&&hs.includes(S.h))S.log.push({i:uid(),t:o.id,h:S.h,d:la.value,w:S.me})}save();render();close()};
   if(id)$('#dt').onclick=()=>{if(confirm('¿Eliminar la tarea y su historial?')){S.tasks=S.tasks.filter(x=>x.id!==id);S.log=S.log.filter(l=>l.t!==id);save();render();close()}}}
 const TP=[['Cambiar sábanas','s',14],['Cambiar toallas','s',7],['Limpiar baños','s',7],['Aspirar','s',7],['Fregar suelos','s',7],['Quitar el polvo','s',7],['Limpiar nevera','s',30],['Limpiar cristales','s',30],['Limpiar horno','s',60],['Lavar cortinas','s',90],['Cambiar ropa de temporada','s',182],['Sacar la basura','f',[1,4]],['Abrir el agua','l'],['Cerrar el agua','x']];
 function plantilla(){sheet(`<h3>Plantilla de tareas</h3><p class="d">Marca las que quieras añadir a este domicilio. Luego puedes ajustar la frecuencia.</p>`+
@@ -143,9 +151,10 @@ $('#mn').onclick=e=>{const ok=e.target.closest('[data-ok]'),rn=e.target.closest(
 $('#mn').onchange=e=>{const t=e.target;
   if(t.id==='me'){S.me=t.value;save()}
   else if(t.dataset.pn){S.people.find(p=>p.id===t.dataset.pn).n=t.value.trim()||'?';save()}
-  else if(t.dataset.hn){S.homes.find(h=>h.id===t.dataset.hn).n=t.value.trim()||'?';save();$('#hs').innerHTML=S.homes.map(h=>`<option value="${h.id}"${h.id===S.h?' selected':''}>${esc(h.n)}</option>`).join('')}
+  else if(t.dataset.hn){S.homes.find(h=>h.id===t.dataset.hn).n=t.value.trim()||'?';save();hc()}
   else if(t.id==='im'){t.files[0].text().then(x=>{try{Object.assign(S,JSON.parse(x));save();render()}catch(_){alert('Archivo no válido')}})}};
-$('#hs').onchange=e=>{S.h=e.target.value;save();render()};
+$('#hc').onclick=e=>{const b=e.target.closest('[data-home]');if(b){S.h=b.dataset.home;save();render()}};
+$('#mn').oninput=e=>{if(e.target.id==='hq'){window.hq=e.target.value;render();const i=$('#hq');i.focus();i.setSelectionRange(i.value.length,i.value.length)}};
 $$('nav button').forEach(b=>b.onclick=()=>{V=+b.dataset.v;render()});
 render();
 </script>
