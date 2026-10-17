@@ -89,8 +89,6 @@ dialog h2.sec{margin-top:1.3rem}
 .idea.hecha .it{text-decoration:line-through;opacity:.6}
 .idea .acc{margin-top:.5rem}
 .idea textarea{margin-top:0}
-.pie{text-align:center;margin-top:2rem}
-.pie button{background:none;border:none;color:var(--ac2);font:inherit;font-weight:600;text-decoration:underline;padding:.7rem 1rem;cursor:pointer}
 .campana{position:fixed;top:.6rem;right:.6rem;z-index:20;width:2.3rem;height:2.3rem;border-radius:50%;border:1px solid var(--ac);background:var(--card);font-size:1.05rem;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)}
 .campana::after{content:"";position:absolute;top:.15rem;right:.15rem;width:.55rem;height:.55rem;border-radius:50%;background:#ef4444}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -109,7 +107,7 @@ dialog h2.sec{margin-top:1.3rem}
   </div>
   <div class="aviso-g" id="sucio" hidden>
     <span id="sucio-t">Hay cambios sin copia de seguridad.</span>
-    <span class="acc" style="margin:0"><button class="bt prim" id="b-compartir2">📤 Compartir</button><button class="bt" id="b-guardar2">💾 Descargar</button></span>
+    <button class="bt prim" id="b-guardar2">💾 Descargar respaldo</button>
   </div>
   <div class="busca">
     <input id="buscador" type="text" placeholder="🔎 Buscar en todo…" autocomplete="off" aria-label="Buscar">
@@ -117,7 +115,6 @@ dialog h2.sec{margin-top:1.3rem}
   </div>
   <nav class="migas" id="migas"></nav>
   <main id="lista" class="lista"></main>
-  <p class="pie"><button type="button" id="b-sug">💡 Sugerencias para mejoras de la aplicación</button></p>
 </div>
 <button class="campana" id="campana" title="Hay cambios sin copia de seguridad" aria-label="Hay cambios sin copia de seguridad" hidden>🔔</button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -132,7 +129,6 @@ const CFG0 = {
   // URL de la app de bucles: los enlaces "bucle" abren BASE?v=...&t=...&n=...
   baseLoop: "https://v0-project-gamma-indol-75.vercel.app/",
   fs: 18,
-  apertura: "fuera", // "fuera" = en Android, los enlaces se abren fuera de esta app (PWA ↔ PWA, web ↔ navegador); "antes" = como una pestaña dentro de la app
   umbral: 10, // a partir de cuántos cambios sin respaldo sale el aviso grande (editable en Ajustes)
   // IAs para los prompts. {p} = prompt codificado. c:1 = no admite prompt por URL (se copia y se abre la IA)
   ias: [
@@ -189,8 +185,8 @@ function barraRespaldo() {
 }
 function recordatorio() {
   const d = $("dlg"), n = S.cambios || 0; d.replaceChildren();
-  const acc = el("div", "acc"); acc.append(bt("📤 Compartir respaldo", "", () => { d.close(); compartirRespaldo(); }, "bt prim"), bt("💾 Descargar", "", () => { d.close(); respaldo(); }, "bt"), bt("Ahora no", "", () => d.close(), "bt"));
-  d.append(el("h2", "", "🔔 Copia de seguridad"), el("p", "nota", `Tienes ${n} ${n === 1 ? "cambio" : "cambios"} sin copia de seguridad. Comparte (p. ej. a Drive) o descarga el respaldo para no perder tus datos si se borra el navegador o cambias de móvil.`), acc);
+  const acc = el("div", "acc"); acc.append(bt("💾 Descargar respaldo", "", () => { d.close(); respaldo(); }, "bt prim"), bt("Ahora no", "", () => d.close(), "bt"));
+  d.append(el("h2", "", "🔔 Copia de seguridad"), el("p", "nota", `Tienes ${n} ${n === 1 ? "cambio" : "cambios"} sin copia de seguridad. Descarga el respaldo para no perder tus datos si se borra el navegador o cambias de móvil.`), acc);
   d.showModal();
 }
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {} // pide no borrar los datos solo
@@ -222,26 +218,15 @@ async function copiar(txt, msg) {
   try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(txt); return aviso(msg || "Copiado"); } } catch (e) {}
   const t = el("textarea"); t.value = txt; t.readOnly = true;
   t.style.cssText = "position:fixed;top:0;left:0;opacity:0;font-size:16px";
-  (document.querySelector("dialog[open]") || document.body).append(t); t.select(); t.setSelectionRange(0, txt.length);
+  document.body.append(t); t.select(); t.setSelectionRange(0, txt.length);
   let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
   t.remove();
   if (ok) aviso(msg || "Copiado"); else prompt("No se pudo copiar solo. Copia el texto:", txt);
 }
-/* Abrir fuera de la app (Android): se lanza un "intent" VIEW. Android decide quién lo recibe:
-   si la dirección pertenece a una PWA instalada, se abre esa PWA en su propia ventana;
-   si es una web normal, se abre en el navegador predeterminado. Esta app no se toca. */
-const esAndroid = /Android/i.test(navigator.userAgent);
-function abrirFuera(u) {
-  const m = /^(https?):\/\/([^;\s]+)$/i.exec(u || "");
-  if (!m || !esAndroid || S.cfg.apertura === "antes") return false;
-  location.href = "intent://" + m[2] + "#Intent;scheme=" + m[1].toLowerCase() + ";action=android.intent.action.VIEW;S.browser_fallback_url=" + encodeURIComponent(u) + ";end";
-  return true;
-}
-const abrirNav = u => { if (!abrirFuera(u)) window.open(u, "_blank", "noopener"); };
 function abrirIA(ia, txt) {
   const u = ia.u.replace("{p}", encodeURIComponent(txt));
-  if (ia.c || u.length > 1800) { copiar(txt, "Prompt copiado: pégalo en " + ia.n); abrirNav(ia.u.split("?")[0]); }
-  else abrirNav(u);
+  if (ia.c || u.length > 1800) { copiar(txt, "Prompt copiado: pégalo en " + ia.n); window.open(ia.u.split("?")[0], "_blank", "noopener"); }
+  else window.open(u, "_blank", "noopener");
 }
 
 /* ============ PINTAR ============ */
@@ -249,7 +234,7 @@ function fila(it, arr, icono, etiqueta, nd) {
   const f = el("div", "fila"), act = activo(it), esP = it.tipo === "prompt";
   const cu = el(esP ? "button" : act ? "a" : "div", "cuerpo");
   if (esP) { cu.type = "button"; cu.onclick = () => f.classList.toggle("abierta"); }
-  else if (act) { cu.href = urlDe(it); cu.target = "_blank"; cu.rel = "noopener"; cu.onclick = e => { if (abrirFuera(cu.href)) e.preventDefault(); }; }
+  else if (act) { cu.href = urlDe(it); cu.target = "_blank"; cu.rel = "noopener"; }
   const meta = el("span", "meta");
   if (etiqueta) meta.append(el("span", "chip cat", etiqueta));
   if (it.tipo === "loop") {
@@ -399,21 +384,19 @@ function ajustes() {
   const d = $("dlg"); d.replaceChildren();
   const u = inp("https://…"); u.value = S.cfg.baseLoop;
   const um = inp("10"); um.type = "number"; um.min = 1; um.max = 99; um.value = S.cfg.umbral;
-  const ap = sel([["fuera", "Fuera de esta app: PWA como PWA, webs en el navegador (Android)"], ["antes", "Dentro de esta app (como antes)"]]); ap.value = S.cfg.apertura === "antes" ? "antes" : "fuera";
   const ias = el("textarea"); ias.value = S.cfg.ias.map(x => [x.n, x.u, x.c ? "copiar" : ""].filter(Boolean).join(" | ")).join("\n");
   const ok = () => {
     S.cfg.baseLoop = u.value.trim() || CFG0.baseLoop;
-    S.cfg.apertura = ap.value;
     S.cfg.umbral = Math.max(1, Math.min(99, parseInt(um.value, 10) || CFG0.umbral));
     S.cfg.ias = ias.value.split("\n").map(l => l.split("|").map(s => s.trim())).filter(a => a[0] && a[1]).map(a => ({ n: a[0], u: a[1], ...(a[2] ? { c: 1 } : {}) }));
     d.close(); cambio(); aviso("Ajustes guardados");
   };
   const nid = S.ideas.filter(i => !i.ok).length;
-  const accI = el("div", "acc"); accI.append(bt("💡 Sugerencias de mejora" + (nid ? " (" + nid + " pendientes)" : ""), "", () => ideas(), "bt prim"));
+  const accI = el("div", "acc"); accI.append(bt("💡 Ideas de mejora" + (nid ? " (" + nid + " pendientes)" : ""), "", () => ideas(), "bt prim"));
   const acc = el("div", "acc"); acc.append(bt("Guardar ajustes", "", ok, "bt prim"), bt("Cerrar", "", () => d.close(), "bt"));
-  const acc2 = el("div", "acc"); acc2.append(bt("📤 Compartir respaldo", "", () => { d.close(); compartirRespaldo(); }, "bt prim"), bt("⬇ Descargar respaldo", "", () => { d.close(); respaldo(); }, "bt"), bt("⬆ Cargar archivo…", "", () => { d.close(); $("archivo").click(); }, "bt"));
+  const acc2 = el("div", "acc"); acc2.append(bt("⬇ Descargar respaldo", "", () => { d.close(); respaldo(); }, "bt"), bt("⬆ Cargar archivo…", "", () => { d.close(); $("archivo").click(); }, "bt"));
   const ult = S.ultimo ? new Date(S.ultimo).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" }) : "todavía ninguno";
-  d.append(el("h2", "", "Ajustes"), accI, campo("URL de la app de bucles", u), campo("Cómo se abren los enlaces", ap), campo("IAs para los prompts (una por línea: Nombre | URL con {p} | copiar)", ias),
+  d.append(el("h2", "", "Ajustes"), accI, campo("URL de la app de bucles", u), campo("IAs para los prompts (una por línea: Nombre | URL con {p} | copiar)", ias),
     campo("Aviso grande de respaldo a partir de (cambios pendientes)", um), acc,
     el("h2", "sec", "💾 Copia de seguridad"),
     el("p", "nota", `Incluye categorías, enlaces, favoritos, ideas y estos ajustes. Último respaldo: ${ult}. Cambios pendientes: ${S.cambios || 0}.`), acc2);
@@ -446,7 +429,6 @@ function ideas(editId) {
       const a = el("div", "acc");
       a.append(
         bt(i.ok ? "↩ Volver a pendiente" : "✔ Implementada", "", () => { i.ok = !i.ok; if (i.ok) i.h = new Date().toISOString(); else delete i.h; cambio(); ideas(); }, "bt"),
-        bt("📋", "Copiar esta idea", () => copiar(i.t, "Idea copiada"), "bt"),
         bt("✏️", "Editar", () => ideas(i.id), "bt"),
         bt("🗑", "Borrar", () => { if (confirm("¿Borrar esta idea?")) { S.ideas.splice(S.ideas.indexOf(i), 1); cambio(); ideas(); } }, "bt"));
       c.append(a);
@@ -454,33 +436,18 @@ function ideas(editId) {
     lista.append(c);
   });
   if (!vis.length) lista.append(el("p", "nota", filtroI === "h" ? "Aún no hay ideas implementadas." : filtroI === "p" ? "No hay ideas pendientes." : "Aún no hay ideas."));
-  const pie = el("div", "acc");
-  if (vis.length) pie.append(bt("📋 Copiar todas las que se ven", "", () => copiar(vis.map((i, k) => (vis.length > 1 ? (k + 1) + ". " : "") + i.t).join("\n\n"), "Ideas copiadas"), "bt prim"));
-  pie.append(bt("← Ajustes", "", ajustes, "bt"), bt("Cerrar", "", () => d.close(), "bt"));
-  d.append(el("h2", "", "💡 Sugerencias para mejoras de la aplicación"), el("p", "nota", "Apunta mejoras o errores. Cada idea se puede editar y copiar para pegarla en el chat."), nuevo, accN, el("h2", "sec", "Mis ideas"), pills, lista, pie);
+  const pie = el("div", "acc"); pie.append(bt("← Ajustes", "", ajustes, "bt"), bt("Cerrar", "", () => d.close(), "bt"));
+  d.append(el("h2", "", "💡 Ideas de mejora"), el("p", "nota", "Apunta aquí lo que quieras mejorar de la aplicación."), nuevo, accN, el("h2", "sec", "Mis ideas"), pills, lista, pie);
   if (!d.open) d.showModal();
   d.scrollTop = y;
 }
 
 /* ============ RESPALDO E IMPORTACIÓN ============ */
-const datosRespaldo = () => sj({ app: "misenlaces", version: 3, fecha: new Date().toISOString(), cfg: S.cfg, arbol: S.arbol, ideas: S.ideas }, null, 1);
-const nombreRespaldo = ext => "misenlaces-datos-" + new Date().toISOString().slice(0, 10) + ext;
-function respaldoHecho(m) { S.cambios = 0; S.ultimo = new Date().toISOString(); guardar(); render(); aviso(m); }
 function respaldo() {
-  const blob = new Blob([datosRespaldo()], { type: "application/json" });
-  const a = el("a"); a.href = URL.createObjectURL(blob); a.download = nombreRespaldo(".json");
+  const blob = new Blob([sj({ app: "misenlaces", version: 3, fecha: new Date().toISOString(), cfg: S.cfg, arbol: S.arbol, ideas: S.ideas }, null, 1)], { type: "application/json" });
+  const a = el("a"); a.href = URL.createObjectURL(blob); a.download = "misenlaces-datos-" + new Date().toISOString().slice(0, 10) + ".json";
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  respaldoHecho("Respaldo descargado");
-}
-// Compartir el archivo con otra app (Drive, WhatsApp, correo…) mediante el menú Compartir del móvil
-async function compartirRespaldo() {
-  const txt = datosRespaldo();
-  const opciones = [new File([txt], nombreRespaldo(".json"), { type: "application/json" }), new File([txt], nombreRespaldo(".txt"), { type: "text/plain" })];
-  try {
-    const f = navigator.canShare && opciones.find(x => navigator.canShare({ files: [x] }));
-    if (f) { await navigator.share({ files: [f], title: "Respaldo de Mis enlaces" }); return respaldoHecho("Respaldo compartido"); }
-  } catch (e) { if (e && e.name === "AbortError") return; } // cerró el menú sin elegir: no se marca como respaldado
-  respaldo(); // este navegador no puede compartir archivos: se descarga
+  S.cambios = 0; S.ultimo = new Date().toISOString(); guardar(); render(); aviso("Respaldo descargado");
 }
 // Fusionar: une categorías con el mismo nombre (sin tildes/mayúsculas) y omite elementos ya existentes
 const clave = it => it.tipo === "loop" ? "l|" + norm(it.v) + "|" + (it.t || "") : it.tipo === "enlace" ? "e|" + norm(it.url) : "p|" + nn(it.n) + "|" + nn(it.p);
@@ -525,8 +492,6 @@ $("b-add").onclick = () => anadir();
 $("b-cat").onclick = () => { const q = cadena(location.hash); nodoDlg(null, q.length ? q[q.length - 1].hijos : S.arbol); };
 $("b-ajustes").onclick = ajustes;
 $("b-guardar2").onclick = respaldo;
-$("b-compartir2").onclick = compartirRespaldo;
-$("b-sug").onclick = () => ideas();
 $("campana").onclick = recordatorio;
 $("archivo").onchange = e => { if (e.target.files[0]) cargarArchivo(e.target.files[0]); e.target.value = ""; };
 window.onhashchange = render;

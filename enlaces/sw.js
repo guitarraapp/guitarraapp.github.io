@@ -1,5 +1,5 @@
 /* Service worker de "Mis enlaces": red primero (siempre la versión nueva) y, sin conexión, la copia guardada. */
-const V = "misenlaces-v2";
+const V = "misenlaces-v1";
 const ARCHIVOS = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(V).then(c => Promise.allSettled(ARCHIVOS.map(u => c.add(u)))).then(() => self.skipWaiting()));
