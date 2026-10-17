@@ -45,7 +45,7 @@ nav button span{display:block;font-size:21px}
 nav button.on{color:var(--deep);font-weight:700}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{border-bottom:1px solid var(--line);padding:5px 4px;text-align:left}
-.scroll{overflow-x:auto}
+.scroll{overflow-x:auto}.pw{white-space:pre-wrap}.one{font-size:12px}.one h3{margin:10px 0 3px!important}.one table{font-size:11px}.one .ch{max-height:105px}@page{margin:14mm}
 #rep{display:none;position:fixed;inset:0;z-index:50;overflow:auto;background:#fff;color:#111;padding:16px;--ink:#111;--mut:#555;--sage:#4f7d62;--deep:#2f5240;--line:#ccc;--warn:#b5642f}
 #rep .doc{max-width:720px;margin:0 auto}
 #rep h3{font:600 16px Georgia,serif;margin:18px 0 4px;border-bottom:2px solid #2f5240}
@@ -58,7 +58,7 @@ th,td{border-bottom:1px solid var(--line);padding:5px 4px;text-align:left}
 <nav><button data-t="hoy" onclick="go('hoy')"><span>🌿</span>Hoy</button><button data-t="seg" onclick="go('seg')"><span>📈</span>Seguimiento</button><button data-t="salud" onclick="go('salud')"><span>🩺</span>Salud</button><button data-t="mas" onclick="go('mas')"><span>☰</span>Más</button></nav>
 <div id="rep"></div>
 <script>
-const VER='1.0';
+const VER='1.1';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const p2=n=>String(n).padStart(2,'0');
@@ -70,7 +70,7 @@ const nowT=()=>{const d=new Date();return p2(d.getHours())+':'+p2(d.getMinutes()
 const byDate=(a,b)=>a.date<b.date?-1:a.date>b.date?1:0;
 const val=id=>$('#'+id).value.trim();
 const DEF=()=>({pill:{},mood:{},sym:{},note:{},week:[],doses:[],labs:[],citas:[],qs:[],sug:[],symList:['Fatiga','Concentración','Frío','Piel y pelo','Digestión','Sueño'],set:{hora:'08:00',nombre:'',backup:''}});
-let S=DEF(),tab='hoy',sub='';
+let S=DEF(),tab='hoy',sub='',hd=today();
 
 /* Almacenamiento: IndexedDB + copia en localStorage */
 const db=new Promise(res=>{try{const r=indexedDB.open('misalud',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>res(null)}catch(e){res(null)}});
@@ -104,15 +104,15 @@ return s+`<text x="12" y="${h-5}" font-size="9" fill="var(--mut)">${fd(pts[0].d)
 
 /* HOY */
 const EM=['😞','😕','😐','🙂','😄'];
-function pillOk(){S.pill[today()]=nowT();upd()}
-function pillU(){delete S.pill[today()];upd()}
-function pillT(){const v=prompt('Hora de la toma (HH:MM)',S.pill[today()]);if(/^\d{1,2}:\d{2}$/.test(v||'')){S.pill[today()]=v.padStart(5,'0');upd()}}
-function setMood(n){const t=today();if(S.mood[t]==n)delete S.mood[t];else S.mood[t]=n;upd()}
-function setSym(i,k){const t=today(),n=S.symList[i];S.sym[t]=S.sym[t]||{};if(S.sym[t][n]==k)delete S.sym[t][n];else S.sym[t][n]=k;if(!Object.keys(S.sym[t]).length)delete S.sym[t];upd()}
-function setNote(v){const t=today();if(v.trim())S.note[t]=v.trim();else delete S.note[t];save()}
-function vHoy(){const t=today(),pl=S.pill[t],m=S.mood[t],sy=S.sym[t]||{},nl=nextLab(),ll=S.labs.map(x=>x.date).sort().pop();
-return`<h2>${S.set.nombre?'Hola, '+esc(S.set.nombre):'Hoy'}</h2><p class="mut" style="margin-top:0">${new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})}</p>
-<div class="card">${pl?`<div class="ok">✓ Pastilla tomada a las ${pl}</div><button class="lnk" onclick="pillT()">Cambiar hora</button><button class="lnk" onclick="pillU()">Deshacer</button>`:`<button class="big" onclick="pillOk()">He tomado la pastilla</button>`}</div>
+function pillOk(){if(hd==today())S.pill[hd]=nowT();else{const v=prompt('¿A qué hora la tomaste ese día? (HH:MM)',S.set.hora);if(!/^\d{1,2}:\d{2}$/.test(v||''))return;S.pill[hd]=v.padStart(5,'0')}upd()}
+function pillU(){delete S.pill[hd];upd()}
+function pillT(){const v=prompt('Hora de la toma (HH:MM)',S.pill[hd]);if(/^\d{1,2}:\d{2}$/.test(v||'')){S.pill[hd]=v.padStart(5,'0');upd()}}
+function setMood(n){const t=hd;if(S.mood[t]==n)delete S.mood[t];else S.mood[t]=n;upd()}
+function setSym(i,k){const t=hd,n=S.symList[i];S.sym[t]=S.sym[t]||{};if(S.sym[t][n]==k)delete S.sym[t][n];else S.sym[t][n]=k;if(!Object.keys(S.sym[t]).length)delete S.sym[t];upd()}
+function setNote(v){const t=hd;if(v.trim())S.note[t]=v.trim();else delete S.note[t];save()}
+function vHoy(){const t=hd,pl=S.pill[t],m=S.mood[t],sy=S.sym[t]||{},nl=nextLab(),ll=S.labs.map(x=>x.date).sort().pop();
+return`<h2>${S.set.nombre?'Hola, '+esc(S.set.nombre):(t==today()?'Hoy':'Otro día')}</h2><p class="mut" style="margin-top:0">${D(t).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})}</p><div class="card"><label style="margin:0">Día que estás registrando<input type="date" value="${t}" max="${today()}" onchange="hd=this.value||today();render()"></label>${t!=today()?'<button class="lnk" onclick="hd=today();render()">Volver a hoy</button>':'<span class="mut s">Cambia el día para rellenar registros que olvidaste.</span>'}</div>
+<div class="card">${pl?`<div class="ok">✓ Pastilla tomada a las ${pl}</div><button class="lnk" onclick="pillT()">Cambiar hora</button><button class="lnk" onclick="pillU()">Deshacer</button>`:`<button class="big" onclick="pillOk()">${t==today()?'He tomado la pastilla':'Tomé la pastilla este día'}</button>`}</div>
 <div class="card"><b>¿Cómo te sientes hoy?</b><div class="moods">${EM.map((e,i)=>`<button class="${m==i+1?'on':''}" onclick="setMood(${i+1})" aria-label="Ánimo ${i+1} de 5">${e}</button>`).join('')}</div></div>
 <details class="card"${Object.keys(sy).length?' open':''}><summary><b>Apuntar síntomas</b> <span class="mut">(opcional)</span></summary>${S.symList.length?S.symList.map((n,i)=>`<div class="sy"><span>${esc(n)}</span><span class="sc">${[1,2,3,4,5].map(k=>`<button class="${sy[n]==k?'on':''}" onclick="setSym(${i},${k})">${k}</button>`).join('')}</span></div>`).join('')+'<p class="mut s">1 es nada y 5 es mucho. Toca otra vez para quitar.</p>':'<p class="mut">No tienes síntomas elegidos. Añádelos en Más, Ajustes.</p>'}</details>
 <div class="card"><b>Nota rápida</b><textarea rows="2" placeholder="Algo que quieras recordar" onchange="setNote(this.value)">${esc(S.note[t]||'')}</textarea></div>
@@ -133,31 +133,32 @@ return`<h2>Seguimiento</h2>
 
 /* SALUD */
 function addDose(){const date=val('dd'),to=val('dn');if(!date||!to)return alert('Indica la fecha y la dosis nueva.');S.doses.push({date,from:val('da'),to,note:val('dt')});S.doses.sort(byDate);upd()}
-function addLab(){const date=val('ld');if(!date)return alert('Indica la fecha.');const o={date};['tsh','t4l','t3l','tpo','tg','otros'].forEach(k=>o[k]=val('l_'+k));S.labs.push(o);S.labs.sort(byDate);upd()}
+function addLab(){const date=val('ld');if(!date)return alert('Indica la fecha.');const o={date};['tsh','t4l','t3l','tpo','tg','vitd','fer','b12','hb','otros'].forEach(k=>o[k]=val('l_'+k));S.labs.push(o);S.labs.sort(byDate);upd()}
 function addCita(){const date=val('cd');if(!date)return alert('Indica la fecha.');S.citas.push({date,medico:val('cm'),notas:'',done:false});S.citas.sort(byDate);upd()}
 function addQ(){const t=val('qt');if(!t)return;S.qs.push({t,done:false});upd()}
 const del=(k,i,m)=>{if(confirm(m||'¿Borrar?')){S[k].splice(i,1);upd()}};
 function tog(k,i){S[k][i].done=!S[k][i].done;upd()}
 function citaN(i,v){S.citas[i].notas=v;save()}
+const ex=l=>[['Vit. D',l.vitd],['Ferritina',l.fer],['B12',l.b12],['Hb',l.hb]].filter(a=>a[1]).map(a=>a[0]+' '+a[1]).concat(l.otros?[l.otros]:[]).join('; ');
 const marks=()=>S.doses.map(d=>({d:d.date,l:d.to}));
 function vSalud(){const nl=nextLab();
 let dl='';for(let i=S.doses.length-1;i>=0;i--){const d=S.doses[i];dl+=`<div class="item"><button class="x" onclick="del('doses',${i})">Borrar</button><b>${fd(d.date)}</b>: ${esc(d.from||'—')} → ${esc(d.to)}${d.note?'<br><span class="mut s">'+esc(d.note)+'</span>':''}</div>`}
-let ll='';for(let i=S.labs.length-1;i>=0;i--){const l=S.labs[i];ll+=`<div class="item"><button class="x" onclick="del('labs',${i})">Borrar</button><b>${fd(l.date)}</b><br><span class="mut s">TSH ${esc(l.tsh||'—')}. T4L ${esc(l.t4l||'—')}. T3L ${esc(l.t3l||'—')}. Anti-TPO ${esc(l.tpo||'—')}. Anti-TG ${esc(l.tg||'—')}.${l.otros?'<br>'+esc(l.otros):''}</span></div>`}
+let ll='';for(let i=S.labs.length-1;i>=0;i--){const l=S.labs[i];ll+=`<div class="item"><button class="x" onclick="del('labs',${i})">Borrar</button><b>${fd(l.date)}</b><br><span class="mut s">TSH ${esc(l.tsh||'—')}. T4L ${esc(l.t4l||'—')}. T3L ${esc(l.t3l||'—')}. Anti-TPO ${esc(l.tpo||'—')}. Anti-TG ${esc(l.tg||'—')}.${ex(l)?'<br>'+esc(ex(l)):''}</span></div>`}
 let cl='';for(let i=S.citas.length-1;i>=0;i--){const c=S.citas[i];cl+=`<div class="item"><button class="x" onclick="del('citas',${i})">Borrar</button><label style="margin:0;color:var(--ink)"><input type="checkbox" style="width:auto" ${c.done?'checked':''} onchange="tog('citas',${i})"> <b>${fd(c.date)}</b> ${esc(c.medico)} ${c.done?'(hecha)':''}</label><textarea rows="2" placeholder="Qué te dijo el médico" onchange="citaN(${i},this.value)">${esc(c.notas)}</textarea></div>`}
 return`<h2>Salud</h2>
 <div class="card"><b>Dosis de la pastilla</b><div class="g2"><label>Fecha del cambio<input type="date" id="dd" value="${today()}"></label><label>Dosis anterior<input id="da" placeholder="Ej.: 25 µg"></label></div><label>Dosis nueva<input id="dn" placeholder="Ej.: 50 µg"></label><label>Nota (cómo te sientes tras el cambio)<input id="dt"></label><button class="btn" onclick="addDose()">Guardar cambio</button>${dl}</div>
-<div class="card"><b>Analíticas</b><p class="mut s" style="margin:2px 0">Próxima prevista: ${nl?fd(nl):'se calcula al guardar la primera'}</p><label>Fecha<input type="date" id="ld" value="${today()}"></label><div class="g3"><label>TSH<input id="l_tsh" inputmode="decimal"></label><label>T4 libre<input id="l_t4l" inputmode="decimal"></label><label>T3 libre<input id="l_t3l" inputmode="decimal"></label></div><div class="g2"><label>Anti-TPO<input id="l_tpo" inputmode="decimal"></label><label>Anti-TG<input id="l_tg" inputmode="decimal"></label></div><label>Otros valores<input id="l_otros" placeholder="Ej.: vitamina D 30, ferritina 50"></label><button class="btn" onclick="addLab()">Guardar analítica</button>
+<div class="card"><b>Analíticas</b><p class="mut s" style="margin:2px 0">Próxima prevista: ${nl?fd(nl):'se calcula al guardar la primera'}</p><label>Fecha<input type="date" id="ld" value="${today()}"></label><div class="g3"><label>TSH<input id="l_tsh" inputmode="decimal"></label><label>T4 libre<input id="l_t4l" inputmode="decimal"></label><label>T3 libre<input id="l_t3l" inputmode="decimal"></label></div><div class="g2"><label>Anti-TPO<input id="l_tpo" inputmode="decimal"></label><label>Anti-TG<input id="l_tg" inputmode="decimal"></label></div><div class="g2"><label>Vitamina D<input id="l_vitd" inputmode="decimal"></label><label>Ferritina<input id="l_fer" inputmode="decimal"></label></div><div class="g2"><label>Vitamina B12<input id="l_b12" inputmode="decimal"></label><label>Hemoglobina<input id="l_hb" inputmode="decimal"></label></div><label>Otros valores<input id="l_otros" placeholder="Otros datos de la analítica"></label><button class="btn" onclick="addLab()">Guardar analítica</button>
 <p style="margin-bottom:0"><b>Evolución de la TSH</b></p>${chart(S.labs.filter(l=>parseFloat(String(l.tsh).replace(',','.'))>=0).map(l=>({d:l.date,v:parseFloat(String(l.tsh).replace(',','.'))})),marks())}<p class="mut s" style="margin:0">Las líneas naranjas marcan cambios de dosis.</p>${ll}</div>
 <div class="card"><b>Citas</b><div class="g2"><label>Fecha<input type="date" id="cd"></label><label>Médico<input id="cm" placeholder="Nombre o centro"></label></div><button class="btn" onclick="addCita()">Añadir cita</button>${cl}</div>
-<div class="card"><b>Preguntas para el médico</b><div class="row"><input id="qt" placeholder="Escribe una pregunta" onkeydown="if(event.key=='Enter')addQ()"><button class="btn" style="margin:3px 0 0" onclick="addQ()">Añadir</button></div>${S.qs.map((q,i)=>`<div class="item"><button class="x" onclick="del('qs',${i})">Borrar</button><label style="margin:0;color:var(--ink)"><input type="checkbox" style="width:auto" ${q.done?'checked':''} onchange="tog('qs',${i})"> ${q.done?'<s class="mut">'+esc(q.t)+'</s>':esc(q.t)}</label></div>`).join('')}</div>`}
+<div class="card"><b>Preguntas para el médico</b><textarea id="qt" rows="4" placeholder="Escribe aquí tus preguntas. Puedes usar varias líneas."></textarea><button class="btn" onclick="addQ()">Añadir pregunta</button>${S.qs.map((q,i)=>`<div class="item"><button class="x" onclick="del('qs',${i})">Borrar</button><label style="margin:0;color:var(--ink)"><input type="checkbox" style="width:auto" ${q.done?'checked':''} onchange="tog('qs',${i})"> <span class="pw">${q.done?'<s class="mut">'+esc(q.t)+'</s>':esc(q.t)}</span></label></div>`).join('')}</div>`}
 
 /* MÁS */
 const back=()=>'<button class="lnk" onclick="sub=\'\';render()">‹ Volver</button>';
-const MAN=`<h2>Cómo se usa</h2><div class="card"><p><b>Hoy.</b> Cada mañana toca “He tomado la pastilla”. Después, elige una carita según cómo te sientes. Si quieres, apunta síntomas del 1 al 5 y una nota.</p><p><b>Seguimiento.</b> Una vez por semana guarda peso, sueño y ejercicio. Aquí ves las gráficas y el historial.</p><p><b>Salud.</b> Anota cada cambio de dosis y cada analítica. La gráfica de TSH muestra cuándo cambió la dosis. Guarda tus citas y escribe las preguntas para no olvidarlas.</p><p><b>Más.</b> Genera el informe para el médico y guárdalo como PDF. Guarda una copia de seguridad cada mes. En Ajustes puedes cambiar tus síntomas y la hora del aviso.</p><p><b>La campanita</b> arriba a la derecha te avisa de lo pendiente. Para la pastilla, usa también la alarma del móvil.</p><p class="mut s">Tus datos se guardan solo en este móvil. La app no da consejos médicos: consulta siempre con tu médico.</p></div>`;
-const NOV=`<h2>Novedades</h2><div class="card"><b>Versión ${VER}</b><ul><li>Registro diario de pastilla, ánimo, síntomas y nota.</li><li>Seguimiento semanal de peso, sueño y ejercicio con gráficas.</li><li>Historial de dosis, analíticas con gráfica de TSH, citas y preguntas.</li><li>Informes en PDF para el médico.</li><li>Copia de seguridad y avisos con campanita.</li></ul></div>`;
+const MAN=`<h2>Cómo se usa</h2><div class="card"><p><b>Hoy.</b> Cada mañana toca “He tomado la pastilla”. Si olvidaste apuntar otro día, cámbialo en “Día que estás registrando”. Después, elige una carita según cómo te sientes. Si quieres, apunta síntomas del 1 al 5 y una nota.</p><p><b>Seguimiento.</b> Una vez por semana guarda peso, sueño y ejercicio. Aquí ves las gráficas y el historial.</p><p><b>Salud.</b> Anota cada cambio de dosis y cada analítica. La gráfica de TSH muestra cuándo cambió la dosis. Guarda tus citas y escribe las preguntas para no olvidarlas.</p><p><b>Más.</b> Genera el informe para el médico y guárdalo como PDF. El resumen de una página es el más cómodo para llevar a la cita. Guarda una copia de seguridad cada mes. En Ajustes puedes cambiar tus síntomas y la hora del aviso.</p><p><b>La campanita</b> arriba a la derecha te avisa de lo pendiente. Para la pastilla, usa también la alarma del móvil.</p><p class="mut s">Tus datos se guardan solo en este móvil. La app no da consejos médicos: consulta siempre con tu médico.</p></div>`;
+const NOV=`<h2>Novedades</h2><div class="card"><b>Versión ${VER}</b><ul><li>Puedes elegir otro día en Hoy para rellenar registros olvidados.</li><li>Las preguntas al médico admiten varias líneas.</li><li>Analíticas con vitamina D, ferritina, B12 y hemoglobina.</li><li>Resumen de una página para llevar a cada cita.</li></ul></div><div class="card"><b>Versión 1.0</b><ul><li>Registro diario de pastilla, ánimo, síntomas y nota.</li><li>Seguimiento semanal de peso, sueño y ejercicio con gráficas.</li><li>Historial de dosis, analíticas con gráfica de TSH, citas y preguntas.</li><li>Informes en PDF para el médico.</li><li>Copia de seguridad y avisos con campanita.</li></ul></div>`;
 function vMas(){if(sub=='manual')return back()+MAN;if(sub=='nov')return back()+NOV;if(sub=='sug')return vSug();if(sub=='aj')return vAj();
 return`<h2>Más</h2>
-<div class="card"><b>Informes para el médico</b><p class="mut s">Se abren listos para guardar como PDF.</p><button class="btn" onclick="rep(0)">Informe de la consulta</button><button class="btn alt" onclick="rep(1)">Informe completo</button></div>
+<div class="card"><b>Informes para el médico</b><p class="mut s">Se abren listos para guardar como PDF.</p><button class="btn" onclick="rep(0,1)">Resumen de una página para la cita</button><button class="btn alt" onclick="rep(0)">Informe de 4 meses</button><button class="btn alt" onclick="rep(1)">Informe completo</button></div>
 <div class="card"><b>Copia de seguridad</b><p class="mut s">Última copia: ${S.set.backup?fd(S.set.backup):'nunca'}. Guárdala antes de cambiar de móvil.</p><button class="btn" onclick="exp()">Guardar copia</button><label class="btn alt" style="color:var(--ink);font-size:15px;margin-top:6px">Cargar copia<input type="file" accept=".json" hidden onchange="imp(this)"></label></div>
 <div class="card" style="padding:4px 14px"><button class="lnk l" onclick="sub='aj';render()">Ajustes</button><button class="lnk l" onclick="sub='manual';render()">Cómo se usa</button><button class="lnk l" style="border:0" onclick="sub='nov';render()">Novedades de esta versión</button></div>
 <p class="faint"><button class="lnk" onclick="sub='sug';render()">Sugerencias para mejora de la aplicación</button></p>`}
@@ -173,28 +174,29 @@ function addSug(){const t=val('sg');if(!t)return;S.sug.push({date:today(),t});up
 function copySug(){const tx='Sugerencias Mi salud v'+VER+':\n'+S.sug.map(s=>'- ('+fd(s.date)+') '+s.t).join('\n');(navigator.clipboard?navigator.clipboard.writeText(tx):Promise.reject()).then(()=>alert('Copiado. Ya puedes pegarlo en WhatsApp.')).catch(()=>{prompt('Copia este texto:',tx)})}
 
 /* INFORMES */
-function rep(full){const t=today(),from=full?'0000-00-00':iso(new Date(Date.now()-120*864e5)),inP=d=>d>=from;
+function rep(full,one){const t=today(),from=full?'0000-00-00':iso(new Date(Date.now()-120*864e5)),inP=d=>d>=from;
 const avg=a=>a.length?(a.reduce((x,y)=>x+y,0)/a.length).toFixed(1):'—';
-const labs=S.labs.filter(l=>inP(l.date)),doses=S.doses.filter(d=>inP(d.date)),wk=S.week.filter(w=>inP(w.date));
+const labs=one?S.labs.slice(-2):S.labs.filter(l=>inP(l.date)),doses=one?S.doses.slice(-2):S.doses.filter(d=>inP(d.date)),wk=one?[]:S.week.filter(w=>inP(w.date));
 const mo=Object.entries(S.mood).filter(e=>inP(e[0])).map(e=>e[1]);
 const sy=S.symList.map(n=>{const v=Object.entries(S.sym).filter(e=>inP(e[0])&&e[1][n]).map(e=>e[1][n]);return v.length?`<tr><td>${esc(n)}</td><td>${avg(v)}</td><td>${v.length}</td></tr>`:''}).join('');
 const last=S.doses.length?S.doses[S.doses.length-1]:null,qs=S.qs.filter(q=>!q.done);
-const tsh=labs.map(l=>({d:l.date,v:parseFloat(String(l.tsh).replace(',','.'))})).filter(p=>p.v>=0);
+const qh=`<h3>Preguntas para la consulta</h3>${qs.length?'<ul>'+qs.map(q=>'<li style="white-space:pre-wrap">'+esc(q.t)+'</li>').join('')+'</ul>':'<p class="mut s">Sin preguntas pendientes.</p>'}`;
+const tsh=(one?S.labs.slice(-6):labs).map(l=>({d:l.date,v:parseFloat(String(l.tsh).replace(',','.'))})).filter(p=>p.v>=0);
 $('#rep').innerHTML=`<div class="noprint" style="max-width:720px;margin:0 auto 12px"><button class="btn alt" onclick="closeRep()">‹ Cerrar</button><button class="btn" onclick="window.print()">Guardar como PDF</button><p class="mut s">En la ventana de impresión elige “Guardar como PDF”.</p></div>
-<div class="doc"><h2 style="margin:0">Informe de seguimiento</h2><p class="mut s">${S.set.nombre?esc(S.set.nombre)+'. ':''}Generado el ${fd(t)}. ${full?'Historial completo.':'Periodo: últimos 4 meses (desde '+fd(from)+').'}</p>
-${last?`<h3>Dosis actual registrada</h3><p>${esc(last.to)} desde el ${fd(last.date)}.</p>`:''}
+<div class="doc${one?' one':''}"><h2 style="margin:0">Informe de seguimiento</h2><p class="mut s">${S.set.nombre?esc(S.set.nombre)+'. ':''}Generado el ${fd(t)}. ${one?'Resumen de una página: últimos 4 meses y las 2 últimas analíticas.':full?'Historial completo.':'Periodo: últimos 4 meses (desde '+fd(from)+').'}</p>
+${one?qh:''}${last?`<h3>Dosis actual registrada</h3><p>${esc(last.to)} desde el ${fd(last.date)}.</p>`:''}
 <h3>Cambios de dosis</h3>${doses.length?`<table><tr><th>Fecha</th><th>Antes</th><th>Después</th><th>Nota</th></tr>${doses.map(d=>`<tr><td>${fd(d.date)}</td><td>${esc(d.from||'—')}</td><td>${esc(d.to)}</td><td>${esc(d.note)}</td></tr>`).join('')}</table>`:'<p class="mut s">Sin cambios en el periodo.</p>'}
-<h3>Analíticas</h3>${labs.length?`<div class="scroll"><table><tr><th>Fecha</th><th>TSH</th><th>T4L</th><th>T3L</th><th>Anti-TPO</th><th>Anti-TG</th><th>Otros</th></tr>${labs.map(l=>`<tr><td>${fd(l.date)}</td><td>${esc(l.tsh)}</td><td>${esc(l.t4l)}</td><td>${esc(l.t3l)}</td><td>${esc(l.tpo)}</td><td>${esc(l.tg)}</td><td>${esc(l.otros)}</td></tr>`).join('')}</table></div>${chart(tsh,marks())}<p class="mut s">Gráfica de TSH. Líneas naranjas: cambios de dosis.</p>`:'<p class="mut s">Sin analíticas en el periodo.</p>'}
+<h3>Analíticas</h3>${labs.length?`<div class="scroll"><table><tr><th>Fecha</th><th>TSH</th><th>T4L</th><th>T3L</th><th>Anti-TPO</th><th>Anti-TG</th><th>Otros</th></tr>${labs.map(l=>`<tr><td>${fd(l.date)}</td><td>${esc(l.tsh)}</td><td>${esc(l.t4l)}</td><td>${esc(l.t3l)}</td><td>${esc(l.tpo)}</td><td>${esc(l.tg)}</td><td>${esc(ex(l))}</td></tr>`).join('')}</table></div>${chart(tsh,marks())}<p class="mut s">Gráfica de TSH. Líneas naranjas: cambios de dosis.</p>`:'<p class="mut s">Sin analíticas en el periodo.</p>'}
 <h3>Bienestar</h3><p>Días con pastilla registrada: ${Object.keys(S.pill).filter(inP).length}. Ánimo medio (1 a 5): ${avg(mo)} en ${mo.length} días.</p>
 ${sy?`<table><tr><th>Síntoma</th><th>Intensidad media (1 a 5)</th><th>Días anotados</th></tr>${sy}</table>`:''}
 ${wk.length?`<h3>Registros semanales</h3><table><tr><th>Fecha</th><th>Peso (kg)</th><th>Sueño</th><th>Ejercicio</th></tr>${wk.map(w=>`<tr><td>${fd(w.date)}</td><td>${esc(w.peso)}</td><td>${esc(w.sueno)}</td><td>${esc(w.ej)}</td></tr>`).join('')}</table>`:''}
-<h3>Preguntas para la consulta</h3>${qs.length?'<ul>'+qs.map(q=>'<li>'+esc(q.t)+'</li>').join('')+'</ul>':'<p class="mut s">Sin preguntas pendientes.</p>'}
-<p class="mut s" style="margin-top:24px">Informe generado con Mi salud v${VER}. Son datos anotados por la paciente y no sustituyen a una valoración médica.</p></div>`;
+${one?'':qh}
+${one?'<h3>Anotaciones de la consulta</h3><div style="height:110px;border:1px solid #ccc"></div>':''}<p class="mut s" style="margin-top:24px">Informe generado con Mi salud v${VER}. Son datos anotados por la paciente y no sustituyen a una valoración médica.</p></div>`;
 $('#rep').style.display='block';document.title='Informe Mi salud '+t}
 function closeRep(){$('#rep').style.display='none';document.title='Mi salud'}
 
 /* Render */
-function go(t){tab=t;sub='';render();scrollTo(0,0)}
+function go(t){tab=t;sub='';if(t=='hoy')hd=today();render();scrollTo(0,0)}
 function render(){const a=alerts();$('#bd').textContent=a.length||'';$('#bd').style.display=a.length?'flex':'none';
 $('#pn').innerHTML=a.length?a.map(x=>'<p>'+esc(x)+'</p>').join(''):'<p class="mut">Todo al día. No hay avisos.</p>';
 $('#main').innerHTML={hoy:vHoy,seg:vSeg,salud:vSalud,mas:vMas}[tab]();
