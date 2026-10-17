@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#15171d">
-<title>Tareas del hogar v2</title>
+<title>Tareas del hogar v3</title>
 <style>
 :root{--bg:#15171d;--panel:#1e2128;--line:#32363f;--amber:#ffb224;--ok:#6fd68e;--bad:#ff5a4d;--tx:#f4f2ec;--dim:#9a9ca6}
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
@@ -13,8 +13,9 @@ html,body{height:100%}
 body{background:var(--bg);color:var(--tx);display:flex;justify-content:center}
 #app{width:100%;max-width:560px;height:100dvh;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 14px 0}
 header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;flex:none;font-weight:700;color:var(--amber)}
+header small{color:var(--dim);font-weight:400}
 main{flex:1;min-height:0;overflow-y:auto;padding-bottom:12px}
-h3{font-size:.95rem;margin:14px 0 6px}
+h3{font-size:.95rem;margin:12px 0 5px}
 .d{font-size:.82rem;color:var(--dim);line-height:1.4;margin:4px 0}
 select,input,textarea{background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--tx);font-size:16px;padding:0 10px;height:40px;max-width:100%}
 textarea{width:100%;height:70px;padding:8px;margin:6px 0}
@@ -23,13 +24,19 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--amber)}
 .btn,.chip{min-height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--tx);font-size:.95rem;display:inline-flex;align-items:center}
 .chip.sel{background:var(--amber);color:#111;border-color:var(--amber);font-weight:700}
 .row{display:flex;align-items:center;gap:8px;min-height:44px;flex-wrap:wrap;font-size:.92rem}
-.r{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:8px}
-.rn{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;cursor:pointer}
-.rn b{font-size:1.02rem}.rn span{font-size:.8rem;color:var(--dim)}
-.bad{color:var(--bad)}
-.ck{width:48px;height:48px;border-radius:50%;border:2px solid var(--ok);background:none;color:var(--ok);font-size:1.4rem;font-weight:800;flex:none}
+.r{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px 10px;margin-bottom:5px}
+.rn{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;cursor:pointer}
+.rn b{font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rn span{font-size:.78rem;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bad{color:var(--bad)}.am{color:var(--amber)}
+.ck{width:38px;height:38px;border-radius:50%;border:2px solid var(--ok);background:none;color:var(--ok);font-size:1.1rem;font-weight:800;flex:none}
+.ck.u{border-color:var(--dim);color:var(--dim)}
+.r.dn{opacity:.55}.r.dn b{text-decoration:line-through}
+.idea{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;margin-bottom:8px}
+.idea textarea{height:auto;min-height:56px;overflow:hidden;resize:none;margin:0}
+.idea.dn textarea{text-decoration:line-through;opacity:.6}
 footer{flex:none;padding-bottom:calc(6px + env(safe-area-inset-bottom))}
-nav{display:flex}nav button{flex:1;height:46px;background:none;border:0;border-top:3px solid transparent;color:var(--dim);font-size:1rem;font-weight:600}
+nav{display:flex}nav button{flex:1;height:46px;background:none;border:0;border-top:3px solid transparent;color:var(--dim);font-size:.88rem;font-weight:600}
 nav .sel{color:var(--tx);border-color:var(--amber)}
 #sh{position:fixed;inset:0;background:#000a;display:flex;align-items:flex-end;justify-content:center;z-index:5}
 .sc{width:100%;max-width:560px;max-height:88dvh;overflow-y:auto;background:var(--bg);border:1px solid var(--line);border-radius:20px 20px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
@@ -40,10 +47,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 </head>
 <body>
 <div id="app">
-<header><span>Tareas del hogar</span></header>
+<header><span>Tareas del hogar <small>v3</small></span></header>
 <div id="hc" class="row" style="flex:none"></div>
 <main id="mn"></main>
-<footer><nav><button data-v="0" class="sel">Hoy</button><button data-v="1">Tareas</button><button data-v="2">Historial</button><button data-v="3">Ajustes</button></nav></footer>
+<footer><nav><button data-v="0" class="sel">Hoy</button><button data-v="1">Próximas</button><button data-v="2">Tareas</button><button data-v="3">Historial</button><button data-v="4">Más</button></nav></footer>
 </div>
 <div id="sh" hidden><div class="sc"></div></div>
 <div id="tt" hidden></div>
@@ -51,112 +58,193 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let S={homes:[{id:'h1',n:'Casa principal'},{id:'h2',n:'Segunda casa'}],people:[{id:'p1',n:'Yo'}],tasks:[],log:[],h:'h1',me:'p1'},V=0;
+let S={homes:[{id:'h1',n:'Casa principal'},{id:'h2',n:'Segunda casa'}],people:[{id:'p1',n:'Yo'}],tasks:[],log:[],h:'h1',me:'p1',ideas:[],
+  cats:[{id:'c1',n:'Limpieza'},{id:'c2',n:'Mantenimiento'},{id:'c3',n:'Extraordinaria'}],px:{cuts:[1,2,7,30],lg:1,ln:1,lu:30},bk:''},
+  V=0,MS=0,PO=0,CF='',HF='a',HL=100;
 try{Object.assign(S,JSON.parse(localStorage.getItem('hogar1')||'{}'))}catch(e){}
 const save=()=>{try{localStorage.setItem('hogar1',JSON.stringify(S))}catch(e){}};
 
-/* ---------- fechas y cálculo de "cuándo toca" ---------- */
+/* ---------- fechas ---------- */
 const dn=s=>{const[y,m,d]=s.split('-').map(Number);return Math.floor(Date.UTC(y,m-1,d)/864e5)};
 const ds=n=>new Date(n*864e5).toISOString().slice(0,10);
 const tk=()=>{const d=new Date();return Math.floor(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5)};
-const wd=n=>((n+3)%7+7)%7,DN=['L','M','X','J','V','S','D'];
+const wd=n=>((n+3)%7+7)%7,DN=['L','M','X','J','V','S','D'],W3=['lun','mar','mié','jue','vie','sáb','dom'];
+const fd=n=>{const s=ds(n);return W3[wd(n)]+' '+s.slice(8)+'/'+s.slice(5,7)+(s.slice(0,4)!==ds(tk()).slice(0,4)?'/'+s.slice(2,4):'')};
 const pn=id=>(S.people.find(p=>p.id===id)||{n:'?'}).n;
+const hn=id=>(S.homes.find(h=>h.id===id)||{n:'?'}).n;
+const cn=id=>(S.cats.find(c=>c.id===id)||{n:''}).n;
+const hs=()=>S.h==='all'?S.homes.map(h=>h.id):[S.h];
 const lg=(t,h)=>S.log.filter(l=>l.t===t.id&&l.h===h).sort((a,b)=>b.d.localeCompare(a.d));
-function due(t,h,T){const L=lg(t,h)[0],ld=L?dn(L.d):null;
-  if(t.m==='s')return ld==null?T:ld+t.e;
-  if(t.m==='f'&&t.w.length){let p=null;for(let i=0;i<7;i++)if(t.w.includes(wd(T-i))){p=T-i;break}
-    if(p!=null&&(ld==null?p===T:ld<p))return p;
-    for(let i=1;i<=7;i++)if(t.w.includes(wd(T+i)))return T+i}
-  return null}
+/* fecha en la que toca; el aplazamiento (t.nx[casa]) solo retrasa la ocurrencia actual, nunca la duplica */
+function due(t,h,T){const L=lg(t,h)[0],ld=L?dn(L.d):null;let d=null;
+  if(t.m==='o'){if(L)return null;d=dn(t.dt||ds(T))}
+  else if(t.m==='s')d=ld==null?T:ld+t.e;
+  else if(t.m==='f'&&t.w.length){let p=null;for(let i=0;i<7;i++)if(t.w.includes(wd(T-i))){p=T-i;break}
+    if(p!=null&&(ld==null?p===T:ld<p))d=p;else for(let i=1;i<=7;i++)if(t.w.includes(wd(T+i))){d=T+i;break}}
+  const nx=t.nx&&t.nx[h];if(d!=null&&nx)d=Math.max(d,dn(nx));return d}
+const items=()=>{const T=tk();return hs().flatMap(h=>S.tasks.filter(t=>t.hs.includes(h)).map(t=>({t,h,d:due(t,h,T)})))};
 const ago=n=>n<=0?'hoy':n===1?'ayer':'hace '+n+' d';
 const when=(L,T)=>L?ago(T-dn(L.d))+' · '+esc(pn(L.w)):'nunca hecha';
 const pl=(n,a,b)=>n+' '+(n===1?a:b);
-const frq=t=>t.m==='l'?'Al llegar':t.m==='x'?'Al salir':t.m==='f'?'Días: '+t.w.map(d=>DN[d]).join(' '):
+const frq=t=>t.m==='o'?'Una vez'+(t.dt?' · '+fd(dn(t.dt)):''):t.m==='l'?'Al llegar':t.m==='x'?'Al salir':t.m==='f'?'Días: '+t.w.map(d=>DN[d]).join(' '):
   'Cada '+(t.e%365===0?pl(t.e/365,'año','años'):t.e%30===0?pl(t.e/30,'mes','meses'):t.e%7===0?pl(t.e/7,'semana','semanas'):pl(t.e,'día','días'));
 const dl=(d,T)=>d==null?'':d<T?`<b class="bad">atrasada ${pl(T-d,'día','días')}</b>`:d===T?'toca hoy':d===T+1?'mañana':'en '+(d-T)+' d';
 
+/* ---------- componentes ---------- */
+function row(i,T,pre,done){const{t,h}=i,L=lg(t,h)[0],k=t.id+'|'+h,s=(S.h==='all'?esc(hn(h))+' · ':'')+pre+(done?'':when(L,T));
+  return `<div class="r${done?' dn':''}"><div class="rn" data-t="${k}"><b>${esc(t.n)}</b><span>${s}</span></div>${done?`<button class="ck u" data-un="${done}" aria-label="Volver a pendiente">↺</button>`:`<button class="ck" data-ok="${k}" aria-label="Marcar hecha">✓</button>`}</div>`}
+const cch=()=>S.cats.length?`<div class="row">${[['','Todas'],...S.cats.map(c=>[c.id,c.n])].map(([v,n])=>`<button class="chip${v===CF?' sel':''}" data-cf="${v}">${esc(n)}</button>`).join('')}</div>`:'';
+
 /* ---------- pantallas ---------- */
-const row=(t,T,pre)=>`<div class="r"><div class="rn" data-t="${t.id}"><b>${esc(t.n)}</b><span>${pre}${when(lg(t,S.h)[0],T)}</span></div><button class="ck" data-ok="${t.id}" aria-label="Marcar hecha">✓</button></div>`;
-const mine=()=>S.tasks.filter(t=>t.hs.includes(S.h));
-function hoy(){const T=tk(),G=[[],[],[],[]],N=['Atrasadas','Hoy','Mañana','Pasado mañana'];let o='';
-  mine().forEach(t=>{const d=due(t,S.h,T);if(d==null)return;const i=d<T?0:d>T+2?-1:d-T+1;if(i>=0)G[i].push([t,d])});
-  G.forEach((g,i)=>{if(!g.length){if(i>0&&mine().length)o+=`<h3>${N[i]}</h3><p class="d">Nada.</p>`;return}g.sort((a,b)=>a[1]-b[1]);
-    o+=`<h3>${N[i]}</h3>`+g.map(([t,d])=>row(t,T,i===0?`<b class="bad">${pl(T-d,'día','días')} de retraso</b> · `:'')).join('')});
-  [['l','Al llegar'],['x','Al salir']].forEach(([m,n])=>{const l=mine().filter(t=>t.m===m);if(l.length)o+=`<h3>${n}</h3>`+l.map(t=>row(t,T,'')).join('')});
-  if(!mine().length)o='<p class="d">Este domicilio no tiene tareas todavía.</p><div class="row"><button class="btn" id="tp">Añadir desde plantilla</button><button class="btn" id="nt">＋ Nueva tarea</button></div>';
+function hoy(){const T=tk(),td=ds(T),I=items(),G=[[],[],[],[]],N=['Atrasadas','Hoy','Mañana','Pasado mañana'];let o='';
+  const dt=l=>l&&l.d===td;
+  I.forEach(i=>{if(i.d==null)return;const k=i.d<T?0:i.d>T+2?-1:i.d-T+1;if(k>=0)G[k].push(i)});
+  const hh=S.log.filter(l=>l.d===td&&hs().includes(l.h)&&S.tasks.some(t=>t.id===l.t)).reverse(),pend=G[0].length+G[1].length;
+  if(!I.length)return '<p class="d">Este domicilio no tiene tareas todavía.</p><div class="row"><button class="btn" id="tp">Añadir desde plantilla</button><button class="btn" id="nt">＋ Nueva tarea</button></div>';
+  if(S.tasks.length&&T-dn(S.bk)>=30)o+=`<div class="r"><div class="rn"><b>Haz una copia de seguridad</b><span>Hace ${T-dn(S.bk)} d sin exportar</span></div><button class="btn" id="ex">Exportar</button></div>`;
+  if(hh.length+pend)o+=`<p class="d">${hh.length} de ${hh.length+pend} hechas hoy</p>`;
+  const av=I.filter(i=>i.d!=null&&i.t.ld&&i.d>T+2&&i.d-T<=i.t.ld).sort((a,b)=>a.d-b.d);
+  if(av.length)o+='<h3>Se acerca</h3>'+av.map(i=>row(i,T,`<b class="am">${fd(i.d)} · ${dl(i.d,T)}</b> · `)).join('');
+  G.forEach((g,i)=>{if(!g.length){if(i>0)o+=`<h3>${N[i]}</h3><p class="d">Nada.</p>`;return}g.sort((a,b)=>a.d-b.d);
+    o+=`<h3>${N[i]}</h3>`+g.map(x=>row(x,T,i===0?`<b class="bad">${pl(T-x.d,'día','días')} de retraso</b> · `:'')).join('')});
+  [['l','Al llegar'],['x','Al salir']].forEach(([m,n])=>{const l=I.filter(i=>i.t.m===m&&!dt(lg(i.t,i.h)[0]));if(l.length)o+=`<h3>${n}</h3>`+l.map(i=>row(i,T,'')).join('')});
+  if(hh.length)o+='<h3>Hechas hoy</h3>'+hh.map(l=>row({t:S.tasks.find(t=>t.id===l.t),h:l.h},T,esc(pn(l.w)),l.i)).join('');
   return o}
-function lista(){const T=tk(),l=mine().map(t=>[t,due(t,S.h,T)]).sort((a,b)=>(a[1]==null)-(b[1]==null)||a[1]-b[1]);
-  return `<div class="row"><button class="btn" id="nt">＋ Nueva tarea</button><button class="btn" id="tp">Desde plantilla</button></div>`+
-    l.map(([t,d])=>row(t,T,frq(t)+(d!=null?' · '+dl(d,T):'')+' · ')).join('')}
-function hist(){const T=tk(),q=(window.hq||'').toLowerCase(),ts=mine().filter(t=>t.n.toLowerCase().includes(q));
-  let o=`<input id="hq" placeholder="Buscar tarea…" value="${esc(window.hq||'')}" style="width:100%;margin:8px 0"><h3>Última vez de cada tarea</h3>`+
-    ts.map(t=>{const L=lg(t,S.h)[0];return `<div class="r"><div class="rn" data-t="${t.id}"><b>${esc(t.n)}</b><span>${L?L.d+' ('+ago(T-dn(L.d))+') · '+esc(pn(L.w)):'nunca hecha'}</span></div></div>`}).join('');
-  const ids=new Set(ts.map(t=>t.id)),lo=S.log.filter(l=>l.h===S.h&&ids.has(l.t)).sort((a,b)=>b.d.localeCompare(a.d)).slice(0,60);
-  return o+'<h3>Registros recientes</h3>'+(lo.map(l=>`<div class="row">${l.d} · ${esc((S.tasks.find(t=>t.id===l.t)||{n:'?'}).n)} · ${esc(pn(l.w))}</div>`).join('')||'<p class="d">Sin registros todavía.</p>')}
+function prox(){const T=tk(),P=S.px,I=items().filter(i=>i.d!=null&&(!CF||i.t.c===CF)),lu=P.ln*P.lu,
+  L=[[1,'Mañana'],[2,'Pasado mañana'],[7,'Próximos 7 días'],[14,'Próximas 2 semanas'],[30,'Próximo mes'],[90,'Próximos 3 meses']];
+  let o=`<div class="row" style="justify-content:space-between"><h3 style="margin:0">Próximas</h3><button class="btn" id="pg" aria-label="Configurar vistas">⚙</button></div>`;
+  if(PO)o+=`<div class="r" style="display:block"><p class="d">Vistas a mostrar</p><div class="row">${L.map(([c,n])=>`<button class="chip${P.cuts.includes(c)?' sel':''}" data-cut="${c}">${n}</button>`).join('')}</div>
+<div class="row"><button class="chip${P.lg?' sel':''}" id="lg">Tareas largas</button><span>desde</span><input type="number" id="pln" min="1" value="${P.ln}"><select id="plu">${[[7,'semanas'],[30,'meses'],[365,'años']].map(([v,n])=>`<option value="${v}"${v===P.lu?' selected':''}>${n}</option>`).join('')}</select></div></div>`;
+  o+=cch();let p=0,any=0;
+  L.filter(([c])=>P.cuts.includes(c)).forEach(([c,n])=>{const g=I.filter(i=>i.d>T+p&&i.d<=T+c).sort((a,b)=>a.d-b.d);if(c===2&&p!==1)n='Próximos 2 días';p=c;
+    if(g.length){any=1;o+=`<h3>${n}</h3>`+g.map(i=>row(i,T,`<b class="am">${fd(i.d)}</b> · ${frq(i.t)} · `)).join('')}});
+  if(P.lg){const g=I.filter(i=>i.t.m==='s'&&i.t.e>=lu).sort((a,b)=>a.d-b.d);
+    o+=`<h3>Tareas largas (${P.ln} ${({7:'sem.',30:'mes(es)',365:'año(s)'})[P.lu]} o más)</h3>`+(g.map(i=>row(i,T,`<b class="am">${fd(i.d)}</b> · ${dl(i.d,T)}${i.t.ld?' · aviso desde '+fd(i.d-i.t.ld):''} · `)).join('')||'<p class="d">Ninguna.</p>')}
+  else if(!any)o+='<p class="d">Nada previsto en las vistas elegidas.</p>';
+  return o}
+function lista(){const T=tk(),I=items().filter(i=>!CF||i.t.c===CF).sort((a,b)=>(a.d==null)-(b.d==null)||a.d-b.d);
+  return `<div class="row"><button class="btn" id="nt">＋ Nueva tarea</button><button class="btn" id="tp">Desde plantilla</button></div>`+cch()+
+    I.map(i=>{const L=lg(i.t,i.h)[0],x=L&&(i.t.m==='o'||L.d===ds(T))?L.i:'';return row(i,T,(i.t.c?esc(cn(i.t.c))+' · ':'')+frq(i.t)+(i.d!=null?' · '+dl(i.d,T):'')+' · ',x)}).join('')}
+function hist(){const T=tk(),q=(window.hq||'').toLowerCase(),I=items().filter(i=>i.t.n.toLowerCase().includes(q)),H=i=>S.h==='all'?esc(hn(i.h))+' · ':'';
+  const lt=i=>{const L=lg(i.t,i.h)[0];return L?fd(dn(L.d))+' ('+ago(T-dn(L.d))+') · '+esc(pn(L.w)):'nunca hecha'};
+  const hr=(i,s)=>`<div class="r"><div class="rn" data-t="${i.t.id}|${i.h}"><b>${esc(i.t.n)}</b><span>${H(i)}${s}</span></div></div>`;
+  let o=`<input id="hq" placeholder="Buscar tarea…" value="${esc(window.hq||'')}" style="width:100%;margin:8px 0"><div class="row">${[['a','Todas'],['r','Realizadas'],['u','Última vez'],['p','Pendientes']].map(([v,n])=>`<button class="chip${v===HF?' sel':''}" data-hf="${v}">${n}</button>`).join('')}</div>`,b='';
+  if(HF==='a')b=I.sort((a,c)=>(a.d==null)-(c.d==null)||a.d-c.d).map(i=>hr(i,'Última: '+lt(i)+(i.d!=null?' · Próxima: '+fd(i.d):''))).join('');
+  else if(HF==='u')b=I.filter(i=>lg(i.t,i.h)[0]).sort((a,c)=>lg(c.t,c.h)[0].d.localeCompare(lg(a.t,a.h)[0].d)).map(i=>hr(i,lt(i))).join('');
+  else if(HF==='p'){b=I.filter(i=>i.d!=null).sort((a,c)=>a.d-c.d).map(i=>hr(i,fd(i.d)+' · '+dl(i.d,T))).join('');
+    const n=I.filter(i=>i.d==null&&i.t.m!=='o');if(n.length)b+='<h3>Sin fecha (al llegar / al salir)</h3>'+n.map(i=>hr(i,frq(i.t))).join('')}
+  else{const ids=new Set(I.map(i=>i.t.id+'|'+i.h)),lo=S.log.map((l,n)=>[l,n]).filter(([l])=>ids.has(l.t+'|'+l.h)).sort((a,c)=>c[0].d.localeCompare(a[0].d)||c[1]-a[1]);
+    b=lo.slice(0,HL).map(([l])=>hr({t:S.tasks.find(x=>x.id===l.t),h:l.h},fd(dn(l.d))+' · '+esc(pn(l.w)))).join('');if(lo.length>HL)b+='<button class="btn" id="hm">Mostrar más</button>'}
+  return o+(b||'<p class="d">Nada que mostrar.</p>')}
+function ideas(){const l=[...S.ideas.filter(i=>!i.k),...S.ideas.filter(i=>i.k)];
+  return `<div class="row"><button class="btn" id="ni">＋ Nueva idea</button><button class="btn" id="cp">Copiar pendientes</button></div><p class="d">Escribe mejoras (admite saltos de línea). «Copiar pendientes» prepara un texto listo para pegar en la IA.</p>`+
+  l.map(i=>`<div class="idea${i.k?' dn':''}"><textarea data-ix="${i.id}" rows="2" placeholder="Describe la mejora…">${esc(i.x)}</textarea><div class="row"><label class="row"><input type="checkbox" data-ik="${i.id}"${i.k?' checked':''}>Implementada</label><span style="flex:1"></span><button class="btn" data-ic="${i.id}">Copiar</button><button class="btn" data-id="${i.id}" aria-label="Borrar idea">✕</button></div></div>`).join('')}
 function ajustes(){return `<h3>Yo soy</h3><div class="row"><select id="me">${S.people.map(p=>`<option value="${p.id}"${p.id===S.me?' selected':''}>${esc(p.n)}</option>`).join('')}</select></div>
 <h3>Personas</h3>${S.people.map(p=>`<div class="row"><input data-pn="${p.id}" value="${esc(p.n)}"></div>`).join('')}<button class="btn" id="ap">＋ Persona</button>
 <h3>Domicilios</h3>${S.homes.map(h=>`<div class="row"><input data-hn="${h.id}" value="${esc(h.n)}"></div>`).join('')}<button class="btn" id="ah">＋ Domicilio</button>
+<h3>Categorías</h3>${S.cats.map(c=>`<div class="row"><input data-cn="${c.id}" value="${esc(c.n)}"><button class="btn" data-cd="${c.id}" aria-label="Eliminar categoría">✕</button></div>`).join('')}<button class="btn" id="ac">＋ Categoría</button>
 <h3>Copia de seguridad</h3><div class="row"><button class="btn" id="ex">Exportar</button><label class="btn">Importar<input type="file" id="im" accept=".json" hidden></label></div>
-<p class="d">Los datos se guardan solo en este navegador. Exporta de vez en cuando una copia.</p>`}
-const hc=()=>$('#hc').innerHTML=S.homes.map(h=>`<button class="chip${h.id===S.h?' sel':''}" data-home="${h.id}">${esc(h.n)}</button>`).join('');
-function render(){hc();
-  $('#mn').innerHTML=[hoy,lista,hist,ajustes][V]();
-  $$('nav button').forEach(b=>b.classList.toggle('sel',+b.dataset.v===V))}
+<p class="d">Los datos se guardan solo en este navegador. Última copia: ${S.bk?fd(dn(S.bk)):'—'}.</p>`}
+const mas=()=>`<div class="row">${[['Ideas'],['Ajustes']].map(([n],i)=>`<button class="chip${i===MS?' sel':''}" data-ms="${i}">${n}</button>`).join('')}</div>`+(MS?ajustes():ideas());
+const hc=()=>$('#hc').innerHTML=[...S.homes.map(h=>[h.id,h.n]),...(S.homes.length>1?[['all','Ambas']]:[])].map(([i,n])=>`<button class="chip${i===S.h?' sel':''}" data-home="${i}">${esc(n)}</button>`).join('');
+const as=e=>{e.style.height='auto';e.style.height=e.scrollHeight+'px'};
+function render(){hc();$('#mn').innerHTML=[hoy,prox,lista,hist,mas][V]();
+  $$('nav button').forEach(b=>b.classList.toggle('sel',+b.dataset.v===V));if(V===4&&!MS)$$('.idea textarea').forEach(as)}
 
 /* ---------- registro ---------- */
 let tmr;
 function toast(msg,undo){const e=$('#tt');e.hidden=false;e.innerHTML=`<span>${msg}</span>${undo?'<button class="btn" id="un">Deshacer</button>':''}`;
-  if(undo)$('#un').onclick=()=>{S.log=S.log.filter(l=>l.i!==undo);save();e.hidden=true;render()};clearTimeout(tmr);tmr=setTimeout(()=>e.hidden=true,5000)}
-function addLog(t,d,w){const l={i:uid(),t,h:S.h,d,w};S.log.push(l);save();render();return l}
+  if(undo)$('#un').onclick=()=>{rmLog(undo);save();e.hidden=true;render()};clearTimeout(tmr);tmr=setTimeout(()=>e.hidden=true,5000)}
+function addLog(t,h,d,w){const T0=S.tasks.find(x=>x.id===t),z=T0&&T0.nx&&T0.nx[h];if(z)delete T0.nx[h];
+  const l={i:uid(),t,h,d,w};if(z)l.z=z;S.log.push(l);save();render();return l}
+function rmLog(i){const l=S.log.find(x=>x.i===i);if(!l)return;S.log=S.log.filter(x=>x.i!==i);const t=S.tasks.find(x=>x.id===l.t);if(l.z&&t){t.nx=t.nx||{};t.nx[l.h]=l.z}save()}
 function sheet(h){const s=$('#sh');s.hidden=false;s.querySelector('.sc').innerHTML=h;s.onclick=e=>{if(e.target===s)s.hidden=true}}
 const close=()=>$('#sh').hidden=true;
-function det(id){const t=S.tasks.find(x=>x.id===id),L=lg(t,S.h);
-  sheet(`<h3>${esc(t.n)}</h3><p class="d">${frq(t)}</p>${t.note?`<p class="d">${esc(t.note)}</p>`:''}
-<div class="row"><input type="date" id="dd" value="${ds(tk())}"><select id="dw">${S.people.map(p=>`<option value="${p.id}"${p.id===S.me?' selected':''}>${esc(p.n)}</option>`).join('')}</select></div>
+function cop(x){const f=()=>{const a=document.createElement('textarea');a.value=x;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch(_){}a.remove();toast('Copiado')};
+  navigator.clipboard?navigator.clipboard.writeText(x).then(()=>toast('Copiado'),f):f()}
+function det(k){const[id,h]=k.split('|'),t=S.tasks.find(x=>x.id===id);if(!t)return;const L=lg(t,h),T=tk(),d=due(t,h,T),nx=t.nx&&t.nx[h];
+  sheet(`<h3>${esc(t.n)}</h3><p class="d">${frq(t)}${S.h==='all'?' · '+esc(hn(h)):''}${t.c?' · '+esc(cn(t.c)):''}</p>${d!=null?`<p class="d">Próxima: ${fd(d)} (${dl(d,T)})</p>`:''}${t.note?`<p class="d">${esc(t.note)}</p>`:''}
+<div class="row"><input type="date" id="dd" value="${ds(T)}"><select id="dw">${S.people.map(p=>`<option value="${p.id}"${p.id===S.me?' selected':''}>${esc(p.n)}</option>`).join('')}</select></div>
 <button class="btn" id="rg">Registrar como hecha</button><button class="btn" id="ed">Editar tarea</button>
-<h3>Historial</h3>${L.slice(0,10).map(l=>`<div class="row">${l.d} · ${esc(pn(l.w))}<button class="btn" data-del="${l.i}" aria-label="Borrar registro">✕</button></div>`).join('')||'<p class="d">Sin registros</p>'}`);
-  $('#rg').onclick=()=>{addLog(id,$('#dd').value||ds(tk()),$('#dw').value);close()};
-  $('#ed').onclick=()=>edit(id);
-  $$('[data-del]').forEach(b=>b.onclick=()=>{S.log=S.log.filter(l=>l.i!==b.dataset.del);save();render();det(id)})}
-function edit(id){const t=id?S.tasks.find(x=>x.id===id):{n:'',m:'s',e:14,w:[],hs:[S.h]},u=t.e%365===0?365:t.e%30===0?30:t.e%7===0?7:1;
+${d!=null?`<h3>Posponer (solo esta vez)</h3><div class="row"><button class="btn" data-pp="1">+1 día</button><button class="btn" data-pp="7">+1 semana</button>${nx?'<button class="btn" id="pq">Quitar aplazamiento</button>':''}</div><div class="row"><input type="date" id="pd" value="${ds(Math.max(d,T)+1)}"><button class="btn" id="pu">Posponer hasta</button></div>`:''}
+<h3>Historial</h3>${L.slice(0,10).map(l=>`<div class="row">${fd(dn(l.d))} · ${esc(pn(l.w))}<button class="btn" data-del="${l.i}" aria-label="Borrar registro">✕</button></div>`).join('')||'<p class="d">Sin registros</p>'}`);
+  const pz=v=>{t.nx=t.nx||{};if(v)t.nx[h]=v;else delete t.nx[h];save();render();close();toast(v?'Pospuesta a '+fd(dn(v)):'Aplazamiento quitado')};
+  $('#rg').onclick=()=>{addLog(id,h,$('#dd').value||ds(T),$('#dw').value);close()};
+  $('#ed').onclick=()=>edit(id,h);
+  $$('[data-pp]').forEach(b=>b.onclick=()=>pz(ds(Math.max(d,T)+ +b.dataset.pp)));
+  if($('#pu'))$('#pu').onclick=()=>$('#pd').value&&pz($('#pd').value);
+  if($('#pq'))$('#pq').onclick=()=>pz('');
+  $$('[data-del]').forEach(b=>b.onclick=()=>{rmLog(b.dataset.del);render();det(k)})}
+function edit(id,h){const t=id?S.tasks.find(x=>x.id===id):{n:'',m:'s',e:14,w:[],hs:hs(),c:'',ld:0,nx:{},dt:ds(tk())},
+  u=t.e%365===0?365:t.e%30===0?30:t.e%7===0?7:1,lu=t.ld&&t.ld%30===0?30:t.ld&&t.ld%7===0?7:1,n0=(id&&t.nx[h])||'',
+  O=(a,v)=>a.map(([x,n])=>`<option value="${x}"${x===v?' selected':''}>${n}</option>`).join('');
   sheet(`<h3>${id?'Editar':'Nueva'} tarea</h3><input id="en" value="${esc(t.n)}" placeholder="Nombre de la tarea" style="width:100%">
-<div class="row"><select id="em">${[['s','Cada cierto tiempo'],['f','Días fijos'],['l','Al llegar'],['x','Al salir']].map(([v,n])=>`<option value="${v}"${v===t.m?' selected':''}>${n}</option>`).join('')}</select></div>
-<div class="row" id="fs"><span>Cada</span><input type="number" id="en2" min="1" value="${t.e/u}"><select id="eu">${[[1,'días'],[7,'semanas'],[30,'meses'],[365,'años']].map(([v,n])=>`<option value="${v}"${v===u?' selected':''}>${n}</option>`).join('')}</select></div>
+<div class="row"><select id="em">${O([['s','Cada cierto tiempo'],['f','Días fijos'],['o','Una sola vez'],['l','Al llegar'],['x','Al salir']],t.m)}</select><select id="ec"><option value="">Sin categoría</option>${O(S.cats.map(c=>[c.id,esc(c.n)]),t.c)}</select></div>
+<div class="row" id="fs"><span>Cada</span><input type="number" id="en2" min="1" value="${t.e/u}"><select id="eu">${O([[1,'días'],[7,'semanas'],[30,'meses'],[365,'años']],u)}</select></div>
 <div class="row" id="fw">${DN.map((d,i)=>`<button class="chip${t.w.includes(i)?' sel':''}" data-wd="${i}">${d}</button>`).join('')}</div>
-<div class="row">${S.homes.map(h=>`<label class="row"><input type="checkbox" data-hh="${h.id}"${t.hs.includes(h.id)?' checked':''}>${esc(h.n)}</label>`).join('')}</div>
-${id?'':'<div class="row"><span>Última vez que se hizo</span><input type="date" id="ela"></div>'}
+<div class="row" id="fo"><span>Fecha</span><input type="date" id="edt" value="${t.dt||ds(tk())}"></div>
+<div class="row" id="fx"><span>Próxima vez</span><input type="date" id="enx" value="${n0}"></div>
+<div class="row" id="fl"><span>Avisarme con</span><input type="number" id="eld" min="0" value="${t.ld/lu}"><select id="elu">${O([[1,'días'],[7,'semanas'],[30,'meses']],lu)}</select><span class="d">(0 = sin aviso)</span></div>
+<div class="row">${S.homes.map(x=>`<label class="row"><input type="checkbox" data-hh="${x.id}"${t.hs.includes(x.id)?' checked':''}>${esc(x.n)}</label>`).join('')}</div>
+${id?'':'<div class="row" id="fa"><span>Última vez que se hizo</span><input type="date" id="ela"></div>'}
 <textarea id="eno" placeholder="Notas (producto, temperatura…)">${esc(t.note||'')}</textarea>
 <button class="btn" id="sv">Guardar</button>${id?'<button class="btn" id="dt">Eliminar</button>':''}`);
-  const sy=()=>{const m=$('#em').value;$('#fs').hidden=m!=='s';$('#fw').hidden=m!=='f'};sy();$('#em').onchange=sy;
+  const sy=()=>{const m=$('#em').value;$('#fs').hidden=m!=='s';$('#fw').hidden=m!=='f';$('#fo').hidden=m!=='o';$('#fx').hidden=!'sf'.includes(m);$('#fl').hidden='lx'.includes(m);const a=$('#fa');if(a)a.hidden=m==='o'};sy();$('#em').onchange=sy;
   $$('[data-wd]').forEach(b=>b.onclick=()=>b.classList.toggle('sel'));
-  $('#sv').onclick=()=>{const n=$('#en').value.trim(),hs=$$('[data-hh]').filter(c=>c.checked).map(c=>c.dataset.hh);
-    if(!n||!hs.length){alert('Pon un nombre y elige al menos un domicilio');return}
-    const o={id:id||uid(),n,m:$('#em').value,e:Math.max(1,+$('#en2').value||1)*+$('#eu').value,w:$$('[data-wd]').filter(b=>b.classList.contains('sel')).map(b=>+b.dataset.wd),hs,note:$('#eno').value.trim()};
-    if(id)S.tasks[S.tasks.findIndex(x=>x.id===id)]=o;else{S.tasks.push(o);const la=$('#ela');if(la&&la.value&&hs.includes(S.h))S.log.push({i:uid(),t:o.id,h:S.h,d:la.value,w:S.me})}save();render();close()};
+  $('#sv').onclick=()=>{const n=$('#en').value.trim(),hh=$$('[data-hh]').filter(c=>c.checked).map(c=>c.dataset.hh),m=$('#em').value,w=$$('[data-wd]').filter(b=>b.classList.contains('sel')).map(b=>+b.dataset.wd);
+    if(!n||!hh.length||(m==='f'&&!w.length)){alert('Pon un nombre, elige al menos un domicilio (y los días si son fijos)');return}
+    const nv=$('#enx').value,o={id:id||uid(),n,m,e:Math.max(1,+$('#en2').value||1)*+$('#eu').value,w,hs:hh,note:$('#eno').value.trim(),c:$('#ec').value,
+      ld:'lx'.includes(m)?0:Math.max(0,+$('#eld').value||0)*+$('#elu').value,dt:$('#edt').value||ds(tk()),nx:m==='o'?{}:{...t.nx}};
+    if(nv!==n0)hh.forEach(x=>{if(nv)o.nx[x]=nv;else delete o.nx[x]});
+    if(id)S.tasks[S.tasks.findIndex(x=>x.id===id)]=o;else{S.tasks.push(o);const la=$('#ela');if(la&&la.value&&m!=='o')(S.h==='all'?hh:hh.filter(x=>x===S.h)).forEach(x=>S.log.push({i:uid(),t:o.id,h:x,d:la.value,w:S.me}))}
+    save();render();close()};
   if(id)$('#dt').onclick=()=>{if(confirm('¿Eliminar la tarea y su historial?')){S.tasks=S.tasks.filter(x=>x.id!==id);S.log=S.log.filter(l=>l.t!==id);save();render();close()}}}
-const TP=[['Cambiar sábanas','s',14],['Cambiar toallas','s',7],['Limpiar baños','s',7],['Aspirar','s',7],['Fregar suelos','s',7],['Quitar el polvo','s',7],['Limpiar nevera','s',30],['Limpiar cristales','s',30],['Limpiar horno','s',60],['Lavar cortinas','s',90],['Cambiar ropa de temporada','s',182],['Sacar la basura','f',[1,4]],['Abrir el agua','l'],['Cerrar el agua','x']];
-function plantilla(){sheet(`<h3>Plantilla de tareas</h3><p class="d">Marca las que quieras añadir a este domicilio. Luego puedes ajustar la frecuencia.</p>`+
+const TP=[['Cambiar sábanas','s',14,'c1'],['Cambiar toallas','s',7,'c1'],['Limpiar baños','s',7,'c1'],['Aspirar','s',7,'c1'],['Fregar suelos','s',7,'c1'],['Quitar el polvo','s',7,'c1'],['Limpiar nevera','s',30,'c1'],['Limpiar cristales','s',30,'c1'],['Limpiar horno','s',60,'c1'],['Lavar cortinas','s',90,'c1'],['Cambiar ropa de temporada','s',182,'c3'],['Revisar detectores de humo','s',182,'c2'],['Rebarnizar muebles de exterior','s',365,'c3'],['Sacar la basura','f',[1,4],'c1'],['Abrir el agua','l'],['Cerrar el agua','x']];
+function plantilla(){sheet(`<h3>Plantilla de tareas</h3><p class="d">Marca las que quieras añadir. Luego puedes ajustar la frecuencia.</p>`+
   TP.map((x,i)=>`<label class="row"><input type="checkbox" data-tp="${i}">${x[0]} <span class="d">${x[1]==='s'?'cada '+x[2]+' d':x[1]==='f'?'martes y viernes':x[1]==='l'?'al llegar':'al salir'}</span></label>`).join('')+`<button class="btn" id="ad">Añadir</button>`);
-  $('#ad').onclick=()=>{$$('[data-tp]').filter(c=>c.checked).forEach(c=>{const[n,m,v]=TP[+c.dataset.tp],ex=S.tasks.find(t=>t.n===n);
-    if(ex){if(!ex.hs.includes(S.h))ex.hs.push(S.h)}else S.tasks.push({id:uid(),n,m,e:m==='s'?v:14,w:m==='f'?v:[],hs:[S.h],note:''})});save();render();close()}}
+  $('#ad').onclick=()=>{$$('[data-tp]').filter(c=>c.checked).forEach(c=>{const[n,m,v,k]=TP[+c.dataset.tp],ex=S.tasks.find(t=>t.n===n),hh=hs();
+    if(ex)hh.forEach(x=>{if(!ex.hs.includes(x))ex.hs.push(x)});else S.tasks.push({id:uid(),n,m,e:m==='s'?v:14,w:m==='f'?v:[],hs:hh,note:'',c:S.cats.some(x=>x.id===k)?k:'',ld:m==='s'&&v>=90?14:0,nx:{},dt:''})});save();render();close()}}
 
 /* ---------- eventos ---------- */
-$('#mn').onclick=e=>{const ok=e.target.closest('[data-ok]'),rn=e.target.closest('[data-t]');
-  if(ok){const l=addLog(ok.dataset.ok,ds(tk()),S.me);toast('Marcada ✓',l.i)}
-  else if(rn)det(rn.dataset.t);
-  else if(e.target.id==='nt')edit();else if(e.target.id==='tp')plantilla();
-  else if(e.target.id==='ap'){S.people.push({id:uid(),n:'Nueva persona'});save();render()}
-  else if(e.target.id==='ah'){S.homes.push({id:uid(),n:'Nuevo domicilio'});save();render()}
-  else if(e.target.id==='ex'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='tareas-hogar.json';a.click()}};
-$('#mn').onchange=e=>{const t=e.target;
+$('#mn').onclick=e=>{const b=e.target.closest('button,[data-t]'),x=b?b.dataset:{},id=b?b.id:'',P=S.px,ix=k=>S.ideas.find(i=>i.id===x[k]);if(!b)return;
+  if(x.ok){const[t,h]=x.ok.split('|'),l=addLog(t,h,ds(tk()),S.me);toast('Marcada ✓',l.i)}
+  else if(x.un){rmLog(x.un);render();toast('Vuelve a pendiente')}
+  else if(x.t)det(x.t);
+  else if('cf' in x){CF=x.cf;render()}
+  else if(x.cut){const c=+x.cut;P.cuts=P.cuts.includes(c)?P.cuts.filter(v=>v!==c):[...P.cuts,c].sort((a,b)=>a-b);save();render()}
+  else if(x.hf){HF=x.hf;HL=100;render()}
+  else if(x.ms){MS=+x.ms;render()}
+  else if(id==='lg'){P.lg=+!P.lg;save();render()}
+  else if(id==='pg'){PO=!PO;render()}
+  else if(id==='hm'){HL+=100;render()}
+  else if(id==='nt')edit();else if(id==='tp')plantilla();
+  else if(id==='ap'){S.people.push({id:uid(),n:'Nueva persona'});save();render()}
+  else if(id==='ah'){S.homes.push({id:uid(),n:'Nuevo domicilio'});save();render()}
+  else if(id==='ac'){S.cats.push({id:uid(),n:'Nueva categoría'});save();render()}
+  else if(x.cd){if(confirm('¿Eliminar la categoría? Las tareas quedarán sin categoría.')){S.cats=S.cats.filter(c=>c.id!==x.cd);S.tasks.forEach(t=>{if(t.c===x.cd)t.c=''});if(CF===x.cd)CF='';save();render()}}
+  else if(id==='ni'){S.ideas.unshift({id:uid(),x:'',k:0});save();render();const a=$('.idea textarea');if(a)a.focus()}
+  else if(id==='cp'){const l=S.ideas.filter(i=>!i.k&&i.x.trim());if(!l.length)toast('No hay ideas pendientes');else cop('Estas son mejoras que quiero aplicar a mi app web «Tareas del hogar» (un único archivo HTML, datos en localStorage). Te adjunto el archivo actual. Aplícalas sin romper lo existente y pregúntame si tienes dudas:\n\n'+l.map((i,n)=>(n+1)+') '+i.x.trim()).join('\n\n'))}
+  else if(x.ic){const i=ix('ic');if(i)cop(i.x)}
+  else if(x.id){if(confirm('¿Borrar esta idea?')){S.ideas=S.ideas.filter(i=>i.id!==x.id);save();render()}}
+  else if(id==='ex'){S.bk=ds(tk());save();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='tareas-hogar-'+S.bk+'.json';a.click();render()}};
+$('#mn').onchange=e=>{const t=e.target,P=S.px;
   if(t.id==='me'){S.me=t.value;save()}
   else if(t.dataset.pn){S.people.find(p=>p.id===t.dataset.pn).n=t.value.trim()||'?';save()}
   else if(t.dataset.hn){S.homes.find(h=>h.id===t.dataset.hn).n=t.value.trim()||'?';save();hc()}
-  else if(t.id==='im'){t.files[0].text().then(x=>{try{Object.assign(S,JSON.parse(x));save();render()}catch(_){alert('Archivo no válido')}})}};
+  else if(t.dataset.cn){S.cats.find(c=>c.id===t.dataset.cn).n=t.value.trim()||'?';save()}
+  else if(t.dataset.ik){S.ideas.find(i=>i.id===t.dataset.ik).k=+t.checked;save();render()}
+  else if(t.id==='pln'){P.ln=Math.max(1,+t.value||1);save();render()}
+  else if(t.id==='plu'){P.lu=+t.value;save();render()}
+  else if(t.id==='im'){t.files[0].text().then(x=>{try{Object.assign(S,JSON.parse(x));mig();save();render()}catch(_){alert('Archivo no válido')}})}};
 $('#hc').onclick=e=>{const b=e.target.closest('[data-home]');if(b){S.h=b.dataset.home;save();render()}};
-$('#mn').oninput=e=>{if(e.target.id==='hq'){window.hq=e.target.value;render();const i=$('#hq');i.focus();i.setSelectionRange(i.value.length,i.value.length)}};
+$('#mn').oninput=e=>{const t=e.target;
+  if(t.id==='hq'){window.hq=t.value;render();const i=$('#hq');i.focus();i.setSelectionRange(i.value.length,i.value.length)}
+  else if(t.dataset.ix){S.ideas.find(i=>i.id===t.dataset.ix).x=t.value;save();as(t)}};
 $$('nav button').forEach(b=>b.onclick=()=>{V=+b.dataset.v;render()});
-render();
+function mig(){S.px=Object.assign({cuts:[1,2,7,30],lg:1,ln:1,lu:30},S.px);S.ideas=S.ideas||[];S.cats=S.cats||[];S.bk=S.bk||ds(tk());
+  S.tasks.forEach(t=>{t.nx=t.nx||{};t.c=t.c||'';t.ld=t.ld||0;t.dt=t.dt||''});
+  if(S.h!=='all'&&!S.homes.some(h=>h.id===S.h))S.h=S.homes[0].id}
+mig();render();
 </script>
 </body>
 </html>
