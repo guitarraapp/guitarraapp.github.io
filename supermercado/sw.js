@@ -1,5 +1,5 @@
 // Cambia V cuando publiques una versión nueva para renovar la caché
-const V='compras-v12',CORE=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'],
+const V='compras-v13',CORE=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'],
 CDN=['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js','https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(V).then(async c=>{await c.addAll(CORE);await Promise.allSettled(CDN.map(u=>c.add(u)))}))});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
