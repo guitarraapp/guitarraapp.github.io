@@ -49,6 +49,7 @@ small{color:var(--mut)}
   <h1>Visor de partituras</h1>
   <span id="ttl"></span>
   <button id="bOpen" class="p">Abrir archivo</button>
+  <button id="bIdeas" aria-label="Ideas de mejora" title="Ideas de mejora">💡</button>
   <button id="bCfg" aria-label="Ajustes">⚙️</button>
 </header>
 <div id="bn" class="bn" hidden>
@@ -69,6 +70,12 @@ small{color:var(--mut)}
   </label>
   <label><input type="checkbox" id="met">Metrónomo</label>
   <label><input type="checkbox" id="loop">Bucle</label>
+  <label>Previo
+    <select id="cin">
+      <option value="0">Sin compases</option><option value="1">1 compás</option><option value="2">2 compases</option>
+      <option value="3">3 compases</option><option value="4">4 compases</option>
+    </select>
+  </label>
   <select id="vw" aria-label="Vista">
     <option value="ScoreTab">Pentagrama y tab</option>
     <option value="Tab">Solo tab</option>
@@ -89,7 +96,7 @@ small{color:var(--mut)}
 </div>
 
 <section id="cfg" class="pg" hidden>
-  <div class="row"><h1 style="flex:1">Ajustes</h1><button id="cfgX">Cerrar</button></div>
+  <div class="row"><h1 style="flex:1">Ajustes <small>v2</small></h1><button id="cfgX">Cerrar</button></div>
   <button id="lnkIdeas" class="lk">💡 Ideas de mejora</button>
   <h2>Copia de seguridad</h2>
   <div class="row"><button id="bkDl" class="p">Descargar copia (JSON)</button>
@@ -115,8 +122,8 @@ small{color:var(--mut)}
 const BASE='https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.4.3/dist/';
 const $=i=>document.getElementById(i);
 const st={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-let S=Object.assign({view:'ScoreTab',speed:1,scale:1,metro:false,loop:false,bkMonths:1,bkNew:1},st.get('vp_set',{}));
-let ideas=st.get('vp_ideas',[]),bk=st.get('vp_bk',{last:0,dirty:0}),api=null,ready=false,loaded=false,editId=null,filt='p';
+let S=Object.assign({view:'ScoreTab',speed:1,scale:1,metro:false,loop:false,countIn:2,bkMonths:1,bkNew:1},st.get('vp_set',{}));
+let ideas=st.get('vp_ideas',[]),bk=st.get('vp_bk',{last:0,dirty:0}),api=null,ready=false,loaded=false,editId=null,filt='p',ci=null,playing=false,actx=null,from='cfg';
 const save=()=>st.set('vp_set',S);
 const status=t=>{$('st').textContent=t};
 const fmt=ms=>{const s=Math.round(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
@@ -134,7 +141,7 @@ function initAT(){
   api.soundFontLoad.on(e=>status('Cargando sonido '+Math.round(e.loaded*100/e.total)+' %'));
   api.playerReady.on(()=>{ready=true;applyPlayer();status('Listo');upd()});
   api.scoreLoaded.on(sc=>{loaded=true;$('hint').hidden=true;$('ttl').textContent=[sc.title,sc.artist].filter(Boolean).join(' · ');fill(sc);upd()});
-  api.playerStateChanged.on(e=>{$('bPlay').textContent=e.state===1?'⏸':'▶'});
+  api.playerStateChanged.on(e=>{playing=e.state===1;$('bPlay').textContent=playing?'⏸':'▶'});
   api.playerPositionChanged.on(e=>{$('tm').textContent=fmt(e.currentTime)+' / '+fmt(e.endTime)});
   if(api.error)api.error.on(e=>status('Error: '+((e&&e.message)||e)));
   applyPlayer();
@@ -159,8 +166,41 @@ $('file').onchange=e=>{
   if(tx)r.readAsText(f);else r.readAsArrayBuffer(f);
   e.target.value='';
 };
-$('bPlay').onclick=()=>api&&api.playPause();
-$('bStop').onclick=()=>api&&api.stop();
+/* Cuenta previa: clics propios antes de empezar a sonar la partitura */
+function cancelCI(){
+  if(!ci)return;
+  clearTimeout(ci.t);ci=null;
+  if(actx){actx.close();actx=null}
+  status('Listo');$('bPlay').textContent='▶';
+}
+function click(t,hi){
+  const o=actx.createOscillator(),g=actx.createGain();
+  o.frequency.value=hi?1500:1000;o.connect(g);g.connect(actx.destination);
+  g.gain.setValueAtTime(.0001,t);
+  g.gain.exponentialRampToValueAtTime(.6,t+.005);
+  g.gain.exponentialRampToValueAtTime(.0001,t+.06);
+  o.start(t);o.stop(t+.08);
+}
+function play(){
+  if(!api||!(ready&&loaded))return;
+  if(ci){cancelCI();return}
+  if(playing){api.pause();return}
+  const n=S.countIn;
+  if(!n){api.play();return}
+  const sc=api.score,mb=sc.masterBars[0],num=mb.timeSignatureNumerator,den=mb.timeSignatureDenominator;
+  const bpm=((mb.tempoAutomation&&mb.tempoAutomation.value)||sc.tempo||100)*S.speed;
+  const comp=den===8&&num%3===0,beats=comp?num/3:num,len=60/bpm*(comp?1.5:4/den);
+  actx=new(window.AudioContext||window.webkitAudioContext)();
+  const t0=actx.currentTime+.1;
+  for(let b=0;b<n;b++)for(let i=0;i<beats;i++)click(t0+(b*beats+i)*len,i===0);
+  status('Preparado… '+n+(n===1?' compás':' compases')+' de cuenta');
+  $('bPlay').textContent='✖';
+  ci={t:setTimeout(()=>{ci=null;if(actx){actx.close();actx=null}status('Listo');api.play()},(.1+n*beats*len)*1000)};
+}
+$('bPlay').onclick=play;
+$('bStop').onclick=()=>{cancelCI();if(api)api.stop()};
+$('cin').value=S.countIn;
+$('cin').onchange=e=>{S.countIn=+e.target.value;save()};
 $('spd').onchange=e=>{S.speed=+e.target.value;save();if(api)api.playbackSpeed=S.speed};
 $('met').onchange=e=>{S.metro=e.target.checked;save();if(api)api.metronomeVolume=S.metro?1:0};
 $('loop').onchange=e=>{S.loop=e.target.checked;save();if(api)api.isLooping=S.loop};
@@ -168,14 +208,15 @@ $('vw').onchange=e=>{S.view=e.target.value;save();rerender()};
 $('zo').onclick=()=>{S.scale=Math.max(.5,+(S.scale-.1).toFixed(1));save();rerender()};
 $('zi').onclick=()=>{S.scale=Math.min(2,+(S.scale+.1).toFixed(1));save();rerender()};
 $('trk').onchange=e=>api.renderTracks([api.score.tracks[+e.target.value]]);
-document.addEventListener('keydown',e=>{if(e.code==='Space'&&api&&!/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName)){e.preventDefault();api.playPause()}});
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&api&&!/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName)){e.preventDefault();play()}});
 
 /* Páginas: ajustes e ideas */
 const show=id=>{['cfg','idp'].forEach(p=>{$(p).hidden=p!==id})};
 $('bCfg').onclick=()=>{bkText();show('cfg')};
 $('cfgX').onclick=()=>show('');
-$('lnkIdeas').onclick=()=>{show('idp');renderIdeas()};
-$('idX').onclick=()=>show('cfg');
+$('lnkIdeas').onclick=()=>{from='cfg';show('idp');renderIdeas()};
+$('bIdeas').onclick=()=>{from='';show('idp');renderIdeas()};
+$('idX').onclick=()=>show(from);
 
 /* Ideas de mejora */
 function touch(){bk.dirty++;st.set('vp_bk',bk);st.set('vp_ideas',ideas)}
