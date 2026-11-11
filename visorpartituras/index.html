@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Visor de partituras</title>
+<style>
+:root{--bg:#eef1f3;--fg:#1d2428;--card:#fff;--ac:#1f6f78;--bd:#cdd5da;--mut:#64727a}
+@media(prefers-color-scheme:dark){:root{--bg:#161c1f;--fg:#e8eef1;--card:#222b2f;--ac:#4fb3bf;--bd:#38454b;--mut:#9aabb3}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,sans-serif}
+header,.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--bd)}
+h1{font-size:1.1rem;margin:0}
+h2{font-size:1rem;margin:18px 0 6px}
+#ttl{flex:1;color:var(--mut);font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+button,select,input,textarea{font:inherit;color:inherit}
+button,select{min-height:40px;padding:0 12px;border:1px solid var(--bd);border-radius:8px;background:var(--card);cursor:pointer}
+button.p{background:var(--ac);border-color:var(--ac);color:#fff}
+button:disabled{opacity:.4;cursor:default}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+label{display:flex;align-items:center;gap:5px}
+input[type=number]{width:64px;min-height:36px;padding:0 6px;border:1px solid var(--bd);border-radius:6px;background:var(--card)}
+textarea{width:100%;min-height:90px;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card)}
+#st,#tm{font-size:.85rem;color:var(--mut)}
+#tm{margin-left:auto}
+#vp{flex:1;overflow:auto;position:relative;background:#fff;color:#000;color-scheme:light}
+#at{position:relative;padding:6px}
+#hint{padding:24px;color:#444;max-width:60ch}
+.at-cursors{position:relative}
+.at-cursor-bar{position:absolute;background:rgba(255,230,0,.25);z-index:1}
+.at-cursor-beat{position:absolute;background:rgba(31,111,120,.85);width:3px;z-index:3}
+.at-selection div{position:absolute;background:rgba(31,111,120,.14);z-index:1}
+.at-highlight *{fill:#1f6f78;stroke:#1f6f78}
+.pg{position:fixed;inset:0;background:var(--bg);overflow:auto;padding:12px 14px;z-index:5;max-width:720px;margin:auto}
+[hidden]{display:none!important}
+.bn{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px;background:var(--card);border-bottom:2px solid var(--ac)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.it{display:flex;gap:6px;align-items:flex-start;padding:8px;margin:6px 0;border:1px solid var(--bd);border-radius:8px;background:var(--card)}
+.it .tx{flex:1;white-space:pre-wrap;overflow-wrap:anywhere}
+.it.dn .tx{text-decoration:line-through;color:var(--mut)}
+.it button{min-height:36px;padding:0 9px}
+.lk{display:block;width:100%;text-align:left;margin:6px 0}
+small{color:var(--mut)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Visor de partituras</h1>
+  <span id="ttl"></span>
+  <button id="bOpen" class="p">Abrir archivo</button>
+  <button id="bCfg" aria-label="Ajustes">⚙️</button>
+</header>
+<div id="bn" class="bn" hidden>
+  <span>Conviene hacer una copia de seguridad de tus datos.</span>
+  <button id="bnY" class="p">Hacer copia</button>
+  <button id="bnN">Más tarde</button>
+</div>
+<input type="file" id="file" hidden>
+<div class="bar">
+  <button id="bPlay" disabled aria-label="Reproducir o pausar">▶</button>
+  <button id="bStop" disabled aria-label="Parar">⏹</button>
+  <label>Velocidad
+    <select id="spd">
+      <option value="0.25">25 %</option><option value="0.4">40 %</option><option value="0.5">50 %</option>
+      <option value="0.6">60 %</option><option value="0.7">70 %</option><option value="0.8">80 %</option>
+      <option value="0.9">90 %</option><option value="1">100 %</option><option value="1.2">120 %</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="met">Metrónomo</label>
+  <label><input type="checkbox" id="loop">Bucle</label>
+  <select id="vw" aria-label="Vista">
+    <option value="ScoreTab">Pentagrama y tab</option>
+    <option value="Tab">Solo tab</option>
+    <option value="Score">Solo pentagrama</option>
+  </select>
+  <button id="zo" aria-label="Reducir">A−</button>
+  <button id="zi" aria-label="Ampliar">A+</button>
+  <select id="trk" aria-label="Pista" hidden></select>
+  <span id="st">Cargando…</span>
+  <span id="tm"></span>
+</div>
+<div id="vp">
+  <div id="hint">
+    <p>Abre un archivo Guitar Pro (.gp, .gp5, .gpx…) , MusicXML (.xml, .mxl) o alphaTex (.atex, .txt) con el botón «Abrir archivo».</p>
+    <p>Con la partitura abierta puedes reproducirla, bajar la velocidad, activar el metrónomo y repetirla en bucle. Si arrastras sobre el pentagrama para marcar unos compases, el bucle debería limitarse a ese tramo.</p>
+  </div>
+  <div id="at"></div>
+</div>
+
+<section id="cfg" class="pg" hidden>
+  <div class="row"><h1 style="flex:1">Ajustes</h1><button id="cfgX">Cerrar</button></div>
+  <button id="lnkIdeas" class="lk">💡 Ideas de mejora</button>
+  <h2>Copia de seguridad</h2>
+  <div class="row"><button id="bkDl" class="p">Descargar copia (JSON)</button>
+    <label class="lk" style="width:auto"><span>Restaurar copia:</span><input type="file" id="rst" accept=".json,application/json"></label></div>
+  <small id="bkInfo"></small>
+  <div class="row"><label>Avisar si han pasado más de <input type="number" id="bm" min="1" max="24"> mes(es)</label></div>
+  <div class="row"><label>o si hay <input type="number" id="bnw" min="1" max="99"> dato(s) nuevo(s)</label></div>
+  <small>La copia incluye tus ideas y tus ajustes. Las partituras no se guardan: hay que abrirlas desde el dispositivo cada vez.</small>
+</section>
+
+<section id="idp" class="pg" hidden>
+  <div class="row"><h1 style="flex:1">Ideas de mejora</h1><button id="idX">Volver</button></div>
+  <textarea id="idt" placeholder="Escribe una idea. Puedes usar varias líneas."></textarea>
+  <div class="row">
+    <button id="idAdd" class="p">Añadir idea</button>
+    <select id="idf"><option value="p">Pendientes</option><option value="h">Implementadas</option><option value="t">Todas</option></select>
+  </div>
+  <div id="idl"></div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.4.3/dist/alphaTab.min.js"></script>
+<script>
+const BASE='https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.4.3/dist/';
+const $=i=>document.getElementById(i);
+const st={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let S=Object.assign({view:'ScoreTab',speed:1,scale:1,metro:false,loop:false,bkMonths:1,bkNew:1},st.get('vp_set',{}));
+let ideas=st.get('vp_ideas',[]),bk=st.get('vp_bk',{last:0,dirty:0}),api=null,ready=false,loaded=false,editId=null,filt='p';
+const save=()=>st.set('vp_set',S);
+const status=t=>{$('st').textContent=t};
+const fmt=ms=>{const s=Math.round(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const profile=()=>{const P=alphaTab.StaveProfile;return({ScoreTab:P.ScoreTab,Tab:P.Tab,Score:P.Score})[S.view]};
+const upd=()=>{$('bPlay').disabled=$('bStop').disabled=!(ready&&loaded)};
+function applyPlayer(){api.playbackSpeed=S.speed;api.isLooping=S.loop;api.metronomeVolume=S.metro?1:0}
+
+function initAT(){
+  if(!window.alphaTab){status('No se pudo cargar alphaTab: hace falta conexión a internet.');return}
+  api=new alphaTab.AlphaTabApi($('at'),{
+    core:{fontDirectory:BASE+'font/'},
+    display:{staveProfile:profile(),scale:S.scale},
+    player:{enablePlayer:true,soundFont:BASE+'soundfont/sonivox.sf2',scrollElement:$('vp')}
+  });
+  api.soundFontLoad.on(e=>status('Cargando sonido '+Math.round(e.loaded*100/e.total)+' %'));
+  api.playerReady.on(()=>{ready=true;applyPlayer();status('Listo');upd()});
+  api.scoreLoaded.on(sc=>{loaded=true;$('hint').hidden=true;$('ttl').textContent=[sc.title,sc.artist].filter(Boolean).join(' · ');fill(sc);upd()});
+  api.playerStateChanged.on(e=>{$('bPlay').textContent=e.state===1?'⏸':'▶'});
+  api.playerPositionChanged.on(e=>{$('tm').textContent=fmt(e.currentTime)+' / '+fmt(e.endTime)});
+  if(api.error)api.error.on(e=>status('Error: '+((e&&e.message)||e)));
+  applyPlayer();
+}
+function fill(sc){
+  const t=$('trk');t.innerHTML='';
+  sc.tracks.forEach((k,i)=>{const o=document.createElement('option');o.value=i;o.textContent=k.name||('Pista '+(i+1));t.appendChild(o)});
+  t.hidden=sc.tracks.length<2;
+}
+function rerender(){
+  if(!api)return;
+  api.settings.display.staveProfile=profile();api.settings.display.scale=S.scale;
+  api.updateSettings();api.render();
+}
+
+$('spd').value=S.speed;$('met').checked=S.metro;$('loop').checked=S.loop;$('vw').value=S.view;
+$('bOpen').onclick=()=>$('file').click();
+$('file').onchange=e=>{
+  const f=e.target.files[0];if(!f||!api)return;
+  const r=new FileReader(),tx=/\.(atex|txt)$/i.test(f.name);
+  r.onload=()=>{try{if(tx)api.tex(r.result);else if(api.load(new Uint8Array(r.result))===false)status('No se pudo leer ese archivo.')}catch(x){status('Error: '+x.message)}};
+  if(tx)r.readAsText(f);else r.readAsArrayBuffer(f);
+  e.target.value='';
+};
+$('bPlay').onclick=()=>api&&api.playPause();
+$('bStop').onclick=()=>api&&api.stop();
+$('spd').onchange=e=>{S.speed=+e.target.value;save();if(api)api.playbackSpeed=S.speed};
+$('met').onchange=e=>{S.metro=e.target.checked;save();if(api)api.metronomeVolume=S.metro?1:0};
+$('loop').onchange=e=>{S.loop=e.target.checked;save();if(api)api.isLooping=S.loop};
+$('vw').onchange=e=>{S.view=e.target.value;save();rerender()};
+$('zo').onclick=()=>{S.scale=Math.max(.5,+(S.scale-.1).toFixed(1));save();rerender()};
+$('zi').onclick=()=>{S.scale=Math.min(2,+(S.scale+.1).toFixed(1));save();rerender()};
+$('trk').onchange=e=>api.renderTracks([api.score.tracks[+e.target.value]]);
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&api&&!/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName)){e.preventDefault();api.playPause()}});
+
+/* Páginas: ajustes e ideas */
+const show=id=>{['cfg','idp'].forEach(p=>{$(p).hidden=p!==id})};
+$('bCfg').onclick=()=>{bkText();show('cfg')};
+$('cfgX').onclick=()=>show('');
+$('lnkIdeas').onclick=()=>{show('idp');renderIdeas()};
+$('idX').onclick=()=>show('cfg');
+
+/* Ideas de mejora */
+function touch(){bk.dirty++;st.set('vp_bk',bk);st.set('vp_ideas',ideas)}
+function renderIdeas(){
+  const l=$('idl');l.innerHTML='';
+  ideas.filter(i=>filt==='t'||(filt==='h'?i.done:!i.done)).forEach(i=>{
+    const d=document.createElement('div');d.className='it'+(i.done?' dn':'');
+    const p=document.createElement('div');p.className='tx';p.textContent=i.t;d.appendChild(p);
+    [['✔',i.done?'Marcar como pendiente':'Marcar como implementada',()=>{i.done=!i.done;touch();renderIdeas()}],
+     ['✏️','Editar',()=>{editId=i.id;$('idt').value=i.t;$('idAdd').textContent='Guardar cambios';$('idt').focus()}],
+     ['🗑','Borrar',()=>{if(confirm('¿Borrar esta idea?')){ideas=ideas.filter(x=>x!==i);touch();renderIdeas()}}]
+    ].forEach(([s,a,f])=>{const b=document.createElement('button');b.textContent=s;b.title=a;b.setAttribute('aria-label',a);b.onclick=f;d.appendChild(b)});
+    l.appendChild(d);
+  });
+  if(!l.children.length)l.textContent='No hay ideas en esta lista.';
+}
+$('idAdd').onclick=()=>{
+  const t=$('idt').value.trim();if(!t)return;
+  if(editId){const i=ideas.find(x=>x.id===editId);if(i)i.t=t;editId=null;$('idAdd').textContent='Añadir idea'}
+  else ideas.unshift({id:Date.now(),t,done:false});
+  $('idt').value='';touch();renderIdeas();
+};
+$('idf').onchange=e=>{filt=e.target.value;renderIdeas()};
+
+/* Copia de seguridad */
+function bkText(){
+  $('bm').value=S.bkMonths;$('bnw').value=S.bkNew;
+  $('bkInfo').textContent=bk.last?'Última copia: '+new Date(bk.last).toLocaleDateString('es-ES')+' · cambios desde entonces: '+bk.dirty:'Todavía no has hecho ninguna copia.';
+}
+function doBackup(){
+  const d={app:'visor-partituras',v:1,fecha:new Date().toISOString(),ajustes:S,ideas};
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,1)],{type:'application/json'}));
+  a.download='visor-partituras-'+d.fecha.slice(0,10)+'.json';a.click();
+  bk={last:Date.now(),dirty:0};st.set('vp_bk',bk);$('bn').hidden=true;bkText();
+}
+$('bkDl').onclick=doBackup;$('bnY').onclick=doBackup;$('bnN').onclick=()=>{$('bn').hidden=true};
+$('bm').onchange=e=>{S.bkMonths=Math.max(1,+e.target.value||1);save()};
+$('bnw').onchange=e=>{S.bkNew=Math.max(1,+e.target.value||1);save()};
+$('rst').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{
+    const d=JSON.parse(r.result);if(d.app!=='visor-partituras')throw 0;
+    if(!confirm('Se reemplazarán tus ideas y ajustes actuales. ¿Continuar?'))return;
+    ideas=d.ideas||[];Object.assign(S,d.ajustes||{});save();st.set('vp_ideas',ideas);
+    bk={last:Date.now(),dirty:0};st.set('vp_bk',bk);location.reload();
+  }catch(x){alert('Ese archivo no es una copia válida de esta app.')}};
+  r.readAsText(f);e.target.value='';
+};
+(function(){
+  const late=Date.now()-bk.last>S.bkMonths*30*864e5;
+  if(ideas.length&&(bk.dirty>=S.bkNew||late))$('bn').hidden=false;
+})();
+
+initAT();
+</script>
+</body>
+</html>
