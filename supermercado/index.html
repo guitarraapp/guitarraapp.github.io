@@ -37,8 +37,10 @@ body{padding-bottom:130px}#lbar{position:fixed;left:0;right:0;bottom:calc(60px +
 @media(prefers-color-scheme:dark){.sug button{background:#1f3a30;color:#cdeede;border-color:#2f5a49}.sug button b{color:#7be3b8}}
 body.kb #nav,body.kb #lbar{display:none}body.kb{padding-bottom:16px}
 .lnk{color:var(--ac);text-decoration:underline;cursor:pointer}.mi{width:9.5rem}
+.olab{display:block}
+details.msec{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:2px 12px;margin:8px 0}details.msec>summary{padding:10px 0;font-size:1.05rem}details.msec[open]>summary{border-bottom:1px solid var(--bd);margin-bottom:8px}
 </style></head><body>
-<h1>🛒 Mis compras <small class="mut">v13</small></h1>
+<h1>🛒 Mis compras <small class="mut">v14</small></h1>
 <div id="msg"></div>
 
 <section class="tab" id="t-panel">
@@ -47,6 +49,7 @@ body.kb #nav,body.kb #lbar{display:none}body.kb{padding-bottom:16px}
 <div id="pbody" style="display:none">
   <label class="mut">Periodo: <select id="per"></select></label>
   <label class="mut" style="display:block;margin-top:6px"><input type="checkbox" class="minc"> Incluir compras del mercado</label>
+  <label class="mut olab" style="display:none;margin-top:6px"><input type="checkbox" class="oinc"> Incluir otros comercios (tickets manuales)</label>
   <div id="kpi" class="row" style="margin-top:8px"></div>
   <div id="pnote"></div>
   <h2 style="font-size:1rem">Por categoría</h2>
@@ -73,6 +76,7 @@ body.kb #nav,body.kb #lbar{display:none}body.kb{padding-bottom:16px}
 <div id="mmbody" style="display:none">
   <h2 style="font-size:1rem">Categorías mes a mes</h2>
   <label class="mut" style="display:block;margin-bottom:6px"><input type="checkbox" class="minc"> Incluir compras del mercado</label>
+  <label class="mut olab" style="display:none;margin-bottom:6px"><input type="checkbox" class="oinc"> Incluir otros comercios (tickets manuales)</label>
   <div id="tMes" style="overflow-x:auto"></div>
 </div>
 </section>
@@ -95,8 +99,9 @@ body.kb #nav,body.kb #lbar{display:none}body.kb{padding-bottom:16px}
 </section>
 
 <section class="tab" id="t-tickets">
-<div class="pills" id="tsub"><button data-t="sup" class="on">🧾 Supermercados</button><button data-t="mer">🧺 Mercado</button></div>
+<div class="pills" id="tsub"><button data-t="sup" class="on">🧾 Supermercados</button><button data-t="mer">🧺 Mercado</button><button data-t="com">🏪 Comercios</button></div>
 <div id="tk-sup">
+<div class="row" style="margin-bottom:6px"><button class="sec" id="tmanual">✍️ Añadir un ticket a mano</button></div>
 <div id="pend"></div>
 <h2>Tickets guardados <span class="mut" id="count"></span></h2>
 <div id="list"></div>
@@ -108,6 +113,13 @@ body.kb #nav,body.kb #lbar{display:none}body.kb{padding-bottom:16px}
 <details class="card"><summary>Partidas y categorías</summary><p class="mut">Cada partida suma a la categoría que elijas en el Panel.</p><div id="mcfg"></div></details>
 <h2 style="font-size:1rem">Por mes</h2><div id="msum" style="overflow-x:auto"></div>
 <h2 style="font-size:1rem">Visitas</h2><div id="mlist"></div>
+</div>
+<div id="tk-com" style="display:none">
+<h2>Tickets manuales y otros comercios</h2>
+<p class="mut">Para compras puntuales en tiendas que no son supermercado (almazara, vinoteca, tienda online…) o para un ticket suelto de Mercadona, Lidl o Consum. Elige el comercio, crea el ticket y escribe los productos: la cantidad × el precio calcula el importe y el total solos. Después se guarda como cualquier otro ticket.</p>
+<div id="cform"></div>
+<h2 style="font-size:1rem">Mis comercios</h2>
+<div id="clist"></div>
 </div>
 </section>
 
@@ -121,8 +133,7 @@ body.kb #nav,body.kb #lbar{display:none}body.kb{padding-bottom:16px}
 
 <section class="tab" id="t-mas">
 <p style="margin:0 0 10px"><a href="#" class="lnk" id="isug">💡 Sugerencias para mejorar la aplicación</a></p>
-<div class="pills" id="sub"><button data-t="ia">🤖 IA</button><button data-t="cat">🏷️ Categorías</button><button data-t="prod">📖 Productos</button><button data-t="copia">💾 Datos</button></div>
-<div class="sub" id="s-ia">
+<details class="msec" id="s-ia" data-s="ia"><summary><b>🤖 IA</b></summary>
   <div class="card"><b>1. Analizar mi gasto</b>
     <p class="mut">Genera un resumen con datos agregados (sin tickets individuales) y el prompt de análisis. Pégalo en Gemini, ChatGPT o Claude.</p>
     <div class="row"><select id="iaper"></select><button id="iacopy">Copiar resumen para IA</button></div>
@@ -133,20 +144,19 @@ body.kb #nav,body.kb #lbar{display:none}body.kb{padding-bottom:16px}
   <div class="card"><b>3. Revisar mis categorías</b>
     <p class="mut">Envía todo el diccionario (producto, nombre legible y categoría) para que la IA compruebe si son correctas y proponga cambios o categorías nuevas. Los cambios los aplicas tú en Más → Productos.</p>
     <button id="pd">Copiar prompt de revisión de categorías</button></div>
-</div>
-<div class="sub" id="s-cat">
-  <h2>Categorías</h2>
+</details>
+<details class="msec" id="s-cat" data-s="cat"><summary><b>🏷️ Categorías</b></summary>
   <div class="row"><button id="cnew">＋ Nueva categoría</button></div>
   <p class="mut">Productos por categoría, en orden alfabético. Al <b>eliminar</b> una categoría, sus productos quedan “sin asignar” para que les pongas otra. Al <b>renombrar</b> a un nombre que ya existe, se fusionan.</p>
   <div id="cbody"></div>
-</div>
-<div class="sub" id="s-prod">
+</details>
+<details class="msec" id="s-prod" data-s="prod"><summary><b>📖 Productos <span class="mut" id="pbadge"></span></b></summary>
   <h2>Productos y categorías <span class="mut" id="dcount"></span></h2>
   <p class="mut">Pon la misma categoría a cada producto. Si dos productos (o de dos súper) tienen el mismo <b>nombre legible</b>, la app los tratará como el mismo producto.</p>
   <div class="row" style="margin-bottom:8px"><input id="dq" placeholder="Buscar producto…" style="flex:1;min-width:150px"><select id="dfil"><option value="">Todos</option><option value="sin">Solo sin categoría</option></select></div>
   <div id="dic"></div>
-</div>
-<div class="sub" id="s-copia">
+</details>
+<details class="msec" id="s-copia" data-s="copia"><summary><b>💾 Datos</b></summary>
   <p class="mut">Tus datos se guardan solo en este navegador. Nada se envía a ningún servidor.</p>
   <div id="aviso"></div>
   <div class="card"><b>Importar y exportar</b>
@@ -161,9 +171,10 @@ body.kb #nav,body.kb #lbar{display:none}body.kb{padding-bottom:16px}
   <div class="row"><button class="sec" id="restb">Restaurar copia (reemplaza todo)</button><input id="rest" type="file" accept=".json,application/json">
   <button class="sec" id="wipe" style="color:var(--err)">Borrar todos los datos</button></div>
 </details>
-</div>
+</details>
 </section>
 
+<datalist id="dlprod"></datalist>
 <div id="toast"></div>
 <nav id="nav"><button data-t="panel"><span>📊</span>Panel</button><button data-t="precios"><span>💲</span>Precios</button><button data-t="lista"><span>🛒</span>Lista</button><button data-t="tickets"><span>🧾</span>Tickets</button><button data-t="mas"><span>⋯</span>Más</button></nav>
 
@@ -226,11 +237,47 @@ function parseLidl(L){
   out.forEach(o=>{if(o._u){delete o._u;o.unidades=1;o.precio_ref=r2(o.importe+(o.descuento||0))}});
   return{fecha,hora,supermercado:'Lidl',total,lineas:out};
 }
+const AVISOS=[];
+const FRESCO=x=>{x=String(x).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+  return /\b(PLATANO|BANANA|TOMATE|MANZANA|PERA|NARANJA|MANDARINA|LIMON|UVA|MELON|SANDIA|MELOCOTON|NECTARINA|PARAGUAYO|CIRUELA|CEREZA|FRESA|FRESON|KIWI|AGUACATE|PINA|CEBOLLA|CEBOLLETA|PATATA|BONIATO|ZANAHORIA|PIMIENTO|LECHUGA|ESCAROLA|PEPINO|CALABACIN|BERENJENA|AJO|AJOS|PUERRO|COLIFLOR|BROCOLI|JUDIA|JUDIAS|CHAMPINON|CHAMPINONES|SETA|SETAS|ESPINACA|ESPINACAS|ACELGA|RABANO|REMOLACHA|REPOLLO|APIO|ESPARRAGO|ALCACHOFA|GRANADA|CAQUI|HIGO|HIGOS|MANGO|PAPAYA|LIMA|POMELO|CALABAZA|NABO|COL|BORRAJA|RUCULA|CANONIGOS|GUISANTE)\b/.test(x)
+   &&!/\b(FRITO|CONSERVA|ZUMO|MERMELADA|SALSA|SOPA|CREMA|ALMIBAR|SECO|CONGELAD|PURE|BOTE|LATA|FRASCO|KETCHUP|PASTA|BEBIDA|YOGUR|HELADO|GALLETA|BOLLO|VINAGRE|ENCURTIDO|ACEITUNA|CHIPS|SNACK|BATIDO|NECTAR|ENVASAD|TARRINA|BANDEJA)/.test(x)
+   &&!/\b\d+\s*(G|GR|KG|ML|L)\b/.test(x)};
+function parseConsum(L){
+  const A=x=>String(x).normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  let fecha,hora,total,i0=-1,i1=-1;
+  L.forEach((l,i)=>{
+    const m=l.match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}:\d{2})/);if(m&&!fecha){fecha=`${m[3]}-${m[2]}-${m[1]}`;hora=m[4]}
+    if(i0<0&&/^CANT\.?\s+ARTICULO/i.test(A(l).trim()))i0=i;
+    if(i0>=0&&i>i0){
+      if(i1<0&&/^(DNI\b|Total factura)/i.test(l.trim()))i1=i;
+      const t=l.trim().match(/^Total factura:?\s*(\d+[.,]\d{2})$/i);if(t&&total==null)total=n(t[1])}
+  });
+  if(!fecha||i0<0||i1<0||total==null)throw Error('No parece un ticket de Consum (no encuentro fecha, cabecera CANT/ARTICULO o total).');
+  // LISTA BLANCA: solo se leen las líneas entre "CANT ARTICULO PVP EUROS" y "DNI Socio-Cliente / Total factura"
+  const out=[],
+    rKG=/^(\d+[.,]\d{3})\s*kg\s*[xX*]?\s*(\d+[.,]\d{2})(?:\s*(?:EUR|€)\s*\/\s*kg)?$/i,
+    rD=/^(?:DTO\b|DESC\b|DESCUENTO|OFERTA|PROMO)[^\d]*-?\s*(\d+[.,]\d{2})\s*-?$/i,
+    rU2=/^(\d+)\s+(.+?)\s+(\d+[.,]\d{2})\s+(\d+[.,]\d{2})$/,rU1=/^(\d+)\s+(.+?)\s+(\d+[.,]\d{2})$/;
+  const mk=(nom,u,pr,imp)=>{nom=nom.toUpperCase();
+    // Consum no imprime el peso de fruta/verdura: se pone 1 kg provisional (precio/kg = importe) y se marca para avisar
+    if(u===1&&FRESCO(nom))return{producto:nom,peso_kg:1,precio_ref:imp,importe:imp,_f:1};
+    return{producto:nom,unidades:u,precio_ref:pr,importe:imp}};
+  L.slice(i0+1,i1).forEach(raw=>{const l=raw.trim();let m,o;if(!l)return;
+    if(m=l.match(rKG)){o=out[out.length-1];if(o&&o._f){delete o._f;delete o.unidades;o.peso_kg=n(m[1]);o.precio_ref=n(m[2])}return}
+    if(m=A(l).match(rD)){o=out[out.length-1];if(!o)throw Error('Descuento sin producto: '+l);o.importe=r2(o.importe-n(m[1]));o.descuento=r2((o.descuento||0)+n(m[1]));return}
+    if(m=l.match(rU2)){out.push(mk(m[2],+m[1],n(m[3]),n(m[4])));return}
+    if(m=l.match(rU1)){out.push(mk(m[2],+m[1],r2(n(m[3])/+m[1]),n(m[3])));return}
+    out.push({producto:l.toUpperCase(),unidades:1,precio_ref:0,importe:0})});   // no reconocida: se deja editable en la vista previa
+  const est=out.filter(o=>o._f);out.forEach(o=>delete o._f);
+  if(est.length)AVISOS.push(`Consum: ${est.length} línea(s) de fruta/verdura sin peso en el ticket (${est.map(o=>o.producto).join(', ')}). He puesto 1 kg provisional (precio/kg = importe); corrígelo en la vista previa si quieres.`);
+  return{fecha,hora,supermercado:'Consum',total,lineas:out};
+}
 // Registro de supermercados: para añadir otro, solo hace falta su detector y su lector
 const SUPERS={
   Lidl:{det:L=>L.slice(0,14).some(l=>/A60195278|\bL[I1l]DL\b/i.test(l)),parse:parseLidl},
-  Mercadona:{det:L=>L.some(l=>/MERCADONA/i.test(l)||/^(Cnt\.?\s+)?Descripci/i.test(l)),parse:parseMercadona}};
-const canonSup=x=>{x=String(x||'').trim();return Object.keys(SUPERS).find(k=>new RegExp(k,'i').test(x))||x};
+  Mercadona:{det:L=>L.some(l=>/MERCADONA/i.test(l)||/^(Cnt\.?\s+)?Descripci/i.test(l)),parse:parseMercadona},
+  Consum:{det:L=>L.slice(0,12).some(l=>/^consum\b/i.test(l.trim())||/CONSUM,?\s*S\.?\s*COOP/i.test(l))||L.some(l=>/F46078986/.test(l)),re:/\bconsum\b/i,parse:parseConsum}};
+const canonSup=x=>{x=String(x||'').trim();return Object.keys(SUPERS).find(k=>(SUPERS[k].re||new RegExp(k,'i')).test(x))||x};
 function parseTicket(L){const k=Object.keys(SUPERS).find(k=>SUPERS[k].det(L));if(!k)throw Error('No reconozco el supermercado. Usa el JSON (prompt de Más → IA) indicando el supermercado.');return SUPERS[k].parse(L)}
 
 const limpia=t=>{const o={};KT.forEach(k=>{if(t[k]!=null)o[k]=t[k]});if(typeof o.total==='string')o.total=n(o.total);
@@ -241,7 +288,7 @@ const esperado=l=>{if(typeof l.precio_ref!=='number'||typeof l.importe!=='number
 function validate(d){
   const E=[],T=d&&d.tickets;
   if(!d||d.version!==1||!Array.isArray(T)||!T.length)return['Formato inválido: se espera {"version":1,"tickets":[...]}'];
-  Object.keys(d).forEach(k=>{if(!['version','tickets','diccionario','lista','ideas','categorias','notaLista','mercado','partidasMercado'].includes(k))E.push('Campo no permitido: '+k)});
+  Object.keys(d).forEach(k=>{if(!['version','tickets','diccionario','lista','ideas','categorias','notaLista','mercado','partidasMercado','comercios'].includes(k))E.push('Campo no permitido: '+k)});
   T.forEach((t,i)=>{
     const p=`Ticket ${i+1}: `;
     Object.keys(t).forEach(k=>{if(!KT.includes(k))E.push(p+'campo no permitido "'+k+'"')});
@@ -278,6 +325,7 @@ function validate(d){
   if(d.mercado!=null&&!Array.isArray(d.mercado))E.push('mercado: formato inválido');
   (Array.isArray(d.mercado)?d.mercado:[]).forEach((x,i)=>{if(!x||!/^\d{4}-\d{2}-\d{2}$/.test(x.fecha)||!Array.isArray(x.partidas)||x.partidas.some(p=>!p||typeof p.p!=='string'||typeof p.v!=='number')||PRIV.test(JSON.stringify(x)))E.push('Mercado: entrada '+(i+1)+' inválida')});
   if(d.partidasMercado!=null&&(!Array.isArray(d.partidasMercado)||d.partidasMercado.some(p=>!p||typeof p.p!=='string'||typeof p.c!=='string')))E.push('partidasMercado: formato inválido');
+  if(d.comercios!=null&&(!Array.isArray(d.comercios)||d.comercios.some(c=>typeof c!=='string'||!c||c.length>60||PRIV.test(c))))E.push('comercios: formato inválido');
   return E;
 }
 const huella=t=>[t.fecha,t.hora||'',t.supermercado,t.total.toFixed(2),t.lineas.length].join('|');
@@ -356,37 +404,44 @@ async function pdfLines(file){
 // ---------- UI ----------
 const $=id=>document.getElementById(id),eur=x=>x.toFixed(2).replace('.',',')+' €';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let pending=[],pdic=[],pex={lista:[],ideas:[],cats:[],mer:[],nota:''};
-const rex=()=>pex={lista:[],ideas:[],cats:[],mer:[],nota:''};
+let pending=[],pdic=[],pex={lista:[],ideas:[],cats:[],mer:[],com:[],nota:''};
+const rex=()=>pex={lista:[],ideas:[],cats:[],mer:[],com:[],nota:''};
 const say=(h,c='')=>{$('msg').innerHTML=`<div class="card ${c}">${h}</div>`;scrollTo(0,0)};
 let tt;const toast=(m,c)=>{const e=$('toast');e.textContent=m;e.className=c||'';e.style.display='block';clearTimeout(tt);tt=setTimeout(()=>e.style.display='none',3500)};
 
 $('file').onchange=async e=>{
-  const errs=[],ok=[];pdic=[];rex();
+  const errs=[],ok=[];pdic=[];rex();AVISOS.length=0;
   for(const f of e.target.files){
     try{
       let d;
       if(/\.pdf$/i.test(f.name)){d={version:1,tickets:[parseTicket(await pdfLines(f))]}}
       else d=JSON.parse(await f.text());
       const E=validate(d);
-      if(E.length&&!editable(d,E))errs.push(`<b>${esc(f.name)}</b><br>`+E.map(esc).join('<br>'));else{if(E.length)d.tickets=d.tickets.map(limpia);d.tickets.forEach(t=>t.supermercado=canonSup(t.supermercado));ok.push(...d.tickets);pdic.push(...(d.diccionario||[]));pex.lista.push(...(d.lista||[]));pex.ideas.push(...(d.ideas||[]));pex.cats.push(...(d.categorias||[]));pex.mer.push(...(d.mercado||[]));if(d.notaLista)pex.nota=(pex.nota?pex.nota+'\n':'')+d.notaLista}
+      if(E.length&&!editable(d,E))errs.push(`<b>${esc(f.name)}</b><br>`+E.map(esc).join('<br>'));else{if(E.length)d.tickets=d.tickets.map(limpia);d.tickets.forEach(t=>t.supermercado=canonSup(t.supermercado));ok.push(...d.tickets);pdic.push(...(d.diccionario||[]));pex.lista.push(...(d.lista||[]));pex.ideas.push(...(d.ideas||[]));pex.cats.push(...(d.categorias||[]));pex.mer.push(...(d.mercado||[]));pex.com.push(...(d.comercios||[]));if(d.notaLista)pex.nota=(pex.nota?pex.nota+'\n':'')+d.notaLista}
     }catch(x){errs.push(`<b>${esc(f.name)}</b><br>${esc(x.message)}`)}
   }
   e.target.value='';pending=ok;
-  say(errs.length?errs.join('<hr>'):(ok.some(t=>validate({version:1,tickets:[t]}).length)?'Algún ticket no cuadra: corrígelo abajo (todo es editable) y se activará Guardar.':'Revisa la vista previa y pulsa Guardar.'),errs.length?'err':'ok');
+  say(errs.length?errs.join('<hr>'):(ok.some(t=>validate({version:1,tickets:[t]}).length)?'Algún ticket no cuadra: corrígelo abajo (todo es editable) y se activará Guardar.':'Revisa la vista previa y pulsa Guardar.')+(!errs.length&&AVISOS.length?'<br>'+AVISOS.map(esc).join('<br>'):''),errs.length?'err':'ok');
   preview();tsub('sup');tab('tickets');
 };
 function preview(){
   if(!pending.length){$('pend').innerHTML='';return}
   $('pend').innerHTML=`<h2>Vista previa (${pending.length})</h2>`+(pdic.length||pex.mer.length||pex.ideas.length||pex.lista.length||pex.cats.length?`<p class="mut">Además se fusionarán: ${pdic.length} entradas de diccionario, ${pex.ideas.length} ideas, ${pex.lista.length} productos de lista y ${pex.cats.length} categorías y ${pex.mer.length} visitas al mercado. Se añade lo nuevo y se completan campos vacíos; no se pisa nada que ya tengas.</p>`:'')+pending.map((t,i)=>editHTML(t,i)).join('')+
    `<div class="row"><button id="save">Guardar ${pending.length} ticket(s)</button><button class="sec" id="drop">Descartar</button></div>`;
-  $('save').onclick=async()=>{pending.forEach(t=>t.supermercado=canonSup(t.supermercado));const r=await addTickets(pending),dr=await addDic(pdic),ex=await addExtras();pending=[];pdic=[];rex();preview();
-    say(`Tickets: ${r.add} añadidos, ${r.upd} con textos editados recogidos, ${r.dup} duplicados ignorados.<br>Diccionario: ${dr.add} nuevas, ${dr.upd} completadas${dr.conf?`, ${dr.conf} con un valor distinto al tuyo (no se han pisado)`:''}.<br>Ideas: ${ex.i} nuevas · Lista: ${ex.l} nuevos · Categorías: ${ex.c} nuevas · Mercado: ${ex.m} visitas nuevas.`,r.dup||dr.conf?'warn':'ok');render()};
+  $('save').onclick=async()=>{pending.forEach(t=>{if(!MAN.has(t))t.supermercado=canonSup(t.supermercado)});
+    const prev=new Set((await all()).flatMap(t=>t.lineas.map(l=>l.producto))),ids=pending.map(huella),nuevos=[...new Set(pending.flatMap(t=>t.lineas.map(l=>l.producto)).filter(p=>p&&!prev.has(p)))];
+    const r=await addTickets(pending),dr=await addDic(pdic),ex=await addExtras();
+    if(r.add){await put('cfg',{k:'ult',v:{ids,nuevos,f:new Date().toISOString()}});PMODE=null}
+    const dd=new Set((await allDic()).filter(x=>x.categoria).map(x=>x.producto)),sinCat=nuevos.filter(p=>!dd.has(p));
+    pending=[];pdic=[];rex();preview();
+    say(`Tickets: ${r.add} añadidos, ${r.upd} con textos editados recogidos, ${r.dup} duplicados ignorados.<br>Diccionario: ${dr.add} nuevas, ${dr.upd} completadas${dr.conf?`, ${dr.conf} con un valor distinto al tuyo (no se han pisado)`:''}.<br>Ideas: ${ex.i} nuevas · Lista: ${ex.l} nuevos · Categorías: ${ex.c} nuevas · Mercado: ${ex.m} visitas nuevas.`+(r.add&&sinCat.length?`<p style="margin:8px 0 0"><button id="goprod">Clasificar ${sinCat.length} producto(s) nuevo(s)</button></p>`:''),r.dup||dr.conf?'warn':'ok');
+  const g=$('goprod');if(g)g.onclick=()=>{tab('mas');$('s-prod').open=true;sub('prod')};
+  render()};
   $('drop').onclick=()=>{pending=[];pdic=[];rex();preview();say('Descartado.')};estado();
 }
 const nv=x=>x==null?'':String(x).replace('.',','),ei=(i,j,f,v)=>`<input data-t="${i}"${j!=null?` data-j="${j}"`:''} data-f="${f}" value="${esc(nv(v))}" inputmode="decimal">`;
-const editHTML=(t,i)=>`<div class="card"><div class="row"><input type="date" data-t="${i}" data-f="fecha" value="${esc(t.fecha||'')}"><input type="time" data-t="${i}" data-f="hora" value="${esc(t.hora||'')}"><input data-t="${i}" data-f="supermercado" value="${esc(t.supermercado||'')}" style="width:7rem"><label class="mut">Total ${ei(i,null,'total',t.total).replace('>',' style="width:5rem">')}</label></div><div id="st${i}"></div>`+
- t.lineas.map((l,j)=>`<div class="el" data-r="${i}-${j}"><input class="pn" data-t="${i}" data-j="${j}" data-f="producto" value="${esc(l.producto||'')}" placeholder="Producto"><div class="row"><label class="mut">${l.peso_kg!=null?'kg':'uds'}<br>${ei(i,j,'cant',l.peso_kg!=null?l.peso_kg:l.unidades)}</label><label class="mut">precio<br>${ei(i,j,'precio_ref',l.precio_ref)}</label><label class="mut">importe<br>${ei(i,j,'importe',l.importe)}</label><label class="mut">dto.<br>${ei(i,j,'dto',l.descuento)}</label><button class="sec dl" data-t="${i}" data-j="${j}">✕</button></div></div>`).join('')+`<button class="sec al" data-t="${i}" style="margin-top:6px">＋ línea</button></div>`;
+const editHTML=(t,i)=>`<div class="card"><div class="row"><input type="date" data-t="${i}" data-f="fecha" value="${esc(t.fecha||'')}"><input type="time" data-t="${i}" data-f="hora" value="${esc(t.hora||'')}">${MAN.has(t)?shopSel(t,i):`<input data-t="${i}" data-f="supermercado" value="${esc(t.supermercado||'')}" style="width:7rem">`}<label class="mut">Total ${ei(i,null,'total',t.total).replace('>',' style="width:5rem">')}</label></div><div id="st${i}"></div>`+
+ t.lineas.map((l,j)=>`<div class="el" data-r="${i}-${j}"><input class="pn" data-t="${i}" data-j="${j}" data-f="producto" value="${esc(l.producto||'')}" placeholder="Producto"${MAN.has(t)?' list="dlprod" autocomplete="off"':''}><div class="row"><label class="mut">${l.peso_kg!=null?'kg':'uds'}<br>${ei(i,j,'cant',l.peso_kg!=null?l.peso_kg:l.unidades)}</label><label class="mut">precio<br>${ei(i,j,'precio_ref',l.precio_ref)}</label><label class="mut">importe<br>${ei(i,j,'importe',l.importe)}</label><label class="mut">dto.<br>${ei(i,j,'dto',l.descuento)}</label>${MAN.has(t)?`<button class="sec tg" data-t="${i}" data-j="${j}" title="Cambiar entre unidades y kg">ud↔kg</button>`:''}<button class="sec dl" data-t="${i}" data-j="${j}">✕</button></div></div>`).join('')+`<button class="sec al" data-t="${i}" style="margin-top:6px">＋ línea</button></div>`;
 function estado(){let bad=0;pending.forEach((t,i)=>{const E=validate({version:1,tickets:[t]}).map(e=>e.replace(/^Ticket \d+: /,'')),sm=r2(t.lineas.reduce((a,l)=>a+(l.importe||0),0)),fx=[];
   t.lineas.forEach((l,j)=>{const p=esperado(l),r=document.querySelector(`[data-r="${i}-${j}"]`);if(r)r.classList.toggle('bad',p!=null);if(p!=null)fx.push(`<button class="sec fx" data-t="${i}" data-j="${j}">${esc(l.producto)}: precio → ${eur(p)}</button>`)});
   const el=$('st'+i);if(el)el.innerHTML=`<p class="${E.length?'err':'ok'}" style="margin:6px 0"><b>Suma de líneas ${eur(sm)} · total ${eur(t.total||0)} ${E.length?'✗':'✓'}</b></p>`+E.map(e=>`<div class="err mut">• ${esc(e)}</div>`).join('')+(fx.length?`<div style="margin:6px 0">Corrección de un toque: ${fx.join(' ')}</div>`:'');
@@ -394,16 +449,18 @@ function estado(){let bad=0;pending.forEach((t,i)=>{const E=validate({version:1,
 $('pend').oninput=e=>{const el=e.target,i=+el.dataset.t;if(isNaN(i)||!pending[i])return;const t=pending[i],f=el.dataset.f;
   if(el.dataset.j==null){if(f==='total')t.total=n(el.value)||0;else if(f==='hora'){if(el.value)t.hora=el.value;else delete t.hora}else t[f]=el.value}
   else{const l=t.lineas[+el.dataset.j];if(f==='producto')l.producto=el.value.toUpperCase();else if(f==='cant'){const v=n(el.value)||0;if(l.peso_kg!=null)l.peso_kg=v;else l.unidades=v}else if(f==='dto'){const v=n(el.value);if(v)l.descuento=v;else delete l.descuento}else l[f]=n(el.value)||0}
-  estado()};
+  if(MAN.has(t))manAuto(t,el,f);estado()};
 $('pend').onclick=e=>{const b=e.target.closest('button'),t=b&&pending[+b.dataset.t];if(!t)return;
   if(b.classList.contains('fx')){const l=t.lineas[+b.dataset.j];l.precio_ref=esperado(l);preview()}
-  else if(b.classList.contains('dl')){t.lineas.splice(+b.dataset.j,1);preview()}
+  else if(b.classList.contains('dl')){t.lineas.splice(+b.dataset.j,1);autoTot(t);preview()}
+  else if(b.classList.contains('tg')){const l=t.lineas[+b.dataset.j];if(l.peso_kg!=null){l.unidades=l.peso_kg;delete l.peso_kg}else{l.peso_kg=l.unidades;delete l.unidades}preview()}
   else if(b.classList.contains('al')){t.lineas.push({producto:'',unidades:1,precio_ref:0,importe:0});preview()}};
 const ticketHTML=(t,ed)=>`<details class="card"><summary><b>${t.fecha}</b> ${t.hora||''} · ${esc(t.supermercado)} · <b>${eur(t.total)}</b> <span class="mut">(${t.lineas.length} líneas)</span></summary>
 <table><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr>${t.lineas.map((l,j)=>`<tr><td>${esc(l.producto)}${l.original?` <span class="mut" title="Original: ${esc(l.original)}">(editado)</span>`:''}${ed?` <button class="sec edl" data-t="${esc(t.id)}" data-j="${j}" style="padding:0 7px">✎</button>`:''}${l.seccion?` <span class="mut">· ${esc(l.seccion)}</span>`:''}</td><td>${l.unidades!=null?l.unidades:l.peso_kg.toFixed(3)+' kg'}</td><td>${eur(l.precio_ref)}${l.peso_kg!=null?'/kg':''}</td><td>${eur(l.importe)}${l.descuento?`<br><span class="mut">dto −${eur(l.descuento)}</span>`:''}</td></tr>`).join('')}</table></details>`;
 async function render(){
   await loadCats();await loadM();
   const T=(await all()).sort((a,b)=>(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||'')));
+  $('dlprod').innerHTML=[...new Set(T.flatMap(t=>t.lineas.map(l=>l.producto)))].sort(al).map(p=>`<option value="${esc(p)}">`).join('');
   renderDic();renderLista();renderIdeas();renderCat();renderMer();$('count').textContent=T.length?`(${T.length})`:'';
   $('list').innerHTML=T.length?T.map(t=>ticketHTML(t,1)).join(''):'<p class="mut">Aún no hay tickets. Importa un PDF en Más → Datos.</p>';
 }
@@ -421,16 +478,28 @@ const SUG=[
  [/PEPINO|TOMATE|MANZ|MELOCOT|PL[AÁ]TANO|CALABAC|PIMIENTO|NARANJ|LIM[OÓ]N|CEBOLLA|ZANAH|LECHUGA|SETAS|^ESP |FRESA|GRANADA/i,'Frutas y verduras']];
 const suggest=(p,sec)=>sec&&/PESCADO/i.test(sec)?'Pescado y marisco':((SUG.find(([r])=>r.test(p))||[])[1]||'');
 
+let PMODE=null,ULT=null;
 async function renderDic(){renderPanel();renderCopia();
   const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),P={};
   T.slice().sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))).forEach(t=>t.lineas.forEach(l=>{const p=P[l.producto]=P[l.producto]||{sec:l.seccion};p.v=l.precio_ref;p.t=l.peso_kg!=null?'/kg':'/ud';p.f=t.fecha;(p.S=p.S||new Set()).add(t.supermercado)}));
   const names=Object.keys(P).sort((a,b)=>al(a,b)),unk=names.filter(p=>!(D[p]&&D[p].categoria)).length;
-  $('dcount').textContent=names.length?`(${names.length}${unk?` · ${unk} sin categoría`:''})`:'';
+  ULT=await cfgGet('ult',null);
+  const has=p=>!!(D[p]&&D[p].categoria),ids=new Set(ULT?ULT.ids:[]);
+  let LT=T.filter(t=>ids.has(huella(t)));
+  if(!LT.length&&T.length)LT=[T.slice().sort((a,b)=>(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||'')))[0]];
+  const last=new Set(LT.flatMap(t=>t.lineas.map(l=>l.producto))),nw=new Set(((ULT&&ULT.nuevos)||[]).filter(p=>P[p])),nwPend=[...nw].filter(p=>!has(p)).length;
+  if(PMODE==null)PMODE=nwPend?'nuevos':'todos';
+  if((PMODE==='nuevos'&&!nw.size)||(PMODE==='ultima'&&!last.size))PMODE='todos';
+  const vis=PMODE==='nuevos'?names.filter(p=>nw.has(p)):PMODE==='ultima'?names.filter(p=>last.has(p)):names,unkV=vis.filter(p=>!has(p)).length,
+    lt=LT.map(t=>t.fecha.slice(8)+'/'+t.fecha.slice(5,7)+' '+t.supermercado).join(', ');
+  const mb=()=>'<div class="row" style="margin:8px 0">'+[PMODE!=='todos'?`<button class="sec" data-m="todos">Ver todos (${names.length})</button>`:'',PMODE!=='ultima'&&last.size?'<button class="sec" data-m="ultima">Ver última compra</button>':'',PMODE!=='nuevos'&&nwPend?`<button class="sec" data-m="nuevos">Ver solo los nuevos (${nw.size})</button>`:''].join('')+'</div>';
+  const head=PMODE==='nuevos'?`<p class="mut">Productos nuevos de tu última importación: ${nw.size}${nwPend?` · <b>${nwPend} sin categoría</b>`:' · todos con categoría ✓'}.</p>`:PMODE==='ultima'?`<p class="mut">Productos de tu última compra (${esc(lt)}): ${last.size}.</p>`:'';
+  $('dcount').textContent=names.length?`(${names.length}${unk?` · ${unk} sin categoría`:''})`:'';$('pbadge').textContent=unk?`· ${unk} sin categoría`:'';
   const cats=catUnion(Object.values(D).map(x=>x.categoria));
-  $('dic').innerHTML=names.length?(unk?'<div class="row" style="margin-bottom:8px"><button id="acc">Guardar las sugerencias de los sin categoría</button><span class="mut">Revisa antes las que estén en blanco.</span></div>':'')+
-   '<table><tr><th>Producto en el ticket</th><th>Nombre legible</th><th>Categoría</th><th>Último precio</th></tr>'+names.map(p=>{
+  $('dic').innerHTML=names.length?(PMODE==='todos'?mb():'')+head+(unkV?'<div class="row" style="margin-bottom:8px"><button id="acc">Guardar las sugerencias de los sin categoría</button><span class="mut">Revisa antes las que estén en blanco.</span></div>':'')+
+   '<table><tr><th>Producto en el ticket</th><th>Nombre legible</th><th>Categoría</th><th>Último precio</th></tr>'+vis.map(p=>{
      const d=D[p],cd=d&&d.categoria,c=cd?d.categoria:suggest(p,P[p].sec);
-     return `<tr data-q="${esc((p+' '+[...P[p].S].join(' ')).toLowerCase())}" data-u="${cd?'':1}"${cd?'':' style="background:color-mix(in srgb,var(--warn) 15%,transparent)"'}><td>${esc(p)}</td><td><input class="nm" data-p="${esc(p)}" value="${esc(d?d.nombre:'')}" placeholder="opcional" style="width:100%"></td><td><select class="ct" data-p="${esc(p)}"><option value="">Elegir…</option>${cats.map(x=>`<option${x===c?' selected':''}>${esc(x)}</option>`).join('')}<option value="__new">+ Nueva categoría…</option></select></td><td class="mut" style="white-space:nowrap">${eur(P[p].v)}${P[p].t}<br>${P[p].f}<br>${[...P[p].S].map(esc).join(', ')}</td></tr>`}).join('')+'</table>'
+     return `<tr data-q="${esc((p+' '+[...P[p].S].join(' ')).toLowerCase())}" data-u="${cd?'':1}"${cd?'':' style="background:color-mix(in srgb,var(--warn) 15%,transparent)"'}><td>${esc(p)}</td><td><input class="nm" data-p="${esc(p)}" value="${esc(d?d.nombre:'')}" placeholder="opcional" style="width:100%"></td><td><select class="ct" data-p="${esc(p)}"><option value="">Elegir…</option>${cats.map(x=>`<option${x===c?' selected':''}>${esc(x)}</option>`).join('')}<option value="__new">+ Nueva categoría…</option></select></td><td class="mut" style="white-space:nowrap">${eur(P[p].v)}${P[p].t}<br>${P[p].f}<br>${[...P[p].S].map(esc).join(', ')}</td></tr>`}).join('')+'</table>'+(PMODE!=='todos'?mb():'')
    :'<p class="mut">Se llenará al importar tickets.</p>';fdic();
   document.querySelectorAll('#dic .ct,#dic .nm').forEach(el=>el.onchange=async()=>{
     const row=el.closest('tr');let c=row.querySelector('.ct').value;
@@ -452,7 +521,7 @@ const sorted=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);
 const tabla=(R,tot)=>'<table><tr><th></th><th>Importe</th><th>%</th></tr>'+R.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${eur(v/100)}</td><td>${(tot?v/tot*100:0).toFixed(1).replace('.',',')} %</td></tr>`).join('')+'</table>';
 $('per').onchange=()=>renderPanel();
 async function renderPanel(){renderPrecios();
-  const T=await all();
+  const T=await allT();
   $('pempty').style.display=T.length?'none':'';$('pbody').style.display=T.length?'':'none';
   if(!T.length)return;
   const D=Object.fromEntries((await allDic()).map(x=>[x.producto,x])),cur=$('per').value,ME=await list('mercado');
@@ -488,7 +557,7 @@ async function renderPrecios(){
     const ax={ticks:{color:css('--fg')},grid:{color:css('--bd')}};
     draw('cPre',{type:'line',data:{labels:sel.p.map(x=>x.fecha),datasets:[{data:sel.p.map(x=>x.v),borderColor:css('--ac'),backgroundColor:css('--ac'),tension:.2}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:ax,y:{...ax,title:{display:true,text:'€/'+sel.tipo,color:css('--fg')}}}}});
   }
-  const M=catMes(T,D);if(MINC)(await list('mercado')).forEach(e=>{const k=e.fecha.slice(0,7);if(!M.meses.includes(k))M.meses.push(k);e.partidas.forEach(p=>{const c=p.c||'Sin categoría',o=(M.cat[c]=M.cat[c]||{});o[k]=(o[k]||0)+Math.round(p.v*100)})});M.meses.sort();const ms=M.meses.slice(-6);
+  const M=catMes(OINC?T:T.filter(t=>!COMS.includes(t.supermercado)),D);if(MINC)(await list('mercado')).forEach(e=>{const k=e.fecha.slice(0,7);if(!M.meses.includes(k))M.meses.push(k);e.partidas.forEach(p=>{const c=p.c||'Sin categoría',o=(M.cat[c]=M.cat[c]||{});o[k]=(o[k]||0)+Math.round(p.v*100)})});M.meses.sort();const ms=M.meses.slice(-6);
   $('mmbody').style.display=ms.length?'':'none';
   if(ms.length){
     const lab=m=>{const[y,k]=m.split('-');return new Date(y,k-1).toLocaleDateString('es-ES',{month:'short',year:'2-digit'})},last=ms[ms.length-1],prev=ms[ms.length-2];
@@ -505,16 +574,16 @@ const meta=()=>{try{return JSON.parse(localStorage.getItem('compras_copia'))}cat
 const setMeta=m=>{try{localStorage.setItem('compras_copia',JSON.stringify(m))}catch(e){}};
 async function crearCopia(){
   const T=(await all()).map(({id,...t})=>t),D=(await allDic()).map(x=>({producto:x.producto,nombre:x.nombre,categoria:x.categoria}));
-  return{version:1,tickets:T,diccionario:D,lista:await list('lista'),ideas:await list('ideas'),mercado:await list('mercado'),partidasMercado:MPART,categorias:[...CATL],notaLista:await getNota()};
+  return{version:1,tickets:T,diccionario:D,lista:await list('lista'),ideas:await list('ideas'),mercado:await list('mercado'),partidasMercado:MPART,categorias:[...CATL],comercios:await cfgGet('coms',[]),notaLista:await getNota()};
 }
 function bajar(d,pre){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,1)],{type:'application/json'}));a.download=`${pre}-${new Date().toISOString().slice(0,10)}.json`;a.click()}
 const vaciar=async()=>{await tx('readwrite',s=>s.clear());await tx('readwrite',s=>s.clear(),'dic');await tx('readwrite',s=>s.clear(),'lista');await tx('readwrite',s=>s.clear(),'ideas');await tx('readwrite',s=>s.clear(),'mercado');await tx('readwrite',s=>s.clear(),'cfg')};
-const marcar=d=>setMeta({f:new Date().toISOString(),n:d.tickets.length,s:firma(d.tickets,d.diccionario,xi(d.ideas||[]).concat(xm(d.mercado||[])))});
+const marcar=d=>setMeta({f:new Date().toISOString(),n:d.tickets.length,s:firma(d.tickets,d.diccionario,xi(d.ideas||[]).concat(xm(d.mercado||[])).concat(xc(d.comercios)))});
 
 async function renderCopia(){
   const T=await all(),D=await allDic(),m=meta(),el=$('aviso');
   if(!T.length&&!D.length){el.innerHTML='';return}
-  const cambios=!m||m.s!==firma(T,D,xi(await list('ideas')).concat(xm(await list('mercado')))),dias=m?Math.floor((Date.now()-new Date(m.f))/864e5):0,nuevos=m?Math.max(0,T.length-m.n):T.length;
+  const cambios=!m||m.s!==firma(T,D,xi(await list('ideas')).concat(xm(await list('mercado'))).concat(xc(await cfgGet('coms',[])))),dias=m?Math.floor((Date.now()-new Date(m.f))/864e5):0,nuevos=m?Math.max(0,T.length-m.n):T.length;
   const cuando=m?(dias<1?'hoy':`hace ${dias} día${dias>1?'s':''}`):'';
   el.innerHTML=!m?`<p class="warn">⚠ Aún no has hecho ninguna copia de seguridad. Si limpias los datos del navegador, lo perderías todo.</p>`
    :cambios?`<p class="${dias>=7?'warn':'mut'}">${dias>=7?'⚠ ':''}Última copia ${cuando}. Desde entonces hay cambios sin copiar${nuevos?` (${nuevos} ticket${nuevos>1?'s':''} nuevo${nuevos>1?'s':''})`:''}.</p>`
@@ -536,7 +605,7 @@ $('rest').onchange=async e=>{
   const w=prompt(`Esta copia tiene ${r.n} tickets (${eur(r.tot/100)}) y ${r.dic} entradas de diccionario.\nAhora tienes ${a.n} tickets (${eur(a.tot/100)}).\n\nSe BORRARÁ todo lo actual y se sustituirá por la copia. Antes se descargará una copia de lo actual.\n\nEscribe REEMPLAZAR para continuar:`);
   if(w!=='REEMPLAZAR'){say('Cancelado. No se ha cambiado nada.');return}
   if(act.tickets.length)bajar(act,'copia-previa');
-  await vaciar();await addTickets(d.tickets);await addDic(d.diccionario||[]);await addLista(d.lista||[]);await addIdeas(d.ideas||[]);await addMercado(d.mercado||[]);if(d.partidasMercado)await put('cfg',{k:'mpart',v:d.partidasMercado});if(d.categorias)await put('cfg',{k:'cats',v:d.categorias});await put('cfg',{k:'lnota',v:d.notaLista||''});
+  await vaciar();await addTickets(d.tickets);await addDic(d.diccionario||[]);await addLista(d.lista||[]);await addIdeas(d.ideas||[]);await addMercado(d.mercado||[]);if(d.partidasMercado)await put('cfg',{k:'mpart',v:d.partidasMercado});if(d.comercios)await put('cfg',{k:'coms',v:d.comercios});if(d.categorias)await put('cfg',{k:'cats',v:d.categorias});await put('cfg',{k:'lnota',v:d.notaLista||''});
   const nuevo=await crearCopia(),v=resumenCopia(nuevo),ok=v.n===r.n&&v.tot===r.tot&&v.dic===r.dic;
   marcar(nuevo);
   say(ok?`✓ Restauración verificada: ${v.n} tickets, ${eur(v.tot/100)} y ${v.dic} entradas de diccionario. Coincide con la copia.`
@@ -551,7 +620,7 @@ $('wipe').onclick=async()=>{
   say('Datos borrados. Tienes la copia descargada: restáurala desde “Zona de riesgo”.','warn');
 };
 // ---------- v7: navegación, IA, lista de la compra, ideas ----------
-const VERSION=13,al=(a,b)=>a.localeCompare(b,'es'),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const VERSION=14,al=(a,b)=>a.localeCompare(b,'es'),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const put=(st,x)=>tx('readwrite',s=>s.put(x),st),del=(st,id)=>tx('readwrite',s=>s.delete(id),st),list=st=>tx('readonly',s=>s.getAll(),st);
 const xm=M=>[...M].sort((a,b)=>a.id.localeCompare(b.id)).map(x=>[x.fecha,x.partidas.map(p=>p.p+p.v).join('|')]);
 const xi=I=>[...I].sort((a,b)=>a.id.localeCompare(b.id)).map(x=>[x.texto,!!x.hecho]);
@@ -561,10 +630,10 @@ async function copiar(t){try{await navigator.clipboard.writeText(t);return true}
 const cp=async(t,m)=>{const ok=await copiar(t);toast(ok?m:'No se pudo copiar automáticamente. Selecciona el texto y cópialo a mano.',ok?'':'err')};
 const grp=(bs,ps,n)=>{document.querySelectorAll(bs).forEach(b=>b.classList.toggle('on',b.dataset.t===n));document.querySelectorAll(ps).forEach(p=>p.style.display=p.id.slice(2)===n?'':'none')};
 let cursub='ia';
-const tab=n=>{grp('#nav button','.tab',n);scrollTo(0,0);if(n!=='tickets')$('msg').innerHTML='';if(n==='lista')renderLista();if(n==='ideas'){renderIdeas();document.querySelector('#nav [data-t=mas]').classList.add('on')}if(n==='tickets')renderMer();if(n==='mas')sub(cursub);Object.values(ch).forEach(c=>c.resize())};
-const sub=n=>{cursub=n;grp('#sub button','.sub',n);if(n==='ia')renderIA();if(n==='cat')renderCat()};
+const tab=n=>{grp('#nav button','.tab',n);scrollTo(0,0);if(n!=='tickets')$('msg').innerHTML='';if(n==='lista')renderLista();if(n==='ideas'){renderIdeas();document.querySelector('#nav [data-t=mas]').classList.add('on')}if(n==='tickets')renderMer();if(n==='mas')document.querySelectorAll('#t-mas details.msec[open]').forEach(d=>sub(d.dataset.s));Object.values(ch).forEach(c=>c.resize())};
+const sub=n=>{cursub=n;if(n==='ia')renderIA();if(n==='cat')renderCat();if(n==='prod'){PMODE=null;renderDic()}};
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>tab(b.dataset.t));
-document.querySelectorAll('#sub button').forEach(b=>b.onclick=()=>sub(b.dataset.t));
+document.querySelectorAll('#t-mas details.msec').forEach(d=>d.addEventListener('toggle',()=>{if(d.open)sub(d.dataset.s)}));
 
 // ----- IA -----
 const PIA=`Actúa como analista de economía doméstica. Te paso un resumen AGREGADO de mis compras en supermercados (no incluye tickets individuales ni datos personales). Respóndeme en español, con cifras concretas del resumen y sin inventar datos que no aparezcan en él.
@@ -589,7 +658,7 @@ Reglas estrictas:
 7. Responde solo con el PDF, sin explicaciones.`;
 const PJSON=`Te adjunto la foto de un ticket de supermercado. Devuélveme SOLO un JSON válido (sin explicaciones ni bloques de markdown) con exactamente esta estructura:
 
-{"version":1,"tickets":[{"fecha":"AAAA-MM-DD","hora":"HH:MM","supermercado":"NOMBRE DEL SÚPER (Mercadona, Lidl...)","total":0.00,"lineas":[{"producto":"NOMBRE TAL CUAL EN MAYÚSCULAS","seccion":"opcional (p. ej. PESCADO)","unidades":2,"precio_ref":1.50,"importe":3.00},{"producto":"PEPINO","peso_kg":0.350,"precio_ref":1.99,"importe":0.70}]}]}
+{"version":1,"tickets":[{"fecha":"AAAA-MM-DD","hora":"HH:MM","supermercado":"NOMBRE DEL SÚPER (Mercadona, Lidl, Consum...)","total":0.00,"lineas":[{"producto":"NOMBRE TAL CUAL EN MAYÚSCULAS","seccion":"opcional (p. ej. PESCADO)","unidades":2,"precio_ref":1.50,"importe":3.00},{"producto":"PEPINO","peso_kg":0.350,"precio_ref":1.99,"importe":0.70}]}]}
 
 Reglas estrictas:
 - Cada línea lleva "unidades" (productos por unidad) O "peso_kg" (productos por peso), nunca los dos ni ninguno. Omite el que no aplique.
@@ -603,7 +672,7 @@ Reglas estrictas:
 - No incluyas datos de tarjeta, números de autorización, teléfonos ni ningún otro dato personal.
 - Si algo es ilegible, no lo adivines: dímelo fuera del JSON.`;
 async function textoIA(mes){
-  const T=await all(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x]));
+  const T=await allT(),D=Object.fromEntries((await allDic()).map(x=>[x.producto,x]));
   if(!T.length)return '';
   const R=resumen(T,D,mes),f=v=>eur(v/100),pc=(v,t)=>(t?v/t*100:0).toFixed(0)+'%',ms=Object.entries(R.m).sort(),hoy=new Date().toISOString().slice(0,7);
   const S=mes?T.filter(t=>t.fecha.startsWith(mes)):T,L=[];
@@ -760,6 +829,7 @@ async function addExtras(){
   for(const k of pex.cats)if(!CATL.includes(k)){CATL.push(k);c++}
   if(c)await saveCats();
   if(pex.nota&&!(await getNota()).trim())await put('cfg',{k:'lnota',v:pex.nota});
+  const cm=await cfgGet('coms',[]);let nc=0;for(const k of pex.com)if(!cm.includes(k)){cm.push(k);nc++}if(nc)await put('cfg',{k:'coms',v:cm});
   const m=await addMercado(pex.mer);return{i,l,c,m};
 }
 // ----- Editar texto de una línea de ticket -----
@@ -829,7 +899,8 @@ const MP0=[{p:'Verdulería',c:'Frutas y verduras'},{p:'Carnicería',c:'Carne'},{
 let MPART=MP0,MINC=true,MED=null,MENT=[],MROWS=[];
 const cfgGet=async(k,d)=>{const r=await tx('readonly',s=>s.get(k),'cfg');return r&&r.v!==undefined?r.v:d};
 const syncMinc=()=>document.querySelectorAll('.minc').forEach(c=>c.checked=MINC);
-async function loadM(){MPART=await cfgGet('mpart',MP0);MINC=await cfgGet('minc',true);syncMinc()}
+async function loadM(){MPART=await cfgGet('mpart',MP0);MINC=await cfgGet('minc',true);syncMinc();COMS=await cfgGet('coms',[]);OINC=await cfgGet('oinc',true);
+  document.querySelectorAll('.oinc').forEach(c=>c.checked=OINC);document.querySelectorAll('.olab').forEach(l=>l.style.display=COMS.length?'':'none')}
 document.querySelectorAll('.minc').forEach(c=>c.onchange=async()=>{MINC=c.checked;await put('cfg',{k:'minc',v:MINC});syncMinc();renderPanel()});
 const hoyL=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const sumar=t=>{t=String(t||'').trim();if(!t)return 0;let r=0;for(const x of t.split('+')){const v=parseFloat(x.trim().replace(',','.'));if(!isFinite(v)||v<0)return NaN;r+=v}return Math.round(r*100)/100};
@@ -841,7 +912,7 @@ async function addMercado(a){const have=new Set((await list('mercado')).map(x=>x
   for(const x of a){const id=x.id||uid();if(have.has(id))continue;await put('mercado',{id,fecha:x.fecha,partidas:x.partidas.map(p=>({p:p.p,c:p.c||'Sin categoría',v:p.v,t:p.t||''})),nota:x.nota||''});have.add(id);n++}return n}
 async function renMer(a,b){MPART=MPART.map(x=>x.c===a?{...x,c:b}:x);await put('cfg',{k:'mpart',v:MPART});
   for(const e of await list('mercado'))if(e.partidas.some(p=>p.c===a)){e.partidas.forEach(p=>{if(p.c===a)p.c=b});await put('mercado',e)}}
-function tsub(n){document.querySelectorAll('#tsub button').forEach(b=>b.classList.toggle('on',b.dataset.t===n));$('tk-sup').style.display=n==='sup'?'':'none';$('tk-mer').style.display=n==='mer'?'':'none';if(n==='mer')renderMer()}
+function tsub(n){document.querySelectorAll('#tsub button').forEach(b=>b.classList.toggle('on',b.dataset.t===n));$('tk-sup').style.display=n==='sup'?'':'none';$('tk-mer').style.display=n==='mer'?'':'none';if(n==='mer')renderMer();$('tk-com').style.display=n==='com'?'':'none';if(n==='com')renderCom()}
 document.querySelectorAll('#tsub button').forEach(b=>b.onclick=()=>tsub(b.dataset.t));
 const mvals=()=>[...document.querySelectorAll('#mform .mi')].map(el=>sumar(el.value));
 function mtot(){const v=mvals();$('mt').textContent=v.some(isNaN)?'⚠ revisa':eur(v.reduce((a,x)=>a+(x||0),0))}
@@ -885,6 +956,51 @@ $('mlist').onclick=async e=>{const b=e.target.closest('button');if(!b)return;con
   if(b.classList.contains('me')){mForm(x);scrollTo(0,0);return}
   if(b.classList.contains('md')&&confirm('¿Borrar esta visita al mercado?')){await del('mercado',x.id);await renderMer();renderPanel();renderCopia()}};
 
-grp('#sub button','.sub','ia');tab('panel');
+  // ---------- v14: otros comercios y tickets manuales ----------
+let COMS=[],OINC=true,CSEL='';
+const MAN=new WeakSet(),xc=C=>C&&C.length?[['com',...[...C].sort()]]:[];
+const horaL=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+const allT=async()=>{const T=await all();return OINC?T:T.filter(t=>!COMS.includes(t.supermercado))};
+const supNames=async()=>[...new Set([...Object.keys(SUPERS),...COMS,...(await all()).map(t=>t.supermercado)])].sort(al);
+const shopSel=(t,i)=>`<select data-t="${i}" data-f="supermercado" style="width:8.5rem">${[...new Set([...Object.keys(SUPERS),...COMS,t.supermercado])].sort(al).map(x=>`<option${x===t.supermercado?' selected':''}>${esc(x)}</option>`).join('')}</select>`;
+const autoTot=t=>{if(MAN.has(t))t.total=r2(t.lineas.reduce((a,l)=>a+(l.importe||0),0))};
+// En un ticket manual: cantidad × precio (− descuento) = importe, y el total es la suma de las líneas
+function manAuto(t,el,f){const i=el.dataset.t;if(el.dataset.j==null||f==='producto')return;
+  if(['cant','precio_ref','dto'].includes(f)){const j=el.dataset.j,l=t.lineas[j];l.importe=r2((l.peso_kg!=null?l.peso_kg:l.unidades)*l.precio_ref-(l.descuento||0));
+    const x=document.querySelector(`#pend input[data-t="${i}"][data-j="${j}"][data-f="importe"]`);if(x)x.value=nv(l.importe)}
+  autoTot(t);const y=document.querySelector(`#pend input[data-t="${i}"][data-f="total"]:not([data-j])`);if(y)y.value=nv(t.total)}
+function startManual(s,f){const t={fecha:f,hora:horaL(),supermercado:s,total:0,lineas:[{producto:'',unidades:1,precio_ref:0,importe:0}]};
+  MAN.add(t);pending.push(t);preview();tsub('sup');
+  say(`Ticket manual de <b>${esc(s)}</b>: escribe el producto, la cantidad y el precio (de cada unidad o kg). Usa <b>ud↔kg</b> si va por peso y <b>＋ línea</b> para más productos.`,'ok')}
+async function askShop(){let v=(prompt('Nombre del nuevo comercio (p. ej. Almazara El Olivar, Vinoteca Centro, tienda online…)')||'').trim().replace(/\s+/g,' ');if(!v)return '';
+  if(v.length>40){toast('Nombre demasiado largo (máx. 40 caracteres).','err');return ''}
+  if(PRIV.test(v)){toast('Ese nombre parece un dato privado.','err');return ''}
+  const c=canonSup(v);if(SUPERS[c])return c;
+  const ex=(await supNames()).find(x=>x.toLowerCase()===v.toLowerCase());if(ex)return ex;
+  COMS=[...COMS,v];await put('cfg',{k:'coms',v:COMS});document.querySelectorAll('.olab').forEach(l=>l.style.display='');return v}
+async function renderCom(){
+  const T=await all(),names=await supNames();
+  $('cform').innerHTML=`<div class="card"><b>Nuevo ticket manual</b><div class="row" style="margin-top:6px"><select id="csel" style="flex:1;min-width:0"><option value="">Elige comercio…</option>${names.map(x=>`<option${x===CSEL?' selected':''}>${esc(x)}</option>`).join('')}<option value="__new">＋ Nuevo comercio…</option></select><input type="date" id="cfe" value="${hoyL()}"></div><div class="row" style="margin-top:8px"><button id="cgo">Crear ticket</button></div></div>`;
+  const st={};T.forEach(t=>{const o=st[t.supermercado]=st[t.supermercado]||{n:0,t:0};o.n++;o.t+=Math.round(t.total*100)});
+  $('clist').innerHTML=COMS.length?[...COMS].sort(al).map(x=>{const o=st[x]||{n:0,t:0};return `<div class="card"><div class="row" style="justify-content:space-between"><b>${esc(x)}</b><span class="mut">${o.n} ticket${o.n===1?'':'s'}${o.n?' · '+eur(o.t/100):''}</span></div><div class="row" style="margin-top:6px"><button class="sec cmt" data-s="${esc(x)}">＋ Ticket</button><button class="sec cmr" data-s="${esc(x)}">Renombrar</button><button class="sec cmd" data-s="${esc(x)}">Quitar</button></div></div>`}).join(''):'<p class="mut">Aún no has creado comercios propios. Elige “＋ Nuevo comercio…” en el desplegable de arriba.</p>'}
+$('tk-com').onchange=async e=>{if(e.target.id!=='csel')return;CSEL=e.target.value;if(CSEL==='__new')CSEL=await askShop();await renderCom()};
+$('tk-com').onclick=async e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.id==='cgo'){const s=$('csel').value,f=$('cfe').value;if(!s||s==='__new'){toast('Elige un comercio.','err');return}if(!f){toast('Falta la fecha.','err');return}startManual(s,f);return}
+  const s=b.dataset.s;if(!s)return;
+  if(b.classList.contains('cmt')){startManual(s,hoyL());return}
+  const T=await all();
+  if(b.classList.contains('cmr')){const v=(prompt(`Nuevo nombre para “${s}”`,s)||'').trim().replace(/\s+/g,' ');if(!v||v===s)return;
+    if(v.length>40||PRIV.test(v)){toast('Nombre no válido.','err');return}
+    if(SUPERS[canonSup(v)]||(await supNames()).some(x=>x!==s&&x.toLowerCase()===v.toLowerCase())){toast('Ya existe un comercio con ese nombre.','err');return}
+    for(const t of T)if(t.supermercado===s){t.supermercado=v;await put('tickets',t)}
+    COMS=COMS.map(x=>x===s?v:x);await put('cfg',{k:'coms',v:COMS});if(CSEL===s)CSEL=v;await render();renderCom();toast('Comercio renombrado.')}
+  else if(b.classList.contains('cmd')){if(T.some(t=>t.supermercado===s)){toast('Tiene tickets guardados: no se puede quitar.','err');return}
+    if(!confirm(`¿Quitar “${s}” de tus comercios?`))return;COMS=COMS.filter(x=>x!==s);await put('cfg',{k:'coms',v:COMS});if(CSEL===s)CSEL='';
+    if(!COMS.length)document.querySelectorAll('.olab').forEach(l=>l.style.display='none');renderCom()}};
+document.querySelectorAll('.oinc').forEach(c=>c.onchange=async()=>{OINC=c.checked;await put('cfg',{k:'oinc',v:OINC});document.querySelectorAll('.oinc').forEach(x=>x.checked=OINC);renderPanel()});
+$('tmanual').onclick=()=>tsub('com');
+$('dic').onclick=e=>{const b=e.target.closest('button[data-m]');if(!b)return;PMODE=b.dataset.m;renderDic()};
+
+tab('panel');
 render();
 </script></body></html>
