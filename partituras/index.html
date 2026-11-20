@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Editor PDF de partituras · v9.0</title>
+<title>Editor PDF de partituras · v10.0</title>
 <style>
   :root {
     --bg: #f3f5f4; --panel: #ffffff; --panel-2: #f7f9f8; --border: #dce4e0;
@@ -130,7 +130,7 @@
 
   #stageFrame { position: relative; width: 1px; height: 1px; margin: 18px auto 48px; }
   #stage {
-    position: relative; transform: scale(var(--view-zoom, 1)); transform-origin: top center;
+    position: relative; transform: scale(var(--view-zoom, 1)); transform-origin: top left;
     margin: 0; width: fit-content; max-width: calc(100vw - 32px);
     background: #fff; box-shadow: var(--shadow); border: 1px solid #d9dfdc;
   }
@@ -380,7 +380,7 @@
 
 <div id="toolbar">
   <div class="group">
-    <span class="group-label">Partitura · v9.0</span>
+    <span class="group-label">Partitura · v10.0</span>
     <button id="openLibraryBtn" title="Abrir biblioteca local guardada en este navegador">Biblioteca</button>
     <button id="quickSaveLibraryBtn" title="Guardar o actualizar esta partitura en tu biblioteca local">+ Guardar en bibl.</button>
     <button id="openPdfBtn">Abrir PDF</button>
@@ -429,6 +429,21 @@
     <button class="finger-btn" data-finger="3">3</button>
     <button class="finger-btn" data-finger="4">4</button>
     <button id="insertLoop">Bucle</button>
+    <select id="techSymbolSelect" title="Insertar símbolo o marca de técnica guitarrística">
+      <option value="">Técnica ▾</option>
+      <option value="H">H (Hammer-on)</option>
+      <option value="P">P (Pull-off)</option>
+      <option value="sl.">sl. (Slide)</option>
+      <option value="~~~">~~~ (Vibrato)</option>
+      <option value="Arm. ◇">Arm. ◇ (Armónico)</option>
+      <option value="↓">↓ (Rasgueo abajo)</option>
+      <option value="↑">↑ (Rasgueo arriba)</option>
+      <option value="C.II">C.II (Cejilla traste 2)</option>
+      <option value="C.V">C.V (Cejilla traste 5)</option>
+      <option value="Intro">Intro</option>
+      <option value="Estribillo">Estribillo</option>
+      <option value="Solo">Solo</option>
+    </select>
   </div>
 
   <div class="group edit-only">
@@ -451,13 +466,29 @@
   </div>
 </div>
 
-<!-- Barra exclusiva del Modo Practicar (v8.0) -->
+<!-- Barra exclusiva del Modo Practicar (v10.0) -->
 <div id="practiceBar">
   <div class="group">
     <span class="group-label">Práctica</span>
     <button id="practicePlayBtn" class="btn-primary">▶ Practicar</button>
     <button id="practiceStopBtn">⏹ Reiniciar</button>
     <span id="practiceBeatReadout" class="meta-inline">Listo</span>
+  </div>
+
+  <div class="group">
+    <span class="group-label">Bucle estudio</span>
+    <button id="practiceLoopBtn" title="Activar/desactivar bucle de aprendizaje sobre los compases elegidos (clic en cualquier compás para elegir inicio)">🔁 Bucle: No</button>
+    <label title="Número de compases que componen el bucle de estudio">Comp.
+      <input type="number" id="practiceLoopCount" value="1" min="1" max="32">
+    </label>
+    <label title="Subida automática de BPM tras completar cada vuelta del bucle (+0 = tempo fijo)">+BPM
+      <select id="practiceProgBpm">
+        <option value="0" selected>+0</option>
+        <option value="2">+2</option>
+        <option value="4">+4</option>
+        <option value="6">+6</option>
+      </select>
+    </label>
   </div>
 
   <div class="group">
@@ -504,6 +535,7 @@
   <div class="group">
     <span class="group-label">Sistemas</span>
     <button id="toggleCalibrateBtn">Calibrar sistemas</button>
+    <button id="autoDetectSystemsBtn" title="Detectar automáticamente los pentagramas/tablaturas de esta página">Detectar sistemas</button>
     <button id="duplicateLastSysBtn" title="Duplicar el último sistema debajo">Duplicar abajo</button>
     <button id="autoOrderSystemsBtn" title="Reordenar las cajas de esta página de izquierda a derecha y de arriba a abajo">Auto-ordenar pág.</button>
     <button id="clearPageSystemsBtn" class="btn-danger" title="Borrar sistemas calibrados de esta página">Limpiar pág.</button>
@@ -514,6 +546,7 @@
 <div id="fullscreenHud">
   <button id="fsPlayBtn" class="primary">▶ Practicar</button>
   <button id="fsStopBtn">⏹</button>
+  <button id="fsLoopBtn">🔁 Bucle: No</button>
   <span id="fsReadout">Listo</span>
   <button id="fsPedalPrev">‹ Pedal</button>
   <button id="fsPedalNext">Pedal ›</button>
@@ -650,7 +683,7 @@
       <button class="modal-tab active" data-settings-tab="score" role="tab" aria-selected="true">Partitura actual</button>
       <button class="modal-tab" data-settings-tab="practice" role="tab" aria-selected="false">Práctica y pedal</button>
       <button class="modal-tab" data-settings-tab="prefs" role="tab" aria-selected="false">Estilos y calidad</button>
-      <button class="modal-tab" data-settings-tab="help" role="tab" aria-selected="false">Ayuda (v9.0)</button>
+      <button class="modal-tab" data-settings-tab="help" role="tab" aria-selected="false">Ayuda (v10.0)</button>
     </div>
 
     <div class="modal-body">
@@ -756,37 +789,23 @@
       <!-- Tab 4: Ayuda -->
       <div id="tab-help" class="settings-tab-panel" style="display:none;">
         <div class="help-block">
-          <h4>Novedades de la versión v9.0</h4>
+          <h4>Novedades de la versión v10.0</h4>
           <ul>
-            <li><strong>Biblioteca personal local (IndexedDB):</strong> guarda tus partituras completas en el navegador con <em>Biblioteca</em> o <em>+ Guardar en bibl.</em>, busca por título o etiquetas, marca favoritas ★ y exporta/importa copias de seguridad en JSON.</li>
-            <li><strong>Herramienta <em>Añadir espacio</em>:</strong> selecciona <strong>Añadir espacio</strong> en <em>Dibujo</em>, haz clic entre dos líneas y arrastra hacia abajo. Abre hueco blanco limpio en el PDF y desplaza automáticamente todas las anotaciones y sistemas calibrados inferiores (reversible con <span class="kbd">Ctrl/Cmd+Z</span>).</li>
-            <li><strong>Exportación PDF vectorial híbrida:</strong> en <em>Ajustes → Estilos y calidad</em> puedes exportar conservando los vectores nítidos del PDF original en páginas sin recortes ni espacios añadidos, con archivos mucho más ligeros.</li>
-            <li><strong>Correcciones clave de estudio y acordes:</strong>
-              <ul>
-                <li><strong>Editor de acordes:</strong> cambiar el traste inicial o nº de trastes ya no borra los puntos ni las cejillas (desplaza la forma manteniendo tus posiciones); el número de traste ahora es más grande y en negrita.</li>
-                <li><strong>Orden y numeración continua de compases:</strong> las cajas de una misma línea ya se ordenan siempre de izquierda a derecha, la numeración de sistemas y compases es continua entre páginas, y puedes cambiar el <em>Orden pág.</em> o editar los compases sin que se reinicie.</li>
-                <li><strong>Casillas de repetición (1., 2., 3.) y saltos:</strong> planificador completo verificado para <code>|: :|</code>, casillas <code>1./2./3.</code> (de 1 o varios compases), <code>D.C. al Fine</code>, <code>D.C. al Coda</code>, <code>D.S. al Fine</code> y <code>D.S. al Coda</code>.</li>
-                <li><strong>Avance automático en reproducción:</strong> ahora desplaza la página suavemente al cambiar de línea tanto en <em>Página completa</em> como <em>Por tramos</em> y pasa automáticamente a la página siguiente sin bloqueos.</li>
-              </ul>
-            </li>
+            <li><strong>Bucle de estudio (1 o varios compases):</strong> en <em>Modo Practicar</em> (sin calibrar), haz <strong>clic sobre cualquier compás</strong> para fijarlo como inicio y activa <strong>🔁 Bucle</strong> indicando el número de compases del ciclo (por defecto <code>1</code>). Al terminar el último compás del ciclo repite automáticamente desde el seleccionado.</li>
+            <li><strong>Metrónomo progresivo opcional y control en vivo del tempo:</strong> puedes cambiar el <strong>BPM</strong> sobre la marcha durante el bucle o elegir <strong>+BPM</strong> (<code>+2</code>, <code>+4</code>, <code>+6</code>) para ir subiendo la velocidad en cada vuelta.</li>
+            <li><strong>Detección asistida de sistemas:</strong> pulsa <strong>Detectar sistemas</strong> en la barra de práctica para proponer automáticamente las cajas sobre los pentagramas/tablaturas de la página actual y luego afinar compases y signos.</li>
+            <li><strong>Símbolos rápidos de técnica guitarrística:</strong> el selector <strong>Técnica ▾</strong> (en <em>Insertar</em>) permite colocar con un clic marcas como <code>H</code>, <code>P</code>, <code>sl.</code>, <code>~~~</code>, <code>Arm. ◇</code>, <code>↑/↓</code>, <code>C.II</code>, <code>Intro</code> o <code>Solo</code>.</li>
+            <li><strong>Zoom centrado al reducir o ampliar:</strong> al pulsar <code>−</code> o <code>+</code> el documento permanece siempre centrado en pantalla.</li>
           </ul>
         </div>
 
         <div class="help-block">
-          <h4>Cómo programar una estructura musical (ejemplos)</h4>
+          <h4>Funciones clave (v5 – v9)</h4>
           <ul>
-            <li><strong>Repetición con 1.ª y 2.ª casilla:</strong> marca <code>|:</code> en el compás inicial, <code>1.</code> y <code>:|</code> en la 1.ª vuelta (si ocupa varios compases, marca <code>1.</code> al inicio y <code>:|</code> al final de la 1.ª vuelta) y <code>2.</code> en el primer compás de la 2.ª vuelta.</li>
-            <li><strong>D.S. al Coda:</strong> marca <code>𝄋 Segno</code> donde debe volver, <code>Al ⊕</code> donde saltará en la 2.ª pasada, <code>D.S.</code> al final de la sección y <code>⊕ Coda</code> en el primer compás de la coda.</li>
-            <li><strong>D.C. al Fine:</strong> marca <code>Fine</code> en el compás donde termina la obra y <code>D.C.</code> en el compás desde el que vuelve al principio.</li>
-          </ul>
-        </div>
-
-        <div class="help-block">
-          <h4>Funciones de edición (v5 – v8)</h4>
-          <ul>
-            <li><strong>Capas y colocación de acordes:</strong> los huecos y recortes de <em>Cortar y mover</em> quedan siempre debajo de acordes, dedos y textos. En el editor de acordes, <em>Colocar en partitura</em> ubica el diagrama donde hagas clic; los puntos ciclan negro → hueco → vacío, las cejillas se ponen arrastrando o se quitan clicando encima, y puedes dejar el nombre vacío (sin <code>?</code>) con 1–15 trastes.</li>
-            <li><strong>Cuenta atrás, pedal y pantalla completa:</strong> configura 0, 1 o 2 compases previos de metrónomo en <em>Cuenta</em>, conecta pedal USB/Bluetooth y pulsa <strong>⛶ Pantalla completa</strong>.</li>
-            <li><strong>Etiquetas de bucle enlazables + PDF:</strong> configura la URL en <em>Ajustes → Partitura actual</em>. En <em>Modo Practicar</em> se abren con 1 clic; en <em>Modo Editar</em> con <span class="kbd">Ctrl/Cmd</span>+clic; y al exportar a PDF se incrustan como enlaces clicables.</li>
+            <li><strong>Biblioteca personal local (IndexedDB):</strong> guarda y organiza tus partituras completas en el navegador con <em>Biblioteca</em> o <em>+ Guardar en bibl.</em>, con búsqueda, favoritas ★ y copias JSON.</li>
+            <li><strong>Añadir espacio y Exportación PDF vectorial híbrida:</strong> abre huecos blancos entre líneas desplazando anotaciones y sistemas (herramienta <em>Añadir espacio</em>) y exporta PDFs nítidos y ligeros conservando vectores originales.</li>
+            <li><strong>Signos musicales completos y orden continuo:</strong> repeticiones <code>|: :|</code>, casillas <code>1./2./3.</code>, <code>𝄋 Segno</code>, <code>Al ⊕</code>, <code>⊕ Coda</code>, <code>D.C.</code>, <code>D.S.</code>, <code>Fine</code>, numeración continua entre páginas, cuenta atrás <code>0–2</code> compases, pedal y <strong>⛶ Pantalla completa</strong>.</li>
+            <li><strong>Acordes y bucles web/PDF:</strong> puntos negro → hueco → vacío, cejillas por arrastre, traste inicial sin pérdida de puntos, <code>1–15</code> trastes y etiquetas de bucle con URL clicable en el PDF exportado.</li>
           </ul>
         </div>
 
@@ -815,7 +834,7 @@
     <button id="emptyOpenLibrary" class="primary">Abrir de mi biblioteca</button>
     <button id="emptyOpenPdf">Abrir PDF</button>
     <button id="emptyOpenProject">Abrir editable (.scoreproj)</button>
-    <button id="emptyOpenHelp">Ver ayuda v9.0</button>
+    <button id="emptyOpenHelp">Ver ayuda v10.0</button>
   </div>
 </div>
 
@@ -864,6 +883,11 @@ const state = {
     viewMode: "full",
     advanceMode: "auto",
     pedalKey: "arrows_pagedown",
+    studyLoopEnabled: false,
+    loopCount: 1,
+    progBpmStep: 0,
+    anchorSysId: null,
+    anchorMeasureIdx: 0,
     pages: {}, // { pageNum: { systems: [...] } }
   }
 };
@@ -1237,6 +1261,11 @@ function resetPracticeStateToDefaults() {
     viewMode: "full",
     advanceMode: "auto",
     pedalKey: "arrows_pagedown",
+    studyLoopEnabled: false,
+    loopCount: 1,
+    progBpmStep: 0,
+    anchorSysId: null,
+    anchorMeasureIdx: 0,
     pages: {},
   };
   syncPracticeControlsFromState();
@@ -1346,6 +1375,8 @@ function buildCurrentProjectObject() {
         viewMode: state.practice.viewMode,
         advanceMode: state.practice.advanceMode,
         pedalKey: state.practice.pedalKey,
+        loopCount: state.practice.loopCount,
+        progBpmStep: state.practice.progBpmStep,
       },
     },
     practicePages: state.practice.pages,
@@ -1421,6 +1452,11 @@ async function loadProjectObject(project, libMeta = null) {
     viewMode: pConf.viewMode === "chunks" ? "chunks" : "full",
     advanceMode: pConf.advanceMode === "manual" ? "manual" : "auto",
     pedalKey: ["arrows_pagedown","space_next","enter_next"].includes(pConf.pedalKey) ? pConf.pedalKey : "arrows_pagedown",
+    studyLoopEnabled: false,
+    loopCount: Math.max(1, Math.min(32, Number(pConf.loopCount) || 1)),
+    progBpmStep: [0, 2, 4, 6].includes(Number(pConf.progBpmStep)) ? Number(pConf.progBpmStep) : 0,
+    anchorSysId: null,
+    anchorMeasureIdx: 0,
     pages: (project.practicePages && typeof project.practicePages === "object") ? project.practicePages : {},
   };
   syncPracticeControlsFromState();
@@ -1850,12 +1886,12 @@ document.getElementById("nextPage").addEventListener("click", async () => {
 });
 
 /* ============ MODO EDITAR / PRACTICAR Y PANTALLA COMPLETA ============ */
-let pendingFinger = null, pendingLoop = null, pendingChord = null, pendingCustomChord = null;
+let pendingFinger = null, pendingLoop = null, pendingChord = null, pendingCustomChord = null, pendingTech = null;
 function hasPendingPlacement() {
-  return Boolean(pendingFinger || pendingLoop || pendingChord || pendingCustomChord);
+  return Boolean(pendingFinger || pendingLoop || pendingChord || pendingCustomChord || pendingTech);
 }
 function clearPendingPlacement() {
-  pendingFinger = null; pendingLoop = null; pendingChord = null; pendingCustomChord = null;
+  pendingFinger = null; pendingLoop = null; pendingChord = null; pendingCustomChord = null; pendingTech = null;
   overlay.classList.remove("placing-pending");
 }
 function setPendingPlacement(setterFn, toastMsg) {
@@ -1915,7 +1951,7 @@ function setAppMode(mode) {
     chordPanel.style.display = "none";
     chordEditor.style.display = "none";
     document.getElementById("hintText").innerHTML =
-      "<strong>Modo Practicar</strong>: edición bloqueada. Pulsa <b>▶ Practicar</b> (2 comp. de preparación), <b>Calibrar sistemas</b> para marcar compases/signos o <b>⛶ Pantalla completa</b>.";
+      "<strong>Modo Practicar</strong>: haz clic en cualquier compás para fijar el inicio y activa <b>🔁 Bucle</b> (elige nº de compases). Pulsa <b>▶ Practicar</b>, <b>Calibrar sistemas</b> o <b>Detectar sistemas</b>.";
   } else {
     setPracticeFullscreen(false);
     stopPracticePlayback();
@@ -2690,6 +2726,18 @@ document.querySelectorAll(".finger-btn").forEach(btn => {
   });
 });
 
+document.getElementById("techSymbolSelect").addEventListener("change", (e) => {
+  const sym = e.target.value;
+  e.target.value = "";
+  if (!sym) return;
+  if (!state.pdfDoc) { showToast("Carga primero un PDF."); return; }
+  setTool("select");
+  setPendingPlacement(
+    () => { pendingTech = { text: sym }; },
+    `Haz clic en la partitura para colocar "${sym}" (Esc cancela)`
+  );
+});
+
 const loopModal = document.getElementById("loopModal");
 const loopInput = document.getElementById("loopInput");
 let editingLoopElement = null;
@@ -3124,6 +3172,20 @@ overlay.addEventListener("pointerdown", (evt) => {
     clearPendingPlacement(); setTool("select"); selectElement(g);
     evt.preventDefault(); evt.stopPropagation(); return;
   }
+  if (pendingTech) {
+    const fs = parseFloat(document.getElementById("fontSize").value) || 18;
+    const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t.setAttribute("x", p.x); t.setAttribute("y", p.y);
+    t.setAttribute("font-size", fs);
+    t.setAttribute("data-size", fs);
+    t.setAttribute("font-family", "sans-serif");
+    t.setAttribute("font-weight", "bold");
+    t.setAttribute("fill", document.getElementById("lineColor").value);
+    t.textContent = pendingTech.text;
+    overlay.appendChild(t); ensureOverlayLayers(); history.push({ type: "add", el: t });
+    clearPendingPlacement(); setTool("select"); selectElement(t);
+    evt.preventDefault(); evt.stopPropagation(); return;
+  }
 
   if (state.tool === "select") {
     const target = evt.target;
@@ -3366,7 +3428,7 @@ overlay.addEventListener("pointercancel", () => {
   if (drawing) { drawing.el.remove(); drawing = null; }
 }, true);
 
-/* ============ MODO PRACTICAR: ORDEN 2D, NUMERACIÓN CONTINUA, SIGNOS MUSICALES Y PANTALLA COMPLETA (v9.0) ============ */
+/* ============ MODO PRACTICAR: v10.0 (BUCLE DE ESTUDIO, ARRANQUE POR CLIC, +BPM PROGRESIVO Y DETECCIÓN ASISTIDA) ============ */
 let practiceCalibrating = false;
 let selectedSystemIdx = -1;
 let selectedMeasureIdx = -1;
@@ -3380,6 +3442,7 @@ const playback = {
   timerId: null,
   cursor: 0,
   beatIdx: 0,
+  loopLap: 1,
   countInRemaining: 0,
   countInBar: 1,
   countInBeat: 0,
@@ -3401,6 +3464,9 @@ function getPageSystemsObj(pageNum) {
   if (!Array.isArray(state.practice.pages[pageNum].systems)) {
     state.practice.pages[pageNum].systems = [];
   }
+  state.practice.pages[pageNum].systems.forEach((sys, i) => {
+    if (sys && !sys.id) sys.id = `sys-${pageNum}-${i}`;
+  });
   return state.practice.pages[pageNum];
 }
 
@@ -3528,9 +3594,25 @@ function syncPracticeControlsFromState() {
   document.getElementById("practiceViewMode").value = state.practice.viewMode;
   document.getElementById("practiceAdvanceMode").value = state.practice.advanceMode;
   document.getElementById("settingPedalMode").value = state.practice.pedalKey;
+  document.getElementById("practiceLoopCount").value = String(state.practice.loopCount || 1);
+  document.getElementById("practiceProgBpm").value = String(state.practice.progBpmStep || 0);
+
   const mBtn = document.getElementById("practiceMetronomeBtn");
   mBtn.classList.toggle("active", state.practice.metronome);
   mBtn.textContent = state.practice.metronome ? "Metrónomo: Sí" : "Metrónomo: No";
+
+  const loopActive = Boolean(state.practice.studyLoopEnabled);
+  const loopLabel = loopActive ? "🔁 Bucle: Sí" : "🔁 Bucle: No";
+  const lBtn = document.getElementById("practiceLoopBtn");
+  const fsLBtn = document.getElementById("fsLoopBtn");
+  if (lBtn) {
+    lBtn.classList.toggle("active", loopActive);
+    lBtn.textContent = loopLabel;
+  }
+  if (fsLBtn) {
+    fsLBtn.classList.toggle("primary", loopActive);
+    fsLBtn.textContent = loopLabel;
+  }
 }
 syncPracticeControlsFromState();
 
@@ -3632,7 +3714,173 @@ document.getElementById("clearPageSystemsBtn").addEventListener("click", () => {
   closeSystemPopover();
   setDirty(true);
   renderPracticeOverlay();
+  updatePracticeReadout();
   showToast("Sistemas de esta página borrados");
+});
+
+// Detección asistida de sistemas/pentagramas sobre la imagen renderizada del PDF (v10.0)
+function detectStaffSystemsOnCurrentPage() {
+  if (!bgCanvas || !bgCanvas.width || !bgCanvas.height) return [];
+  const w = bgCanvas.width;
+  const h = bgCanvas.height;
+  const imgData = bgCtx.getImageData(0, 0, w, h).data;
+  const xStart = Math.round(w * 0.025);
+  const xEnd = Math.round(w * 0.975);
+  const sampleStep = w > 1200 ? 2 : 1;
+  const sampledCols = Math.max(1, Math.floor((xEnd - xStart) / sampleStep));
+
+  const rowDarkFrac = new Float32Array(h);
+  for (let y = 0; y < h; y++) {
+    let dark = 0;
+    const rowBase = y * w * 4;
+    for (let x = xStart; x < xEnd; x += sampleStep) {
+      const idx = rowBase + x * 4;
+      const lum = (imgData[idx] * 3 + imgData[idx + 1] * 6 + imgData[idx + 2]) / 10;
+      if (lum < 195) dark++;
+    }
+    rowDarkFrac[y] = dark / sampledCols;
+  }
+
+  // Etapa 1: detectar filas correspondientes a líneas horizontales de pentagrama / tablatura
+  const staffLineRows = [];
+  for (let y = Math.round(h * 0.02); y < Math.round(h * 0.97); y++) {
+    if (rowDarkFrac[y] >= 0.30) staffLineRows.push(y);
+  }
+
+  let bands = [];
+  if (staffLineRows.length >= 3) {
+    const mergeGap = Math.max(18, Math.round(h * 0.015));
+    let cur = { top: staffLineRows[0], bottom: staffLineRows[0], lineCount: 1 };
+    for (let i = 1; i < staffLineRows.length; i++) {
+      const y = staffLineRows[i];
+      if (y - cur.bottom <= mergeGap) {
+        if (y - cur.bottom > 2) cur.lineCount++;
+        cur.bottom = y;
+      } else {
+        bands.push(cur);
+        cur = { top: y, bottom: y, lineCount: 1 };
+      }
+    }
+    bands.push(cur);
+    bands = bands.filter(b => (b.bottom - b.top) >= Math.max(14, h * 0.008));
+
+    // Detectar distribución bimodal (partitura + tablatura emparejadas) para unir solo pares cercanos
+    if (bands.length >= 3) {
+      const gaps = [];
+      for (let i = 0; i < bands.length - 1; i++) gaps.push(bands[i + 1].top - bands[i].bottom);
+      const minG = Math.min(...gaps);
+      const maxG = Math.max(...gaps);
+      if (maxG > minG * 1.65 && minG < h * 0.055) {
+        const splitThreshold = (minG + maxG) * 0.48;
+        const paired = [];
+        for (let i = 0; i < bands.length; i++) {
+          if (i < bands.length - 1 && (bands[i + 1].top - bands[i].bottom) <= splitThreshold) {
+            paired.push({ top: bands[i].top, bottom: bands[i + 1].bottom, lineCount: bands[i].lineCount + bands[i + 1].lineCount });
+            i++;
+          } else {
+            paired.push(bands[i]);
+          }
+        }
+        bands = paired;
+      }
+    }
+  }
+
+  // Etapa 2 (respaldo si el PDF tiene poco contraste de líneas): bandas densas de tinta
+  if (bands.length === 0) {
+    const minBandH = Math.max(24, Math.round(h * 0.018));
+    const minGap = Math.max(22, Math.round(h * 0.02));
+    let inBand = false;
+    let startY = 0;
+    let gapCount = 0;
+    for (let y = Math.round(h * 0.05); y < Math.round(h * 0.96); y++) {
+      if (rowDarkFrac[y] >= 0.018) {
+        if (!inBand) { inBand = true; startY = y; }
+        gapCount = 0;
+      } else if (inBand) {
+        gapCount++;
+        if (gapCount >= minGap) {
+          const endY = y - gapCount;
+          if (endY - startY >= minBandH) bands.push({ top: startY, bottom: endY });
+          inBand = false;
+        }
+      }
+    }
+    if (inBand && (h * 0.96 - startY) >= minBandH) {
+      bands.push({ top: startY, bottom: Math.round(h * 0.95) });
+    }
+  }
+
+  // Calcular márgenes horizontales reales dentro de cada banda detectada
+  const systems = [];
+  const defaultMeasures = state.lastCalibratedMeasures || 4;
+  for (let idx = 0; idx < bands.length; idx++) {
+    const b = bands[idx];
+    const spanH = b.bottom - b.top;
+    const padY = Math.max(10, Math.round(spanH * 0.24));
+    const sy = Math.max(6, b.top - padY);
+    const ey = Math.min(h - 6, b.bottom + padY);
+    let minX = xEnd, maxX = xStart;
+    for (let x = xStart; x < xEnd; x += 2) {
+      let colDark = 0;
+      for (let y = b.top; y <= b.bottom; y++) {
+        const i = (y * w + x) * 4;
+        const lum = (imgData[i] * 3 + imgData[i + 1] * 6 + imgData[i + 2]) / 10;
+        if (lum < 200) { colDark++; if (colDark >= 2) break; }
+      }
+      if (colDark >= 2) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+      }
+    }
+    const sx = minX < maxX ? Math.max(6, minX - 8) : Math.round(w * 0.05);
+    const sw = minX < maxX ? Math.min(w - sx - 6, (maxX - minX) + 16) : Math.round(w * 0.90);
+    if (sw < Math.round(w * 0.22)) continue;
+    systems.push({
+      id: `sys-${Date.now()}-${idx}-${Math.random().toString(36).slice(2,5)}`,
+      x: Math.round(sx),
+      y: Math.round(sy),
+      w: Math.round(sw),
+      h: Math.round(ey - sy),
+      measures: defaultMeasures,
+      repeatCount: 2,
+      measureMarks: {},
+    });
+  }
+  return sortSystemsReadingOrder(systems);
+}
+
+const autoDetectSystemsBtn = document.getElementById("autoDetectSystemsBtn");
+autoDetectSystemsBtn.addEventListener("click", () => {
+  if (!state.pdfDoc) return;
+  if (playback.running) stopPracticePlayback();
+  const pObj = getPageSystemsObj(state.page);
+  if (pObj.systems.length > 0 && autoDetectSystemsBtn.dataset.confirm !== "1") {
+    autoDetectSystemsBtn.dataset.confirm = "1";
+    autoDetectSystemsBtn.textContent = `¿Reemplazar ${pObj.systems.length} sist.?`;
+    clearTimeout(autoDetectSystemsBtn._timer);
+    autoDetectSystemsBtn._timer = setTimeout(() => {
+      autoDetectSystemsBtn.dataset.confirm = "";
+      autoDetectSystemsBtn.textContent = "Detectar sistemas";
+    }, 3500);
+    return;
+  }
+  autoDetectSystemsBtn.dataset.confirm = "";
+  autoDetectSystemsBtn.textContent = "Detectar sistemas";
+
+  const detected = detectStaffSystemsOnCurrentPage();
+  if (detected.length === 0) {
+    showToast("No se detectaron pentagramas claros en esta página. Puedes dibujarlos manualmente.");
+    return;
+  }
+  pObj.systems = detected;
+  pObj.manualOrder = false;
+  setDirty(true);
+  setCalibrating(true);
+  openSystemPopover(0, 0);
+  renderPracticeOverlay();
+  updatePracticeReadout();
+  showToast(`${detected.length} sistema(s) detectado(s) en la página ${state.page}`);
 });
 
 function closeSystemPopover() {
@@ -3837,6 +4085,7 @@ document.getElementById("sysDeleteBtn").addEventListener("click", () => {
   closeSystemPopover();
   setDirty(true);
   renderPracticeOverlay();
+  updatePracticeReadout();
 });
 document.getElementById("sysCloseBtn").addEventListener("click", closeSystemPopover);
 
@@ -3930,6 +4179,187 @@ function drawMeasureSymbolsSvg(NS, sys, mIdx, mx, mw, isCalibrating) {
   }
 }
 
+function buildPracticeTimeline() {
+  const items = [];
+  let globalSysNum = 0;
+  let globalMeasureNum = 0;
+  for (let p = 1; p <= state.pageCount; p++) {
+    const systems = getOrderedPageSystems(p);
+    systems.forEach((sys, sIdx) => {
+      globalSysNum++;
+      const mCount = Math.max(1, sys.measures || 4);
+      const mw = sys.w / mCount;
+      for (let m = 0; m < mCount; m++) {
+        globalMeasureNum++;
+        items.push({
+          page: p,
+          sysId: sys.id || `sys-${p}-${sIdx}`,
+          sysIdx: sIdx,
+          globalSysNum,
+          measureIdx: m,
+          globalMeasureNum,
+          x: sys.x + m * mw,
+          y: sys.y,
+          w: mw,
+          h: sys.h,
+          marks: getMeasureMarks(sys, m),
+        });
+      }
+    });
+  }
+  return items;
+}
+
+function resolveStudyAnchorIndex(rawTimeline) {
+  if (!Array.isArray(rawTimeline) || rawTimeline.length === 0) return 0;
+  if (state.practice.anchorSysId) {
+    const exact = rawTimeline.findIndex(
+      it => it.sysId === state.practice.anchorSysId && it.measureIdx === (state.practice.anchorMeasureIdx || 0)
+    );
+    if (exact >= 0) return exact;
+    const sameSys = rawTimeline.findIndex(it => it.sysId === state.practice.anchorSysId);
+    if (sameSys >= 0) return sameSys;
+  }
+  const onCurPage = rawTimeline.findIndex(it => it.page === state.page);
+  return onCurPage >= 0 ? onCurPage : 0;
+}
+
+function getStudyLoopRange(rawTimeline) {
+  if (!Array.isArray(rawTimeline) || rawTimeline.length === 0) return null;
+  const startIdx = resolveStudyAnchorIndex(rawTimeline);
+  const count = Math.max(1, Math.min(32, parseInt(state.practice.loopCount) || 1));
+  const endIdx = Math.min(rawTimeline.length - 1, startIdx + count - 1);
+  return {
+    startIdx,
+    endIdx,
+    items: rawTimeline.slice(startIdx, endIdx + 1),
+  };
+}
+
+function buildStudyLoopPlan(rawTimeline) {
+  const range = getStudyLoopRange(rawTimeline);
+  if (!range || range.items.length === 0) return [];
+  return range.items.map((item, offset) => ({
+    tlIndex: range.startIdx + offset,
+    item,
+    pass: 1,
+    jumpedReturn: false,
+    endedByFine: false,
+    inStudyLoop: true,
+  }));
+}
+
+// Compilador determinista de recorrido musical completo:
+// soporta |: :|, casillas 1./2./3. simples o de varios compases, múltiples repeticiones, D.C., D.S., Segno, Al ⊕, ⊕ Coda y Fine.
+function buildPracticePlaybackPlan(rawTimeline) {
+  if (!Array.isArray(rawTimeline) || rawTimeline.length === 0) return [];
+  const n = rawTimeline.length;
+  const effVolta = new Array(n).fill(null);
+
+  for (let i = 0; i < n; i++) {
+    const v = rawTimeline[i].marks.volta;
+    if (!v) continue;
+    effVolta[i] = v;
+    if (rawTimeline[i].marks.repeatEnd) continue;
+    // Propagar casilla de varios compases hasta el compás con :| o el inicio de otra casilla/signo
+    let hasRepeatEndAhead = false;
+    let endAt = i;
+    for (let j = i + 1; j < n; j++) {
+      const mj = rawTimeline[j].marks;
+      if (mj.volta || mj.repeatStart || mj.segno || mj.codaDest) break;
+      endAt = j;
+      if (mj.repeatEnd) { hasRepeatEndAhead = true; break; }
+      if (mj.dc || mj.ds || mj.fine || mj.toCoda) break;
+    }
+    if (hasRepeatEndAhead) {
+      for (let j = i + 1; j <= endAt; j++) effVolta[j] = v;
+    }
+  }
+
+  const plan = [];
+  const MAX_STEPS = Math.max(600, n * 16);
+  let idx = 0;
+  let pass = 1;
+  let jumpedReturn = false;
+  let repeatVisitCounts = new Map();
+
+  while (idx >= 0 && idx < n && plan.length < MAX_STEPS) {
+    const cur = rawTimeline[idx];
+    const mk = cur.marks;
+    plan.push({ tlIndex: idx, item: cur, pass, jumpedReturn, endedByFine: Boolean(mk.fine && jumpedReturn) });
+
+    if (mk.fine && jumpedReturn) break;
+
+    if (mk.toCoda && jumpedReturn) {
+      const codaIdx = rawTimeline.findIndex(it => it.marks.codaDest);
+      if (codaIdx >= 0) {
+        pass = 1;
+        repeatVisitCounts.clear();
+        idx = codaIdx;
+        continue;
+      }
+    }
+
+    if (mk.dc && !jumpedReturn) {
+      jumpedReturn = true;
+      pass = 1;
+      repeatVisitCounts.clear();
+      idx = 0;
+      continue;
+    }
+
+    if (mk.ds && !jumpedReturn) {
+      jumpedReturn = true;
+      pass = 1;
+      repeatVisitCounts.clear();
+      const segnoIdx = rawTimeline.findIndex(it => it.marks.segno);
+      idx = segnoIdx >= 0 ? segnoIdx : 0;
+      continue;
+    }
+
+    if (mk.repeatEnd) {
+      const totalPlays = Math.max(2, mk.repeatCount || 2);
+      const countSoFar = (repeatVisitCounts.get(idx) || 0) + 1;
+      if (countSoFar < totalPlays) {
+        repeatVisitCounts.set(idx, countSoFar);
+        pass = pass + 1;
+        let startIdx = idx;
+        while (startIdx > 0 && !rawTimeline[startIdx].marks.repeatStart) startIdx--;
+        if (!rawTimeline[startIdx].marks.repeatStart) startIdx = 0;
+        idx = startIdx;
+        continue;
+      }
+      // Hemos completado todas las pasadas de este :|
+      repeatVisitCounts.delete(idx);
+      pass = 1;
+    }
+
+    // Avance lineal saltando casillas que no correspondan a la vuelta actual
+    let nextIdx = idx + 1;
+    let skippedVolta = false;
+    while (nextIdx < n && effVolta[nextIdx] !== null && effVolta[nextIdx] !== pass) {
+      skippedVolta = true;
+      nextIdx++;
+    }
+    if (nextIdx >= n) break;
+
+    // Al salir de cualquier casilla hacia un compás normal (o al entrar en un nuevo |:), reiniciar contador de vueltas
+    if ((effVolta[nextIdx] === null && (effVolta[idx] !== null || skippedVolta)) || rawTimeline[nextIdx].marks.repeatStart) {
+      pass = 1;
+    }
+
+    idx = nextIdx;
+  }
+
+  return plan;
+}
+
+function buildEffectivePlaybackPlan(rawTimeline) {
+  return state.practice.studyLoopEnabled
+    ? buildStudyLoopPlan(rawTimeline)
+    : buildPracticePlaybackPlan(rawTimeline);
+}
+
 function renderPracticeOverlay() {
   practiceOverlay.innerHTML = "";
   if (state.mode !== "practice" || !state.pdfDoc) return;
@@ -3938,6 +4368,16 @@ function renderPracticeOverlay() {
   const showBoxes = practiceCalibrating;
   const { sysOffset, measureOffset } = getGlobalOffsetsForPage(state.page);
   let runningMeasures = measureOffset;
+
+  const timeline = (!showBoxes && systems.length > 0) ? buildPracticeTimeline() : null;
+  const loopRange = (timeline && state.practice.studyLoopEnabled) ? getStudyLoopRange(timeline) : null;
+  const loopSet = new Set();
+  let loopStartKey = null;
+  if (loopRange && loopRange.items.length > 0) {
+    loopRange.items.forEach(it => loopSet.add(`${it.sysId}:${it.measureIdx}`));
+    const firstLoop = loopRange.items[0];
+    loopStartKey = `${firstLoop.sysId}:${firstLoop.measureIdx}`;
+  }
 
   systems.forEach((sys, idx) => {
     const measures = Math.max(1, sys.measures || 4);
@@ -4000,6 +4440,65 @@ function renderPracticeOverlay() {
         g.appendChild(handle);
       }
       practiceOverlay.appendChild(g);
+    } else {
+      // Zonas clicables por compás para iniciar desde ahí o fijar el bucle de estudio
+      for (let m = 0; m < measures; m++) {
+        const mx = sys.x + m * mw;
+        const gNum = firstM + m;
+        const mKey = `${sys.id}:${m}`;
+        const inLoop = loopSet.has(mKey);
+        const isAnchor = state.practice.anchorSysId === sys.id && (state.practice.anchorMeasureIdx || 0) === m;
+
+        if (inLoop || isAnchor) {
+          const markRect = document.createElementNS(NS, "rect");
+          markRect.setAttribute("x", mx); markRect.setAttribute("y", sys.y);
+          markRect.setAttribute("width", mw); markRect.setAttribute("height", sys.h);
+          markRect.setAttribute("fill", inLoop ? "rgba(168, 93, 18, 0.10)" : "rgba(20, 125, 104, 0.06)");
+          markRect.setAttribute("stroke", inLoop ? "#a85d12" : "#147d68");
+          markRect.setAttribute("stroke-width", inLoop ? "2" : "1.5");
+          if (!inLoop) markRect.setAttribute("stroke-dasharray", "5 4");
+          markRect.setAttribute("pointer-events", "none");
+          practiceOverlay.appendChild(markRect);
+
+          if ((inLoop && mKey === loopStartKey) || (!state.practice.studyLoopEnabled && isAnchor)) {
+            const firstLoopItem = loopRange?.items?.[0];
+            const lastLoopItem = loopRange?.items?.[loopRange.items.length - 1];
+            const bText = inLoop
+              ? (loopRange.items.length > 1
+                  ? `🔁 c.${firstLoopItem.globalMeasureNum}–${lastLoopItem.globalMeasureNum}`
+                  : `🔁 c.${gNum}`)
+              : `▶ c.${gNum}`;
+            const bW = Math.max(46, bText.length * 6.8 + 12);
+            const bY = Math.max(2, sys.y - 17);
+            const bBg = document.createElementNS(NS, "rect");
+            bBg.setAttribute("x", mx + 2); bBg.setAttribute("y", bY);
+            bBg.setAttribute("width", bW); bBg.setAttribute("height", 16);
+            bBg.setAttribute("rx", "4");
+            bBg.setAttribute("fill", inLoop ? "#a85d12" : "#0c6654");
+            bBg.setAttribute("pointer-events", "none");
+            practiceOverlay.appendChild(bBg);
+
+            const bLbl = document.createElementNS(NS, "text");
+            bLbl.setAttribute("x", mx + 8); bLbl.setAttribute("y", bY + 11.5);
+            bLbl.setAttribute("font-size", "10.5"); bLbl.setAttribute("font-weight", "bold");
+            bLbl.setAttribute("font-family", "sans-serif"); bLbl.setAttribute("fill", "#ffffff");
+            bLbl.setAttribute("pointer-events", "none");
+            bLbl.textContent = bText;
+            practiceOverlay.appendChild(bLbl);
+          }
+        }
+
+        const hit = document.createElementNS(NS, "rect");
+        hit.setAttribute("x", mx); hit.setAttribute("y", sys.y);
+        hit.setAttribute("width", mw); hit.setAttribute("height", sys.h);
+        hit.setAttribute("fill", "transparent");
+        hit.setAttribute("pointer-events", "all");
+        hit.style.cursor = "pointer";
+        hit.dataset.anchorSysid = sys.id;
+        hit.dataset.anchorMidx = String(m);
+        hit.dataset.anchorGnum = String(gNum);
+        practiceOverlay.appendChild(hit);
+      }
     }
 
     for (let m = 0; m < measures; m++) {
@@ -4026,7 +4525,7 @@ function renderPracticeOverlay() {
         const prepRect = document.createElementNS(NS, "rect");
         prepRect.setAttribute("x", cur.x); prepRect.setAttribute("y", cur.y);
         prepRect.setAttribute("width", cur.w); prepRect.setAttribute("height", cur.h);
-        prepRect.setAttribute("fill", "rgba(168, 93, 18, 0.12)");
+        prepRect.setAttribute("fill", "rgba(168, 93, 18, 0.14)");
         prepRect.setAttribute("stroke", "#a85d12");
         prepRect.setAttribute("stroke-width", "2.5");
         prepRect.setAttribute("stroke-dasharray", "5 3");
@@ -4144,140 +4643,62 @@ practiceOverlay.addEventListener("pointerup", () => {
 });
 practiceOverlay.addEventListener("pointercancel", () => { sysDrag = null; renderPracticeOverlay(); });
 
-function buildPracticeTimeline() {
-  const items = [];
-  let globalSysNum = 0;
-  let globalMeasureNum = 0;
-  for (let p = 1; p <= state.pageCount; p++) {
-    const systems = getOrderedPageSystems(p);
-    systems.forEach((sys, sIdx) => {
-      globalSysNum++;
-      const mCount = Math.max(1, sys.measures || 4);
-      const mw = sys.w / mCount;
-      for (let m = 0; m < mCount; m++) {
-        globalMeasureNum++;
-        items.push({
-          page: p,
-          sysIdx: sIdx,
-          globalSysNum,
-          measureIdx: m,
-          globalMeasureNum,
-          x: sys.x + m * mw,
-          y: sys.y,
-          w: mw,
-          h: sys.h,
-          marks: getMeasureMarks(sys, m),
-        });
+// Clic directo en compás en Modo Practicar (priorizando enlaces web de etiquetas Lxx)
+practiceOverlay.addEventListener("click", (evt) => {
+  if (state.mode !== "practice" || practiceCalibrating || !state.pdfDoc) return;
+
+  if (state.loopTargetUrl) {
+    const pt = svgPoint(evt, overlay);
+    for (const lbl of overlay.querySelectorAll(".loop-label")) {
+      const b = getBBox(lbl);
+      if (pt.x >= b.x && pt.x <= b.x + b.width && pt.y >= b.y && pt.y <= b.y + b.height) {
+        openExternalUrl(state.loopTargetUrl);
+        evt.preventDefault(); evt.stopPropagation();
+        return;
       }
-    });
-  }
-  return items;
-}
-
-// Compilador determinista de recorrido musical completo:
-// soporta |: :|, casillas 1./2./3. simples o de varios compases, múltiples repeticiones, D.C., D.S., Segno, Al ⊕, ⊕ Coda y Fine.
-function buildPracticePlaybackPlan(rawTimeline) {
-  if (!Array.isArray(rawTimeline) || rawTimeline.length === 0) return [];
-  const n = rawTimeline.length;
-  const effVolta = new Array(n).fill(null);
-
-  for (let i = 0; i < n; i++) {
-    const v = rawTimeline[i].marks.volta;
-    if (!v) continue;
-    effVolta[i] = v;
-    if (rawTimeline[i].marks.repeatEnd) continue;
-    // Propagar casilla de varios compases hasta el compás con :| o el inicio de otra casilla/signo
-    let hasRepeatEndAhead = false;
-    let endAt = i;
-    for (let j = i + 1; j < n; j++) {
-      const mj = rawTimeline[j].marks;
-      if (mj.volta || mj.repeatStart || mj.segno || mj.codaDest) break;
-      endAt = j;
-      if (mj.repeatEnd) { hasRepeatEndAhead = true; break; }
-      if (mj.dc || mj.ds || mj.fine || mj.toCoda) break;
-    }
-    if (hasRepeatEndAhead) {
-      for (let j = i + 1; j <= endAt; j++) effVolta[j] = v;
     }
   }
 
-  const plan = [];
-  const MAX_STEPS = Math.max(600, n * 16);
-  let idx = 0;
-  let pass = 1;
-  let jumpedReturn = false;
-  let repeatVisitCounts = new Map();
+  const t = evt.target;
+  if (!t || !t.dataset || !t.dataset.anchorSysid) return;
+  const sysId = t.dataset.anchorSysid;
+  const mIdx = parseInt(t.dataset.anchorMidx, 10) || 0;
+  const gNum = parseInt(t.dataset.anchorGnum, 10) || (mIdx + 1);
 
-  while (idx >= 0 && idx < n && plan.length < MAX_STEPS) {
-    const cur = rawTimeline[idx];
-    const mk = cur.marks;
-    plan.push({ tlIndex: idx, item: cur, pass, jumpedReturn, endedByFine: Boolean(mk.fine && jumpedReturn) });
+  state.practice.anchorSysId = sysId;
+  state.practice.anchorMeasureIdx = mIdx;
+  wasPausedMidway = false;
 
-    if (mk.fine && jumpedReturn) break;
-
-    if (mk.toCoda && jumpedReturn) {
-      const codaIdx = rawTimeline.findIndex(it => it.marks.codaDest);
-      if (codaIdx >= 0) {
-        pass = 1;
-        repeatVisitCounts.clear();
-        idx = codaIdx;
-        continue;
+  if (playback.running) {
+    if (state.practice.studyLoopEnabled) {
+      rebuildActivePracticeLoop(true);
+    } else {
+      const tlIdx = playback.plan.findIndex(
+        step => step.item.sysId === sysId && step.item.measureIdx === mIdx
+      );
+      if (tlIdx >= 0) {
+        playback.cursor = tlIdx;
+        playback.beatIdx = 0;
+        playback.countInRemaining = 0;
       }
     }
-
-    if (mk.dc && !jumpedReturn) {
-      jumpedReturn = true;
-      pass = 1;
-      repeatVisitCounts.clear();
-      idx = 0;
-      continue;
-    }
-
-    if (mk.ds && !jumpedReturn) {
-      jumpedReturn = true;
-      pass = 1;
-      repeatVisitCounts.clear();
-      const segnoIdx = rawTimeline.findIndex(it => it.marks.segno);
-      idx = segnoIdx >= 0 ? segnoIdx : 0;
-      continue;
-    }
-
-    if (mk.repeatEnd) {
-      const totalPlays = Math.max(2, mk.repeatCount || 2);
-      const countSoFar = (repeatVisitCounts.get(idx) || 0) + 1;
-      if (countSoFar < totalPlays) {
-        repeatVisitCounts.set(idx, countSoFar);
-        pass = pass + 1;
-        let startIdx = idx;
-        while (startIdx > 0 && !rawTimeline[startIdx].marks.repeatStart) startIdx--;
-        if (!rawTimeline[startIdx].marks.repeatStart) startIdx = 0;
-        idx = startIdx;
-        continue;
-      }
-      // Hemos completado todas las pasadas de este :|
-      repeatVisitCounts.delete(idx);
-      pass = 1;
-    }
-
-    // Avance lineal saltando casillas que no correspondan a la vuelta actual
-    let nextIdx = idx + 1;
-    let skippedVolta = false;
-    while (nextIdx < n && effVolta[nextIdx] !== null && effVolta[nextIdx] !== pass) {
-      skippedVolta = true;
-      nextIdx++;
-    }
-    if (nextIdx >= n) break;
-
-    // Al salir de cualquier casilla hacia un compás normal (o al entrar en un nuevo |:), reiniciar contador de vueltas
-    if ((effVolta[nextIdx] === null && (effVolta[idx] !== null || skippedVolta)) || rawTimeline[nextIdx].marks.repeatStart) {
-      pass = 1;
-    }
-
-    idx = nextIdx;
   }
 
-  return plan;
-}
+  renderPracticeOverlay();
+  updatePracticeReadout();
+
+  if (state.practice.studyLoopEnabled) {
+    const tl = buildPracticeTimeline();
+    const r = getStudyLoopRange(tl);
+    if (r && r.items.length > 0) {
+      const a = r.items[0].globalMeasureNum;
+      const b = r.items[r.items.length - 1].globalMeasureNum;
+      showToast(a === b ? `Bucle fijado en compás c.${a}` : `Bucle fijado: c.${a}–c.${b} (${r.items.length} comp.)`);
+      return;
+    }
+  }
+  showToast(`Inicio fijado en compás c.${gNum}`);
+});
 
 function updatePracticeReadout() {
   const el = document.getElementById("practiceBeatReadout");
@@ -4294,11 +4715,22 @@ function updatePracticeReadout() {
   } else if (playback.running) {
     const beats = getTimeSigBeats(state.practice.timeSig);
     const step = playback.plan[playback.cursor];
+    const lapPrefix = state.practice.studyLoopEnabled ? `🔁 V${playback.loopLap || 1} · ` : "";
     if (step?.item) {
       const cur = step.item;
-      txt = `Pág. ${cur.page} · S${cur.globalSysNum} · c.${cur.globalMeasureNum} · ${playback.beatIdx + 1}/${beats}`;
+      txt = `${lapPrefix}Pág. ${cur.page} · S${cur.globalSysNum} · c.${cur.globalMeasureNum} · ${playback.beatIdx + 1}/${beats}`;
     } else {
-      txt = `Metrónomo · ${playback.beatIdx + 1}/${beats}`;
+      txt = `${lapPrefix}Metrónomo (${state.practice.bpm} BPM) · ${playback.beatIdx + 1}/${beats}`;
+    }
+  } else if (state.practice.studyLoopEnabled) {
+    const tl = buildPracticeTimeline();
+    const r = getStudyLoopRange(tl);
+    if (r && r.items.length > 0) {
+      const a = r.items[0].globalMeasureNum;
+      const b = r.items[r.items.length - 1].globalMeasureNum;
+      txt = a === b ? `🔁 Bucle c.${a}` : `🔁 Bucle c.${a}–c.${b}`;
+    } else {
+      txt = "🔁 Bucle (calibra sistemas)";
     }
   }
   el.textContent = txt;
@@ -4367,6 +4799,26 @@ async function advanceBeatTick() {
     const prevStep = playback.plan[playback.cursor];
     const nextCursor = playback.cursor + 1;
     if (nextCursor >= playback.plan.length) {
+      if (state.practice.studyLoopEnabled && playback.plan.length > 0) {
+        playback.loopLap = (playback.loopLap || 1) + 1;
+        const stepBpm = Number(state.practice.progBpmStep) || 0;
+        if (stepBpm > 0 && state.practice.bpm < 240) {
+          state.practice.bpm = Math.min(240, state.practice.bpm + stepBpm);
+          const bpmInput = document.getElementById("practiceBpm");
+          if (bpmInput) bpmInput.value = String(state.practice.bpm);
+          restartPracticeTimerIfRunning();
+        }
+        playback.cursor = 0;
+        const firstItem = playback.plan[0].item;
+        if (firstItem.page !== state.page) {
+          await renderPage(firstItem.page);
+        }
+        renderPracticeOverlay();
+        updatePracticeReadout();
+        scrollSystemIntoViewIfNeeded(firstItem, true);
+        return;
+      }
+
       const endedFine = Boolean(prevStep?.endedByFine);
       stopPracticePlayback();
       showToast(endedFine ? "Fine · Fin de la partitura" : "Fin de la práctica");
@@ -4408,16 +4860,47 @@ function syncPlayButtonsUI(isRunning, isPaused = false) {
   }
 }
 
-function startPracticePlayback(isResume = false) {
+function rebuildActivePracticeLoop(resetCursor = false) {
+  const currentStep = playback.plan[playback.cursor];
+  playback.timeline = buildPracticeTimeline();
+  playback.plan = buildEffectivePlaybackPlan(playback.timeline);
+  if (resetCursor || state.practice.studyLoopEnabled) {
+    playback.cursor = 0;
+    playback.beatIdx = 0;
+    playback.loopLap = 1;
+  } else if (currentStep?.item) {
+    const matchIdx = playback.plan.findIndex(
+      s => s.item.sysId === currentStep.item.sysId && s.item.measureIdx === currentStep.item.measureIdx
+    );
+    playback.cursor = matchIdx >= 0 ? matchIdx : 0;
+  } else {
+    playback.cursor = 0;
+  }
+  renderPracticeOverlay();
+  updatePracticeReadout();
+}
+
+async function startPracticePlayback(isResume = false) {
   if (!state.pdfDoc) return;
   if (practiceCalibrating) setCalibrating(false);
   const beats = getTimeSigBeats(state.practice.timeSig);
   if (!isResume) {
     playback.timeline = buildPracticeTimeline();
-    playback.plan = buildPracticePlaybackPlan(playback.timeline);
+    playback.plan = buildEffectivePlaybackPlan(playback.timeline);
+    playback.loopLap = 1;
     if (playback.plan.length > 0) {
-      const firstOnPage = playback.plan.findIndex(step => step.item.page === state.page);
-      playback.cursor = firstOnPage >= 0 ? firstOnPage : 0;
+      if (state.practice.studyLoopEnabled) {
+        playback.cursor = 0;
+      } else if (state.practice.anchorSysId) {
+        const anchorPos = playback.plan.findIndex(
+          s => s.item.sysId === state.practice.anchorSysId && s.item.measureIdx === (state.practice.anchorMeasureIdx || 0)
+        );
+        const onPage = playback.plan.findIndex(step => step.item.page === state.page);
+        playback.cursor = anchorPos >= 0 ? anchorPos : (onPage >= 0 ? onPage : 0);
+      } else {
+        const firstOnPage = playback.plan.findIndex(step => step.item.page === state.page);
+        playback.cursor = firstOnPage >= 0 ? firstOnPage : 0;
+      }
     } else {
       playback.cursor = 0;
     }
@@ -4432,8 +4915,13 @@ function startPracticePlayback(isResume = false) {
   syncPlayButtonsUI(true);
 
   const curItem = playback.plan[playback.cursor]?.item;
-  if (curItem && curItem.page === state.page) scrollSystemIntoViewIfNeeded(curItem, true);
+  if (curItem && curItem.page !== state.page) {
+    await renderPage(curItem.page);
+    if (!playback.running) return;
+  }
+  if (curItem) scrollSystemIntoViewIfNeeded(curItem, true);
 
+  if (playback.timerId) clearInterval(playback.timerId);
   const intervalMs = Math.round(60000 / Math.max(35, Math.min(240, state.practice.bpm)));
   advanceBeatTick();
   playback.timerId = setInterval(advanceBeatTick, intervalMs);
@@ -4467,6 +4955,7 @@ function stopPracticePlayback() {
   wasPausedMidway = false;
   playback.cursor = 0;
   playback.beatIdx = 0;
+  playback.loopLap = 1;
   playback.countInRemaining = 0;
   syncPlayButtonsUI(false, false);
   renderPracticeOverlay();
@@ -4478,6 +4967,38 @@ function restartPracticeTimerIfRunning() {
   clearInterval(playback.timerId);
   const intervalMs = Math.round(60000 / Math.max(35, Math.min(240, state.practice.bpm)));
   playback.timerId = setInterval(advanceBeatTick, intervalMs);
+}
+
+function toggleStudyLoop() {
+  if (!state.pdfDoc) return;
+  const tl = buildPracticeTimeline();
+  if (!state.practice.studyLoopEnabled && tl.length === 0) {
+    showToast("Calibra o detecta primero los sistemas de la página.");
+    return;
+  }
+  state.practice.studyLoopEnabled = !state.practice.studyLoopEnabled;
+  if (state.practice.studyLoopEnabled && !state.practice.anchorSysId && tl.length > 0) {
+    const firstOnPage = tl.find(it => it.page === state.page) || tl[0];
+    state.practice.anchorSysId = firstOnPage.sysId;
+    state.practice.anchorMeasureIdx = firstOnPage.measureIdx;
+  }
+  syncPracticeControlsFromState();
+  if (playback.running) {
+    rebuildActivePracticeLoop(state.practice.studyLoopEnabled);
+  } else {
+    renderPracticeOverlay();
+    updatePracticeReadout();
+  }
+  if (state.practice.studyLoopEnabled) {
+    const r = getStudyLoopRange(tl);
+    if (r && r.items.length > 0) {
+      const a = r.items[0].globalMeasureNum;
+      const b = r.items[r.items.length - 1].globalMeasureNum;
+      showToast(a === b ? `Bucle activado en compás c.${a} (haz clic en otro compás para cambiar)` : `Bucle activado: c.${a}–c.${b}`);
+    }
+  } else {
+    showToast("Bucle de estudio desactivado");
+  }
 }
 
 async function pedalNextStep() {
@@ -4520,13 +5041,38 @@ async function pedalPrevStep() {
 
 document.getElementById("practicePlayBtn").addEventListener("click", pauseOrResumePractice);
 document.getElementById("practiceStopBtn").addEventListener("click", stopPracticePlayback);
+document.getElementById("practiceLoopBtn").addEventListener("click", toggleStudyLoop);
 document.getElementById("pedalNextBtn").addEventListener("click", pedalNextStep);
 document.getElementById("pedalPrevBtn").addEventListener("click", pedalPrevStep);
 
 document.getElementById("fsPlayBtn").addEventListener("click", pauseOrResumePractice);
 document.getElementById("fsStopBtn").addEventListener("click", stopPracticePlayback);
+document.getElementById("fsLoopBtn").addEventListener("click", toggleStudyLoop);
 document.getElementById("fsPedalNext").addEventListener("click", pedalNextStep);
 document.getElementById("fsPedalPrev").addEventListener("click", pedalPrevStep);
+
+const practiceLoopCountEl = document.getElementById("practiceLoopCount");
+practiceLoopCountEl.addEventListener("input", () => {
+  const raw = practiceLoopCountEl.value.trim();
+  if (!raw) return;
+  const parsed = parseInt(raw, 10);
+  if (Number.isNaN(parsed) || parsed < 1) return;
+  state.practice.loopCount = Math.min(32, parsed);
+  setDirty(true);
+  if (playback.running && state.practice.studyLoopEnabled) rebuildActivePracticeLoop(true);
+  else {
+    renderPracticeOverlay();
+    updatePracticeReadout();
+  }
+});
+practiceLoopCountEl.addEventListener("blur", () => {
+  practiceLoopCountEl.value = String(state.practice.loopCount || 1);
+});
+
+document.getElementById("practiceProgBpm").addEventListener("change", (e) => {
+  state.practice.progBpmStep = parseInt(e.target.value, 10) || 0;
+  setDirty(true);
+});
 
 document.getElementById("practiceTimeSig").addEventListener("change", (e) => {
   state.practice.timeSig = e.target.value;
@@ -4536,9 +5082,17 @@ document.getElementById("practiceTimeSig").addEventListener("change", (e) => {
   renderPracticeOverlay();
 });
 document.getElementById("practiceBpm").addEventListener("input", (e) => {
-  state.practice.bpm = Math.max(35, Math.min(240, parseInt(e.target.value) || 90));
+  const raw = e.target.value.trim();
+  if (!raw) return;
+  const parsed = parseInt(raw, 10);
+  if (Number.isNaN(parsed) || parsed < 35) return;
+  state.practice.bpm = Math.min(240, parsed);
   setDirty(true);
   restartPracticeTimerIfRunning();
+  updatePracticeReadout();
+});
+document.getElementById("practiceBpm").addEventListener("blur", (e) => {
+  e.target.value = String(state.practice.bpm || 90);
 });
 document.getElementById("practiceCountIn").addEventListener("change", (e) => {
   state.practice.countInBars = Math.max(0, Math.min(2, parseInt(e.target.value) || 0));
