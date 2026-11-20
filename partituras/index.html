@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Editor PDF de partituras · v8.0</title>
+<title>Editor PDF de partituras · v9.0</title>
 <style>
   :root {
     --bg: #f3f5f4; --panel: #ffffff; --panel-2: #f7f9f8; --border: #dce4e0;
@@ -142,7 +142,12 @@
   body.calibrating #practiceOverlay { pointer-events: auto; cursor: crosshair; }
   #overlay { z-index: 2; }
   #overlay.tool-block, #overlay.placing-pending { cursor: crosshair !important; }
+  #overlay.tool-addspace { cursor: ns-resize !important; }
   #overlay.tool-select { cursor: default; }
+  .space-cut-line { stroke: #0c6654; stroke-width: 2.5; stroke-dasharray: 8 5; pointer-events: none; }
+  .space-cut-band { fill: rgba(20, 125, 104, 0.14); stroke: #147d68; stroke-width: 1.5; stroke-dasharray: 5 4; pointer-events: none; }
+  .space-cut-label-bg { fill: #0c6654; rx: 5; pointer-events: none; }
+  .space-cut-label-text { fill: #ffffff; font-family: sans-serif; font-size: 13px; font-weight: 700; pointer-events: none; }
 
   #emptyState {
     margin: 48px auto; max-width: 540px; padding: 28px 24px;
@@ -342,13 +347,42 @@
     box-shadow: 0 10px 26px rgba(0,0,0,.22);
   }
   #toast.show { opacity: 1; transform: translateY(0); }
+
+  /* Biblioteca local (IndexedDB) */
+  .lib-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .lib-list { display: flex; flex-direction: column; gap: 8px; }
+  .lib-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2);
+  }
+  .lib-item.current { border-color: var(--accent); background: #eff8f5; }
+  .lib-item-main { flex: 1 1 260px; min-width: 0; }
+  .lib-item-title-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .lib-star-btn {
+    border: none; background: transparent; cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 4px; color: #99a8a2;
+  }
+  .lib-star-btn.fav { color: #d48806; }
+  .lib-title { font-weight: 700; font-size: 13px; color: var(--text); word-break: break-word; }
+  .lib-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .lib-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .lib-tag {
+    display: inline-block; padding: 1px 7px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    background: #fff; border: 1px solid var(--border); color: var(--accent-dark);
+  }
+  .lib-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+  .lib-actions button { padding: 5px 9px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border); background: #fff; cursor: pointer; font-weight: 600; }
+  .lib-actions button:hover { background: #eef5f2; }
+  .lib-actions button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .lib-actions button.danger { color: var(--danger); }
 </style>
 </head>
 <body>
 
 <div id="toolbar">
   <div class="group">
-    <span class="group-label">Partitura · v8.0</span>
+    <span class="group-label">Partitura · v9.0</span>
+    <button id="openLibraryBtn" title="Abrir biblioteca local guardada en este navegador">Biblioteca</button>
+    <button id="quickSaveLibraryBtn" title="Guardar o actualizar esta partitura en tu biblioteca local">+ Guardar en bibl.</button>
     <button id="openPdfBtn">Abrir PDF</button>
     <input type="file" id="pdfFile" accept="application/pdf">
     <button id="openProject">Abrir editable</button>
@@ -376,6 +410,7 @@
     <button data-tool="line">Línea</button>
     <button data-tool="text">Texto</button>
     <button data-tool="block" title="Dibuja un rectángulo; el contenido se corta y puedes moverlo">Cortar y mover</button>
+    <button data-tool="addspace" title="Traza una línea horizontal y arrastra hacia abajo para abrir espacio limpio entre sistemas">Añadir espacio</button>
     <button data-tool="select">Seleccionar</button>
     <button id="editSelected" disabled title="Editar seleccionado (Enter)">Editar</button>
     <button id="duplicateSelected" disabled title="Duplicar seleccionado (Ctrl/Cmd+D)">Duplicar</button>
@@ -470,6 +505,7 @@
     <span class="group-label">Sistemas</span>
     <button id="toggleCalibrateBtn">Calibrar sistemas</button>
     <button id="duplicateLastSysBtn" title="Duplicar el último sistema debajo">Duplicar abajo</button>
+    <button id="autoOrderSystemsBtn" title="Reordenar las cajas de esta página de izquierda a derecha y de arriba a abajo">Auto-ordenar pág.</button>
     <button id="clearPageSystemsBtn" class="btn-danger" title="Borrar sistemas calibrados de esta página">Limpiar pág.</button>
   </div>
 </div>
@@ -496,6 +532,9 @@
 <div id="systemPopover">
   <div class="pop-row">
     <strong id="sysPopTitle">Sistema 1</strong>
+    <label style="font-size:12px; color:var(--muted); font-weight:600;" title="Posición de esta caja en el orden de lectura de la página">Orden pág.:
+      <input type="number" id="sysOrderInput" min="1" max="200" value="1">
+    </label>
     <label style="font-size:12px; color:var(--muted); font-weight:600;">Compases:
       <input type="number" id="sysMeasuresInput" min="1" max="16" value="4">
     </label>
@@ -570,6 +609,36 @@
   </div>
 </div>
 
+<!-- Modal Biblioteca Local (IndexedDB) -->
+<div id="libraryModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="libraryModalTitle">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="libraryModalTitle">Biblioteca personal local (IndexedDB)</h3>
+      <button id="libraryClose" class="modal-close">Cerrar</button>
+    </div>
+    <div class="modal-body">
+      <div class="lib-toolbar">
+        <button id="libSaveCurrentBtn" class="btn-ui primary" type="button">+ Guardar partitura actual</button>
+        <button id="libSaveNewCopyBtn" class="btn-ui" type="button">Guardar como nueva</button>
+        <button id="libExportBackupBtn" class="btn-ui" type="button">Exportar copia (.json)</button>
+        <button id="libImportBackupBtn" class="btn-ui" type="button">Importar copia (.json)</button>
+        <input type="file" id="libBackupFile" accept="application/json,.json" style="display:none;">
+      </div>
+      <div class="lib-toolbar">
+        <input type="text" id="libSearchInput" class="full-input" placeholder="Buscar por título, PDF o etiqueta...">
+        <label style="font-size:12px; font-weight:600; color:var(--muted); display:inline-flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="libFavOnly"> Solo favoritas ★
+        </label>
+      </div>
+      <div id="libList" class="lib-list"></div>
+    </div>
+    <div class="modal-footer">
+      <span id="libStats" class="meta-inline" style="margin-right:auto;"></span>
+      <button id="libraryDone" class="primary">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Ajustes y Ayuda -->
 <div id="settingsModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
   <div class="modal-card">
@@ -581,7 +650,7 @@
       <button class="modal-tab active" data-settings-tab="score" role="tab" aria-selected="true">Partitura actual</button>
       <button class="modal-tab" data-settings-tab="practice" role="tab" aria-selected="false">Práctica y pedal</button>
       <button class="modal-tab" data-settings-tab="prefs" role="tab" aria-selected="false">Estilos y calidad</button>
-      <button class="modal-tab" data-settings-tab="help" role="tab" aria-selected="false">Ayuda (v8.0)</button>
+      <button class="modal-tab" data-settings-tab="help" role="tab" aria-selected="false">Ayuda (v9.0)</button>
     </div>
 
     <div class="modal-body">
@@ -603,8 +672,9 @@
         </div>
 
         <div class="settings-section">
-          <h4>Resumen de esta partitura</h4>
-          <div id="scoreSummary" class="settings-desc" style="margin:0;">No hay ningún PDF cargado todavía.</div>
+          <h4>Resumen y maquetación de esta partitura</h4>
+          <div id="scoreSummary" class="settings-desc" style="margin:0 0 10px;">No hay ningún PDF cargado todavía.</div>
+          <button id="resetPageCutsBtn" class="btn-ui" type="button">Quitar espacios añadidos de esta página</button>
         </div>
       </div>
 
@@ -637,14 +707,19 @@
       <!-- Tab 3: Estilos y calidad -->
       <div id="tab-prefs" class="settings-tab-panel" style="display:none;">
         <div class="settings-section">
-          <h4>Calidad de renderizado PDF</h4>
-          <p class="settings-desc">Mayor resolución mejora la nitidez al hacer zoom y al exportar, aunque consume más memoria en PDFs largos.</p>
+          <h4>Calidad y modo de exportación PDF</h4>
+          <p class="settings-desc">El modo vectorial híbrido conserva las líneas y texto originales del PDF nítidos y genera archivos muy ligeros (recurre a imagen solo en páginas con cortes o bloques).</p>
           <div class="field-row">
             <label for="quality" style="font-size:12px; font-weight:600; color:var(--muted);">Resolución del lienzo:</label>
             <select id="quality">
               <option value="2">2x (ligera)</option>
               <option value="3" selected>3x (recomendada)</option>
               <option value="4">4x (alta nitidez)</option>
+            </select>
+            <label for="pdfExportMode" style="font-size:12px; font-weight:600; color:var(--muted); margin-left:8px;">Exportación PDF:</label>
+            <select id="pdfExportMode">
+              <option value="vector" selected>Vectorial híbrida (nítida y ligera)</option>
+              <option value="raster">Imagen rasterizada (píxel exacto)</option>
             </select>
           </div>
         </div>
@@ -681,33 +756,36 @@
       <!-- Tab 4: Ayuda -->
       <div id="tab-help" class="settings-tab-panel" style="display:none;">
         <div class="help-block">
-          <h4>Novedades de la versión v8.0</h4>
+          <h4>Novedades de la versión v9.0</h4>
           <ul>
-            <li><strong>Calibración rápida inteligente:</strong> al crear o ajustar un sistema con un nº concreto de compases (por ejemplo <code>1</code> para ir compás a compás), los siguientes sistemas que dibujes heredan ese valor automáticamente en lugar de volver a 4.</li>
-            <li><strong>Cuenta atrás de preparación (2 compases):</strong> al pulsar <em>▶ Practicar</em>, el metrónomo marca <strong>2 compases previos</strong> antes de mover el cursor para que puedas colocarte y entrar a tiempo (ajustable a 0, 1 o 2 compases en <em>Cuenta</em>).</li>
-            <li><strong>Signos musicales completos de ejecución:</strong> en <em>Calibrar sistemas</em>, pulsa cualquier compás para programar su recorrido real:
+            <li><strong>Biblioteca personal local (IndexedDB):</strong> guarda tus partituras completas en el navegador con <em>Biblioteca</em> o <em>+ Guardar en bibl.</em>, busca por título o etiquetas, marca favoritas ★ y exporta/importa copias de seguridad en JSON.</li>
+            <li><strong>Herramienta <em>Añadir espacio</em>:</strong> selecciona <strong>Añadir espacio</strong> en <em>Dibujo</em>, haz clic entre dos líneas y arrastra hacia abajo. Abre hueco blanco limpio en el PDF y desplaza automáticamente todas las anotaciones y sistemas calibrados inferiores (reversible con <span class="kbd">Ctrl/Cmd+Z</span>).</li>
+            <li><strong>Exportación PDF vectorial híbrida:</strong> en <em>Ajustes → Estilos y calidad</em> puedes exportar conservando los vectores nítidos del PDF original en páginas sin recortes ni espacios añadidos, con archivos mucho más ligeros.</li>
+            <li><strong>Correcciones clave de estudio y acordes:</strong>
               <ul>
-                <li><strong>Repeticiones y casillas:</strong> <code>|:</code> Inicio, <code>:|</code> Fin (×2..×12) y casillas <code>1.</code>, <code>2.</code>, <code>3.</code> (salta automáticamente a la casilla correspondiente en cada vuelta).</li>
-                <li><strong>Saltos y estructura:</strong> <code>𝄋 Segno</code>, <code>Al ⊕ (Coda)</code>, <code>⊕ Coda</code>, <code>D.C.</code> (Da Capo), <code>D.S.</code> (Dal Segno) y <code>Fine</code>.</li>
+                <li><strong>Editor de acordes:</strong> cambiar el traste inicial o nº de trastes ya no borra los puntos ni las cejillas (desplaza la forma manteniendo tus posiciones); el número de traste ahora es más grande y en negrita.</li>
+                <li><strong>Orden y numeración continua de compases:</strong> las cajas de una misma línea ya se ordenan siempre de izquierda a derecha, la numeración de sistemas y compases es continua entre páginas, y puedes cambiar el <em>Orden pág.</em> o editar los compases sin que se reinicie.</li>
+                <li><strong>Casillas de repetición (1., 2., 3.) y saltos:</strong> planificador completo verificado para <code>|: :|</code>, casillas <code>1./2./3.</code> (de 1 o varios compases), <code>D.C. al Fine</code>, <code>D.C. al Coda</code>, <code>D.S. al Fine</code> y <code>D.S. al Coda</code>.</li>
+                <li><strong>Avance automático en reproducción:</strong> ahora desplaza la página suavemente al cambiar de línea tanto en <em>Página completa</em> como <em>Por tramos</em> y pasa automáticamente a la página siguiente sin bloqueos.</li>
               </ul>
             </li>
-            <li><strong>Pantalla completa en Modo Practicar:</strong> el botón <strong>⛶ Pantalla completa</strong> oculta las barras superiores para aprovechar toda la pantalla viendo la partitura, dejando una pequeña barra inferior flotante con Play/Pausa, Pedal y <em>✕ Salir pantalla completa</em> (también con <span class="kbd">Esc</span>).</li>
           </ul>
         </div>
 
         <div class="help-block">
           <h4>Cómo programar una estructura musical (ejemplos)</h4>
           <ul>
-            <li><strong>Repetición con 1.ª y 2.ª casilla:</strong> marca <code>|:</code> en el compás inicial, <code>1.</code> + <code>:|</code> en el último compás de la 1.ª vuelta y <code>2.</code> en el siguiente compás.</li>
+            <li><strong>Repetición con 1.ª y 2.ª casilla:</strong> marca <code>|:</code> en el compás inicial, <code>1.</code> y <code>:|</code> en la 1.ª vuelta (si ocupa varios compases, marca <code>1.</code> al inicio y <code>:|</code> al final de la 1.ª vuelta) y <code>2.</code> en el primer compás de la 2.ª vuelta.</li>
             <li><strong>D.S. al Coda:</strong> marca <code>𝄋 Segno</code> donde debe volver, <code>Al ⊕</code> donde saltará en la 2.ª pasada, <code>D.S.</code> al final de la sección y <code>⊕ Coda</code> en el primer compás de la coda.</li>
             <li><strong>D.C. al Fine:</strong> marca <code>Fine</code> en el compás donde termina la obra y <code>D.C.</code> en el compás desde el que vuelve al principio.</li>
           </ul>
         </div>
 
         <div class="help-block">
-          <h4>Funciones de edición (v5 – v7)</h4>
+          <h4>Funciones de edición (v5 – v8)</h4>
           <ul>
             <li><strong>Capas y colocación de acordes:</strong> los huecos y recortes de <em>Cortar y mover</em> quedan siempre debajo de acordes, dedos y textos. En el editor de acordes, <em>Colocar en partitura</em> ubica el diagrama donde hagas clic; los puntos ciclan negro → hueco → vacío, las cejillas se ponen arrastrando o se quitan clicando encima, y puedes dejar el nombre vacío (sin <code>?</code>) con 1–15 trastes.</li>
+            <li><strong>Cuenta atrás, pedal y pantalla completa:</strong> configura 0, 1 o 2 compases previos de metrónomo en <em>Cuenta</em>, conecta pedal USB/Bluetooth y pulsa <strong>⛶ Pantalla completa</strong>.</li>
             <li><strong>Etiquetas de bucle enlazables + PDF:</strong> configura la URL en <em>Ajustes → Partitura actual</em>. En <em>Modo Practicar</em> se abren con 1 clic; en <em>Modo Editar</em> con <span class="kbd">Ctrl/Cmd</span>+clic; y al exportar a PDF se incrustan como enlaces clicables.</li>
           </ul>
         </div>
@@ -732,11 +810,12 @@
 
 <div id="emptyState">
   <h2>Editor y estudio de partituras en PDF</h2>
-  <p>Abre una partitura PDF para editarla (parches, recortes móviles, acordes, digitaciones y bucles enlazables) y estudiar con el <strong>Modo Practicar</strong> (cuenta atrás, signos musicales, pedal y pantalla completa), o retoma un <code>.scoreproj</code>.</p>
+  <p>Abre una partitura PDF, recupérala desde tu <strong>Biblioteca local</strong> o retoma un <code>.scoreproj</code> para editar (parches, añadir espacio, recortes móviles, acordes y bucles) y estudiar con el <strong>Modo Practicar</strong>.</p>
   <div class="empty-actions">
-    <button id="emptyOpenPdf" class="primary">Abrir PDF</button>
-    <button id="emptyOpenProject">Abrir proyecto editable (.scoreproj)</button>
-    <button id="emptyOpenHelp">Ver ayuda v8.0</button>
+    <button id="emptyOpenLibrary" class="primary">Abrir de mi biblioteca</button>
+    <button id="emptyOpenPdf">Abrir PDF</button>
+    <button id="emptyOpenProject">Abrir editable (.scoreproj)</button>
+    <button id="emptyOpenHelp">Ver ayuda v9.0</button>
   </div>
 </div>
 
@@ -768,9 +847,15 @@ const state = {
   scale: 3,
   viewZoom: 1,
   pageSvgCache: {},
+  pageSpaceCuts: {}, // { pageNum: [{ id, y, delta }] }
   loopTargetUrl: "",
   dirty: false,
   lastCalibratedMeasures: 4,
+  libraryId: null,
+  libraryTitle: "",
+  libraryTags: [],
+  libraryFav: false,
+  pdfExportMode: "vector",
   practice: {
     timeSig: "4/4",
     bpm: 90,
@@ -843,10 +928,10 @@ function ensureOverlayLayers() {
 
 /* ============ PREFERENCIAS ============ */
 const PREF_KEY = "tab_editor_prefs_v1";
-const prefIds = ["chordSize","fingerSize","loopSize","fontSize","lineWidth","lineColor","patchColor","quality"];
+const prefIds = ["chordSize","fingerSize","loopSize","fontSize","lineWidth","lineColor","patchColor","quality","pdfExportMode"];
 const DEFAULT_PREFS = {
   chordSize: "120", fingerSize: "40", loopSize: "60",
-  fontSize: "18", lineWidth: "2", lineColor: "#000000", patchColor: "#ffffff", quality: "3"
+  fontSize: "18", lineWidth: "2", lineColor: "#000000", patchColor: "#ffffff", quality: "3", pdfExportMode: "vector"
 };
 
 function loadPrefs() {
@@ -858,10 +943,12 @@ function loadPrefs() {
     el.value = prefs[id] !== undefined ? prefs[id] : DEFAULT_PREFS[id];
   });
   state.scale = parseInt(document.getElementById("quality").value) || 3;
+  state.pdfExportMode = document.getElementById("pdfExportMode")?.value || "vector";
 }
 function savePrefs() {
   const prefs = {};
   prefIds.forEach(id => { const el = document.getElementById(id); if (el) prefs[id] = el.value; });
+  state.pdfExportMode = prefs.pdfExportMode || "vector";
   localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
 }
 prefIds.forEach(id => {
@@ -974,6 +1061,22 @@ function applyAction(a, dir) {
     current.replaceWith(replacement);
     ensureOverlayLayers();
     if (wasSelected) selectElement(replacement);
+  } else if (a.type === "space-cut") {
+    const pageNum = a.page;
+    if (!state.pageSpaceCuts[pageNum]) state.pageSpaceCuts[pageNum] = [];
+    const list = state.pageSpaceCuts[pageNum];
+    if (dir === "undo") {
+      const idx = list.findIndex(c => c.id === a.cut.id);
+      if (idx >= 0) list.splice(idx, 1);
+      (a.shiftedEls || []).forEach(item => applySnapshot(item.el, item.from));
+      (a.shiftedSystems || []).forEach(item => { item.sys.y = item.fromY; });
+    } else {
+      list.push(a.cut);
+      (a.shiftedEls || []).forEach(item => applySnapshot(item.el, item.to));
+      (a.shiftedSystems || []).forEach(item => { item.sys.y = item.toY; });
+    }
+    if (selectedEl) refreshSelectionBox();
+    renderPage(state.page, { preserveOverlay: true });
   }
 }
 function applySnapshot(el, snap) {
@@ -991,9 +1094,14 @@ function applySnapshot(el, snap) {
   } else if (snap.kind === "rect") {
     el.setAttribute("x", snap.x); el.setAttribute("y", snap.y);
     el.setAttribute("width", snap.w); el.setAttribute("height", snap.h);
-  } else if (snap.kind === "block") {
-    el.dataset.x = snap.x; el.dataset.y = snap.y;
-    el.setAttribute("transform", `translate(${snap.x},${snap.y})`);
+  } else if (snap.kind === "block" || snap.kind === "hole") {
+    if (snap.kind === "hole") {
+      el.setAttribute("x", snap.x); el.setAttribute("y", snap.y);
+      el.setAttribute("width", snap.w); el.setAttribute("height", snap.h);
+    } else {
+      el.dataset.x = snap.x; el.dataset.y = snap.y;
+      el.setAttribute("transform", `translate(${snap.x},${snap.y})`);
+    }
   }
 }
 
@@ -1115,6 +1223,8 @@ document.getElementById("openPdfBtn").addEventListener("click", () => document.g
 document.getElementById("emptyOpenPdf").addEventListener("click", () => document.getElementById("pdfFile").click());
 document.getElementById("emptyOpenProject").addEventListener("click", () => document.getElementById("projectFile").click());
 document.getElementById("emptyOpenHelp").addEventListener("click", () => openSettingsModal("help"));
+document.getElementById("emptyOpenLibrary").addEventListener("click", () => openLibraryModal());
+document.getElementById("openLibraryBtn").addEventListener("click", () => openLibraryModal());
 
 function resetPracticeStateToDefaults() {
   stopPracticePlayback();
@@ -1145,7 +1255,12 @@ document.getElementById("pdfFile").addEventListener("change", async (e) => {
     state.pageCount = pdfDoc.numPages;
     state.page = 1;
     state.pageSvgCache = {};
+    state.pageSpaceCuts = {};
     state.loopTargetUrl = "";
+    state.libraryId = null;
+    state.libraryTitle = (state.sourcePdfName || "partitura").replace(/\.pdf$/i, "");
+    state.libraryTags = [];
+    state.libraryFav = false;
     document.getElementById("settingLoopUrl").value = "";
     resetPracticeStateToDefaults();
     history.clearAll();
@@ -1212,15 +1327,11 @@ function sanitizeProjectSvg(markup) {
   return root.innerHTML;
 }
 
-async function saveEditableProject() {
-  if (!state.pdfDoc || !state.sourcePdfBytes) {
-    showToast("Carga un PDF antes de guardar el proyecto editable.");
-    return;
-  }
+function buildCurrentProjectObject() {
   saveCurrentPageAnnotations();
-  const project = {
+  return {
     format: "partituras-editor-project",
-    version: 4,
+    version: 5,
     sourcePdfName: state.sourcePdfName,
     sourcePdfBase64: bytesToBase64(state.sourcePdfBytes),
     page: state.page,
@@ -1238,8 +1349,17 @@ async function saveEditableProject() {
       },
     },
     practicePages: state.practice.pages,
+    pageSpaceCuts: state.pageSpaceCuts,
     pages: state.pageSvgCache,
   };
+}
+
+async function saveEditableProject() {
+  if (!state.pdfDoc || !state.sourcePdfBytes) {
+    showToast("Carga un PDF antes de guardar el proyecto editable.");
+    return;
+  }
+  const project = buildCurrentProjectObject();
   const blob = new Blob([JSON.stringify(project)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const name = (state.sourcePdfName || "partitura.pdf").replace(/\.pdf$/i, "") || "partitura";
@@ -1253,6 +1373,76 @@ async function saveEditableProject() {
   showToast("Proyecto editable guardado");
 }
 
+async function loadProjectObject(project, libMeta = null) {
+  if (!project || project.format !== "partituras-editor-project" || ![1, 2, 3, 4, 5].includes(project.version) || typeof project.sourcePdfBase64 !== "string") {
+    throw new Error("El formato del proyecto no es compatible.");
+  }
+  const sourceBytes = base64ToBytes(project.sourcePdfBase64);
+  const pdfDoc = await pdfjsLib.getDocument({ data: sourceBytes.slice() }).promise;
+  const pages = {};
+  if (project.pages && typeof project.pages === "object") {
+    for (const [pageNum, markup] of Object.entries(project.pages)) {
+      const n = Number(pageNum);
+      if (Number.isInteger(n) && n >= 1 && n <= pdfDoc.numPages) pages[n] = sanitizeProjectSvg(markup);
+    }
+  }
+  const spaceCuts = {};
+  if (project.pageSpaceCuts && typeof project.pageSpaceCuts === "object") {
+    for (const [pageNum, cuts] of Object.entries(project.pageSpaceCuts)) {
+      const n = Number(pageNum);
+      if (Number.isInteger(n) && n >= 1 && n <= pdfDoc.numPages && Array.isArray(cuts)) {
+        spaceCuts[n] = cuts
+          .filter(c => c && Number.isFinite(Number(c.y)) && Number.isFinite(Number(c.delta)) && Number(c.delta) > 0)
+          .map(c => ({ id: String(c.id || `cut-${Math.random()}`), y: Number(c.y), delta: Number(c.delta) }));
+      }
+    }
+  }
+  stopPracticePlayback();
+  state.sourcePdfBytes = sourceBytes;
+  state.sourcePdfName = typeof project.sourcePdfName === "string" ? project.sourcePdfName : "partitura.pdf";
+  state.pdfDoc = pdfDoc;
+  state.pageCount = pdfDoc.numPages;
+  state.pageSvgCache = pages;
+  state.pageSpaceCuts = spaceCuts;
+  state.loopTargetUrl = normalizeLoopUrl(project.settings?.loopTargetUrl || "");
+  document.getElementById("settingLoopUrl").value = state.loopTargetUrl;
+
+  state.libraryId = libMeta?.id || null;
+  state.libraryTitle = libMeta?.title || (state.sourcePdfName || "partitura").replace(/\.pdf$/i, "");
+  state.libraryTags = Array.isArray(libMeta?.tags) ? [...libMeta.tags] : [];
+  state.libraryFav = Boolean(libMeta?.favorite);
+
+  const pConf = project.settings?.practice || {};
+  state.practice = {
+    timeSig: ["4/4","3/4","2/4","6/8"].includes(pConf.timeSig) ? pConf.timeSig : "4/4",
+    bpm: Math.max(35, Math.min(240, Number(pConf.bpm) || 90)),
+    countInBars: [0, 1, 2].includes(Number(pConf.countInBars)) ? Number(pConf.countInBars) : 2,
+    metronome: pConf.metronome !== undefined ? Boolean(pConf.metronome) : true,
+    viewMode: pConf.viewMode === "chunks" ? "chunks" : "full",
+    advanceMode: pConf.advanceMode === "manual" ? "manual" : "auto",
+    pedalKey: ["arrows_pagedown","space_next","enter_next"].includes(pConf.pedalKey) ? pConf.pedalKey : "arrows_pagedown",
+    pages: (project.practicePages && typeof project.practicePages === "object") ? project.practicePages : {},
+  };
+  syncPracticeControlsFromState();
+
+  state.scale = [2, 3, 4].includes(Number(project.scale)) ? Number(project.scale) : 3;
+  document.getElementById("quality").value = String(state.scale);
+  state.page = Math.max(1, Math.min(pdfDoc.numPages, Number(project.page) || 1));
+  history.clearAll();
+  clearSelection();
+  overlay.innerHTML = "";
+  overlay.removeAttribute("width");
+  overlay.removeAttribute("height");
+  overlay.removeAttribute("viewBox");
+  emptyState.style.display = "none";
+  stageFrame.style.display = "block";
+  await renderPage(state.page, { skipSave: true });
+  setDirty(false);
+  document.getElementById("projectStatus").textContent = libMeta ? `Biblioteca: ${state.libraryTitle}` : "Proyecto editable abierto";
+  updatePageNav();
+  updateLoopStatusBadge();
+}
+
 document.getElementById("saveProject").addEventListener("click", saveEditableProject);
 document.getElementById("openProject").addEventListener("click", () => document.getElementById("projectFile").click());
 document.getElementById("projectFile").addEventListener("change", async (event) => {
@@ -1260,56 +1450,7 @@ document.getElementById("projectFile").addEventListener("change", async (event) 
   if (!file) return;
   try {
     const project = JSON.parse(await file.text());
-    if (project.format !== "partituras-editor-project" || ![1, 2, 3, 4].includes(project.version) || typeof project.sourcePdfBase64 !== "string") {
-      throw new Error("El formato del proyecto no es compatible.");
-    }
-    const sourceBytes = base64ToBytes(project.sourcePdfBase64);
-    const pdfDoc = await pdfjsLib.getDocument({ data: sourceBytes.slice() }).promise;
-    const pages = {};
-    if (project.pages && typeof project.pages === "object") {
-      for (const [pageNum, markup] of Object.entries(project.pages)) {
-        const n = Number(pageNum);
-        if (Number.isInteger(n) && n >= 1 && n <= pdfDoc.numPages) pages[n] = sanitizeProjectSvg(markup);
-      }
-    }
-    stopPracticePlayback();
-    state.sourcePdfBytes = sourceBytes;
-    state.sourcePdfName = typeof project.sourcePdfName === "string" ? project.sourcePdfName : "partitura.pdf";
-    state.pdfDoc = pdfDoc;
-    state.pageCount = pdfDoc.numPages;
-    state.pageSvgCache = pages;
-    state.loopTargetUrl = normalizeLoopUrl(project.settings?.loopTargetUrl || "");
-    document.getElementById("settingLoopUrl").value = state.loopTargetUrl;
-
-    const pConf = project.settings?.practice || {};
-    state.practice = {
-      timeSig: ["4/4","3/4","2/4","6/8"].includes(pConf.timeSig) ? pConf.timeSig : "4/4",
-      bpm: Math.max(35, Math.min(240, Number(pConf.bpm) || 90)),
-      countInBars: [0, 1, 2].includes(Number(pConf.countInBars)) ? Number(pConf.countInBars) : 2,
-      metronome: pConf.metronome !== undefined ? Boolean(pConf.metronome) : true,
-      viewMode: pConf.viewMode === "chunks" ? "chunks" : "full",
-      advanceMode: pConf.advanceMode === "manual" ? "manual" : "auto",
-      pedalKey: ["arrows_pagedown","space_next","enter_next"].includes(pConf.pedalKey) ? pConf.pedalKey : "arrows_pagedown",
-      pages: (project.practicePages && typeof project.practicePages === "object") ? project.practicePages : {},
-    };
-    syncPracticeControlsFromState();
-
-    state.scale = [2, 3, 4].includes(Number(project.scale)) ? Number(project.scale) : 3;
-    document.getElementById("quality").value = String(state.scale);
-    state.page = Math.max(1, Math.min(pdfDoc.numPages, Number(project.page) || 1));
-    history.clearAll();
-    clearSelection();
-    overlay.innerHTML = "";
-    overlay.removeAttribute("width");
-    overlay.removeAttribute("height");
-    overlay.removeAttribute("viewBox");
-    emptyState.style.display = "none";
-    stageFrame.style.display = "block";
-    await renderPage(state.page, { skipSave: true });
-    setDirty(false);
-    document.getElementById("projectStatus").textContent = "Proyecto editable abierto";
-    updatePageNav();
-    updateLoopStatusBadge();
+    await loadProjectObject(project, null);
   } catch (error) {
     console.error("No se pudo abrir el proyecto editable:", error);
     showToast(`No se pudo abrir el proyecto: ${error.message}`);
@@ -1318,27 +1459,374 @@ document.getElementById("projectFile").addEventListener("change", async (event) 
   }
 });
 
-async function renderPage(pageNum, opts = {}) {
+/* ============ BIBLIOTECA LOCAL (INDEXEDDB) ============ */
+const LIB_DB_NAME = "partituras_editor_lib_v1";
+const LIB_STORE = "scores";
+
+function openLibraryDb() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error("IndexedDB no disponible en este navegador.")); return; }
+    const req = indexedDB.open(LIB_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(LIB_STORE)) {
+        const store = db.createObjectStore(LIB_STORE, { keyPath: "id" });
+        store.createIndex("updatedAt", "updatedAt");
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error("Error abriendo IndexedDB"));
+  });
+}
+
+async function libGetAll() {
+  const db = await openLibraryDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(LIB_STORE, "readonly");
+    const req = tx.objectStore(LIB_STORE).getAll();
+    req.onsuccess = () => resolve((req.result || []).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)));
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function libPutRecord(rec) {
+  const db = await openLibraryDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(LIB_STORE, "readwrite");
+    tx.objectStore(LIB_STORE).put(rec);
+    tx.oncomplete = () => resolve(rec);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function libDeleteRecord(id) {
+  const db = await openLibraryDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(LIB_STORE, "readwrite");
+    tx.objectStore(LIB_STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function saveCurrentScoreToLibrary(forceNew = false) {
+  if (!state.pdfDoc || !state.sourcePdfBytes) {
+    showToast("Carga primero un PDF o proyecto.");
+    return;
+  }
+  const project = buildCurrentProjectObject();
+  const isNew = forceNew || !state.libraryId;
+  const id = isNew ? `score-${Date.now()}-${Math.random().toString(36).slice(2,7)}` : state.libraryId;
+  const defaultTitle = state.libraryTitle || (state.sourcePdfName || "Partitura").replace(/\.pdf$/i, "");
+  const rec = {
+    id,
+    title: forceNew && state.libraryId ? `${defaultTitle} (copia)` : defaultTitle,
+    sourcePdfName: state.sourcePdfName,
+    pageCount: state.pageCount,
+    favorite: state.libraryFav,
+    tags: [...(state.libraryTags || [])],
+    updatedAt: Date.now(),
+    project,
+  };
+  await libPutRecord(rec);
+  state.libraryId = rec.id;
+  state.libraryTitle = rec.title;
+  setDirty(false);
+  document.getElementById("projectStatus").textContent = `Guardado en biblioteca: ${rec.title}`;
+  showToast(`Guardado en biblioteca: "${rec.title}"`);
+  if (document.getElementById("libraryModal").classList.contains("open")) renderLibraryList();
+}
+
+const libraryModal = document.getElementById("libraryModal");
+function closeLibraryModal() { libraryModal.classList.remove("open"); }
+async function openLibraryModal() {
+  libraryModal.classList.add("open");
+  await renderLibraryList();
+}
+
+async function renderLibraryList() {
+  const listEl = document.getElementById("libList");
+  const statsEl = document.getElementById("libStats");
+  listEl.innerHTML = "<div class='settings-desc'>Cargando biblioteca...</div>";
+  try {
+    const all = await libGetAll();
+    const q = (document.getElementById("libSearchInput").value || "").trim().toLowerCase();
+    const favOnly = document.getElementById("libFavOnly").checked;
+    const filtered = all.filter(rec => {
+      if (favOnly && !rec.favorite) return false;
+      if (!q) return true;
+      const hay = `${rec.title || ""} ${rec.sourcePdfName || ""} ${(rec.tags || []).join(" ")}`.toLowerCase();
+      return hay.includes(q);
+    });
+    statsEl.textContent = `${all.length} partitura(s) en biblioteca local`;
+    listEl.innerHTML = "";
+    if (filtered.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "settings-desc";
+      empty.style.margin = "8px 0";
+      empty.textContent = all.length === 0
+        ? "Tu biblioteca local está vacía. Carga un PDF y pulsa «+ Guardar en bibl.» para guardarlo."
+        : "No hay partituras que coincidan con el filtro.";
+      listEl.appendChild(empty);
+      return;
+    }
+    filtered.forEach(rec => {
+      const item = document.createElement("div");
+      item.className = "lib-item" + (rec.id === state.libraryId ? " current" : "");
+      const main = document.createElement("div");
+      main.className = "lib-item-main";
+
+      const titleRow = document.createElement("div");
+      titleRow.className = "lib-item-title-row";
+      const starBtn = document.createElement("button");
+      starBtn.type = "button";
+      starBtn.className = "lib-star-btn" + (rec.favorite ? " fav" : "");
+      starBtn.title = rec.favorite ? "Quitar de favoritas" : "Marcar como favorita";
+      starBtn.textContent = rec.favorite ? "★" : "☆";
+      starBtn.addEventListener("click", async () => {
+        rec.favorite = !rec.favorite;
+        if (rec.id === state.libraryId) state.libraryFav = rec.favorite;
+        await libPutRecord(rec);
+        renderLibraryList();
+      });
+
+      const titleSpan = document.createElement("span");
+      titleSpan.className = "lib-title";
+      titleSpan.textContent = rec.title || rec.sourcePdfName || "Sin título";
+      titleRow.append(starBtn, titleSpan);
+
+      const meta = document.createElement("div");
+      meta.className = "lib-meta";
+      const d = rec.updatedAt ? new Date(rec.updatedAt).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" }) : "";
+      meta.textContent = `${rec.sourcePdfName || ""} · ${rec.pageCount || "?"} pág. · Act.: ${d}`;
+
+      main.append(titleRow, meta);
+      if (Array.isArray(rec.tags) && rec.tags.length > 0) {
+        const tagsDiv = document.createElement("div");
+        tagsDiv.className = "lib-tags";
+        rec.tags.forEach(tg => {
+          const sp = document.createElement("span");
+          sp.className = "lib-tag";
+          sp.textContent = tg;
+          tagsDiv.appendChild(sp);
+        });
+        main.appendChild(tagsDiv);
+      }
+
+      const actions = document.createElement("div");
+      actions.className = "lib-actions";
+
+      const openBtn = document.createElement("button");
+      openBtn.type = "button";
+      openBtn.className = "primary";
+      openBtn.textContent = "Abrir";
+      openBtn.addEventListener("click", async () => {
+        try {
+          await loadProjectObject(rec.project, { id: rec.id, title: rec.title, tags: rec.tags, favorite: rec.favorite });
+          emptyState.style.display = "none";
+          stageFrame.style.display = "block";
+          closeLibraryModal();
+        } catch (err) {
+          showToast(`No se pudo abrir: ${err.message}`);
+        }
+      });
+
+      const metaBtn = document.createElement("button");
+      metaBtn.type = "button";
+      metaBtn.textContent = "Título / Etiquetas";
+      metaBtn.addEventListener("click", async () => {
+        const inlineBox = item.querySelector(".lib-inline-edit");
+        if (inlineBox) { inlineBox.remove(); return; }
+        const form = document.createElement("div");
+        form.className = "lib-inline-edit";
+        form.style.cssText = "width:100%; display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);";
+        const tIn = document.createElement("input");
+        tIn.type = "text"; tIn.value = rec.title || ""; tIn.placeholder = "Título";
+        tIn.style.flex = "1 1 160px";
+        const tagsIn = document.createElement("input");
+        tagsIn.type = "text"; tagsIn.value = (rec.tags || []).join(", "); tagsIn.placeholder = "Etiquetas separadas por coma";
+        tagsIn.style.flex = "1 1 180px";
+        const saveMetaBtn = document.createElement("button");
+        saveMetaBtn.type = "button"; saveMetaBtn.className = "primary"; saveMetaBtn.textContent = "Guardar";
+        saveMetaBtn.addEventListener("click", async () => {
+          rec.title = tIn.value.trim() || rec.sourcePdfName || "Sin título";
+          rec.tags = tagsIn.value.split(",").map(s => s.trim()).filter(Boolean);
+          rec.updatedAt = Date.now();
+          if (rec.id === state.libraryId) { state.libraryTitle = rec.title; state.libraryTags = [...rec.tags]; }
+          await libPutRecord(rec);
+          renderLibraryList();
+        });
+        form.append(tIn, tagsIn, saveMetaBtn);
+        item.appendChild(form);
+        tIn.focus();
+      });
+
+      const expBtn = document.createElement("button");
+      expBtn.type = "button";
+      expBtn.textContent = ".scoreproj";
+      expBtn.title = "Descargar archivo .scoreproj portable";
+      expBtn.addEventListener("click", () => {
+        const blob = new Blob([JSON.stringify(rec.project)], { type: "application/json;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const base = (rec.title || "partitura").replace(/[^a-z0-9_\-áéíóúñ ]/gi, "_");
+        a.href = url; a.download = `${base}.scoreproj`; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 2500);
+      });
+
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "danger";
+      delBtn.textContent = "Eliminar";
+      delBtn.addEventListener("click", async () => {
+        if (delBtn.dataset.confirm !== "1") {
+          delBtn.dataset.confirm = "1";
+          delBtn.textContent = "¿Confirmar?";
+          setTimeout(() => { if (delBtn.isConnected) { delBtn.dataset.confirm = ""; delBtn.textContent = "Eliminar"; } }, 3000);
+          return;
+        }
+        await libDeleteRecord(rec.id);
+        if (state.libraryId === rec.id) state.libraryId = null;
+        renderLibraryList();
+        showToast("Eliminada de la biblioteca");
+      });
+
+      actions.append(openBtn, metaBtn, expBtn, delBtn);
+      item.append(main, actions);
+      listEl.appendChild(item);
+    });
+  } catch (err) {
+    listEl.innerHTML = `<div class="settings-desc" style="color:var(--danger);">Error accediendo a IndexedDB: ${err.message}</div>`;
+  }
+}
+
+document.getElementById("quickSaveLibraryBtn").addEventListener("click", () => saveCurrentScoreToLibrary(false));
+document.getElementById("libSaveCurrentBtn").addEventListener("click", () => saveCurrentScoreToLibrary(false));
+document.getElementById("libSaveNewCopyBtn").addEventListener("click", () => saveCurrentScoreToLibrary(true));
+document.getElementById("libSearchInput").addEventListener("input", renderLibraryList);
+document.getElementById("libFavOnly").addEventListener("change", renderLibraryList);
+document.getElementById("libraryClose").addEventListener("click", closeLibraryModal);
+document.getElementById("libraryDone").addEventListener("click", closeLibraryModal);
+libraryModal.addEventListener("click", (e) => { if (e.target === libraryModal) closeLibraryModal(); });
+
+document.getElementById("libExportBackupBtn").addEventListener("click", async () => {
+  try {
+    const all = await libGetAll();
+    const payload = { format: "partituras-library-backup", version: 1, exportedAt: Date.now(), items: all };
+    const blob = new Blob([JSON.stringify(payload)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `biblioteca_partituras_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    showToast(`Copia exportada (${all.length} partituras)`);
+  } catch (err) {
+    showToast("No se pudo exportar la copia.");
+  }
+});
+
+document.getElementById("libImportBackupBtn").addEventListener("click", () => document.getElementById("libBackupFile").click());
+document.getElementById("libBackupFile").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.format !== "partituras-library-backup" || !Array.isArray(data.items)) {
+      throw new Error("Archivo de copia no válido.");
+    }
+    let count = 0;
+    for (const item of data.items) {
+      if (item && item.id && item.project && item.project.format === "partituras-editor-project") {
+        await libPutRecord(item);
+        count++;
+      }
+    }
+    await renderLibraryList();
+    showToast(`Copia importada: ${count} partitura(s)`);
+  } catch (err) {
+    showToast(`Error al importar copia: ${err.message}`);
+  } finally {
+    e.target.value = "";
+  }
+});
+
+/* ============ RENDERIZADO PDF CON ESPACIOS Y COLA SEGURA ============ */
+async function renderPdfCanvasWithCuts(pageObj, scale, cuts, targetCanvas) {
+  const viewport = pageObj.getViewport({ scale });
+  const srcW = Math.round(viewport.width);
+  const srcH = Math.round(viewport.height);
+  const cleanCuts = Array.isArray(cuts) ? cuts : [];
+  if (cleanCuts.length === 0) {
+    targetCanvas.width = srcW;
+    targetCanvas.height = srcH;
+    const tctx = targetCanvas.getContext("2d");
+    await pageObj.render({ canvasContext: tctx, viewport }).promise;
+    return { width: srcW, height: srcH };
+  }
+  const srcCanvas = document.createElement("canvas");
+  srcCanvas.width = srcW;
+  srcCanvas.height = srcH;
+  const sctx = srcCanvas.getContext("2d");
+  await pageObj.render({ canvasContext: sctx, viewport }).promise;
+
+  let work = srcCanvas;
+  for (const cut of cleanCuts) {
+    const delta = Math.max(0, Math.round(cut.delta || 0));
+    const cutY = Math.max(0, Math.min(work.height, Math.round(cut.y || 0)));
+    if (delta <= 0) continue;
+    const nextCanvas = document.createElement("canvas");
+    nextCanvas.width = work.width;
+    nextCanvas.height = work.height + delta;
+    const nctx = nextCanvas.getContext("2d");
+    nctx.fillStyle = "#ffffff";
+    nctx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+    if (cutY > 0) nctx.drawImage(work, 0, 0, work.width, cutY, 0, 0, work.width, cutY);
+    if (work.height - cutY > 0) {
+      nctx.drawImage(work, 0, cutY, work.width, work.height - cutY, 0, cutY + delta, work.width, work.height - cutY);
+    }
+    work = nextCanvas;
+  }
+
+  targetCanvas.width = work.width;
+  targetCanvas.height = work.height;
+  const tctx = targetCanvas.getContext("2d");
+  tctx.drawImage(work, 0, 0);
+  return { width: work.width, height: work.height };
+}
+
+let renderQueue = Promise.resolve();
+function renderPage(pageNum, opts = {}) {
+  const task = renderQueue.then(() => _renderPageImpl(pageNum, opts)).catch(err => {
+    console.error("Error renderizando página:", err);
+  });
+  renderQueue = task;
+  return task;
+}
+
+async function _renderPageImpl(pageNum, opts = {}) {
   if (!state.pdfDoc) return;
-  if (!opts.skipSave && overlay.getAttribute("width")) saveCurrentPageAnnotations();
+  const samePagePreserve = Boolean(opts.preserveOverlay && pageNum === state.page);
+  if (!opts.skipSave && !samePagePreserve && overlay.getAttribute("width")) saveCurrentPageAnnotations();
   state.page = pageNum;
 
   const page = await state.pdfDoc.getPage(pageNum);
-  const viewport = page.getViewport({ scale: state.scale });
-  bgCanvas.width = viewport.width;
-  bgCanvas.height = viewport.height;
+  const cuts = state.pageSpaceCuts[pageNum] || [];
+  const dims = await renderPdfCanvasWithCuts(page, state.scale, cuts, bgCanvas);
+
   [overlay, practiceOverlay].forEach(svg => {
-    svg.setAttribute("width", viewport.width);
-    svg.setAttribute("height", viewport.height);
-    svg.setAttribute("viewBox", `0 0 ${viewport.width} ${viewport.height}`);
+    svg.setAttribute("width", dims.width);
+    svg.setAttribute("height", dims.height);
+    svg.setAttribute("viewBox", `0 0 ${dims.width} ${dims.height}`);
   });
-  await page.render({ canvasContext: bgCtx, viewport }).promise;
   syncCanvasDisplaySize();
   syncZoomFrame();
 
-  overlay.innerHTML = "";
-  clearSelection();
-  restorePageAnnotations(pageNum);
+  if (!samePagePreserve) {
+    overlay.innerHTML = "";
+    clearSelection();
+    restorePageAnnotations(pageNum);
+  }
   closeSystemPopover();
   renderPracticeOverlay();
   updateHistoryButtons();
@@ -1382,6 +1870,7 @@ function setTool(name) {
   state.tool = name;
   lastSelectPress = null;
   overlay.classList.toggle("tool-block", name === "block");
+  overlay.classList.toggle("tool-addspace", name === "addspace");
   overlay.classList.toggle("tool-select", name === "select");
 }
 document.querySelectorAll("[data-tool]").forEach(btn => {
@@ -1524,7 +2013,7 @@ function deleteCustomChord(nombre) {
   renderCustomChordsManager();
 }
 
-const ED = { W: 100, left: 15, right: 85, top: 25, strings: 6, fGap: 16 };
+const ED = { W: 102, left: 21, right: 91, top: 25, strings: 6, fGap: 16 };
 ED.sGap = (ED.right - ED.left) / (ED.strings - 1);
 function chordDiagramHeight(frets) { return ED.top + frets * ED.fGap + 15; }
 
@@ -1552,7 +2041,7 @@ function buildChordGroup(nombre, pos, trasteIni, cejillas, x, y, size, hollowPos
 
   if (cleanName) {
     const nameEl = document.createElementNS(NS, "text");
-    nameEl.setAttribute("x", W / 2); nameEl.setAttribute("y", 15);
+    nameEl.setAttribute("x", (left + right) / 2); nameEl.setAttribute("y", 15);
     nameEl.setAttribute("text-anchor", "middle");
     nameEl.setAttribute("font-family", "monospace"); nameEl.setAttribute("font-weight", "bold");
     nameEl.setAttribute("font-size", "14"); nameEl.setAttribute("fill", "#000");
@@ -1579,9 +2068,11 @@ function buildChordGroup(nombre, pos, trasteIni, cejillas, x, y, size, hollowPos
   }
   if (trasteIni > 1) {
     const t = document.createElementNS(NS, "text");
-    t.setAttribute("x", left - 5); t.setAttribute("y", top + fGap * 0.7);
+    t.setAttribute("x", left - 4); t.setAttribute("y", top + fGap * 0.5);
     t.setAttribute("text-anchor", "end");
-    t.setAttribute("font-family", "monospace"); t.setAttribute("font-size", "10"); t.setAttribute("fill", "#000");
+    t.setAttribute("dominant-baseline", "central");
+    t.setAttribute("font-family", "monospace"); t.setAttribute("font-weight", "bold");
+    t.setAttribute("font-size", "14"); t.setAttribute("fill", "#000");
     t.textContent = trasteIni;
     g.appendChild(t);
   }
@@ -1807,7 +2298,7 @@ function renderChordEditor() {
   const cleanName = chordNameInput.value.trim();
   if (cleanName) {
     const name = document.createElementNS(NS, "text");
-    name.setAttribute("x", ED.W / 2); name.setAttribute("y", 15);
+    name.setAttribute("x", (ED.left + ED.right) / 2); name.setAttribute("y", 15);
     name.setAttribute("text-anchor", "middle");
     name.setAttribute("font-family", "monospace"); name.setAttribute("font-weight", "bold");
     name.setAttribute("font-size", "14"); name.setAttribute("fill", "#000");
@@ -1835,9 +2326,11 @@ function renderChordEditor() {
 
   if (a.traste > 1) {
     const t = document.createElementNS(NS, "text");
-    t.setAttribute("x", ED.left - 5); t.setAttribute("y", ED.top + ED.fGap * 0.7);
+    t.setAttribute("x", ED.left - 4); t.setAttribute("y", ED.top + ED.fGap * 0.5);
     t.setAttribute("text-anchor", "end");
-    t.setAttribute("font-family", "monospace"); t.setAttribute("font-size", "10"); t.setAttribute("fill", "#000");
+    t.setAttribute("dominant-baseline", "central");
+    t.setAttribute("font-family", "monospace"); t.setAttribute("font-weight", "bold");
+    t.setAttribute("font-size", "14"); t.setAttribute("fill", "#000");
     t.textContent = a.traste;
     chordEditorSvg.appendChild(t);
   }
@@ -1941,6 +2434,17 @@ function setEditorMode(mode) {
 document.getElementById("modeDots").addEventListener("click", () => setEditorMode("dots"));
 document.getElementById("modeCejilla").addEventListener("click", () => setEditorMode("cejilla"));
 
+let editingChordStartBaseline = null;
+function captureChordStartBaseline() {
+  if (!editingChord) { editingChordStartBaseline = null; return; }
+  editingChordStartBaseline = {
+    traste: editingChord.traste,
+    pos: editingChord.pos.map(arr => [...arr]),
+    hollowPos: editingChord.hollowPos.map(arr => [...arr]),
+    cejillas: editingChord.cejillas.map(cj => ({ ...cj })),
+  };
+}
+
 chordEditorSvg.addEventListener("pointerdown", (evt) => {
   if (!editingChord) return;
   const t = evt.target;
@@ -1948,6 +2452,7 @@ chordEditorSvg.addEventListener("pointerdown", (evt) => {
     if (t.dataset && t.dataset.cejillaIdx !== undefined) {
       const idx = parseInt(t.dataset.cejillaIdx);
       if (!Number.isNaN(idx)) editingChord.cejillas.splice(idx, 1);
+      captureChordStartBaseline();
       renderChordEditor();
       return;
     }
@@ -1968,6 +2473,7 @@ chordEditorSvg.addEventListener("pointerdown", (evt) => {
     if (arr.includes(-1)) editingChord.pos[i] = [];
     else if (arr.includes(0)) editingChord.pos[i] = [-1];
     else editingChord.pos[i] = [0];
+    captureChordStartBaseline();
     renderChordEditor();
     return;
   }
@@ -1988,6 +2494,7 @@ chordEditorSvg.addEventListener("pointerdown", (evt) => {
     } else {
       filled.push(trasteAbs);
     }
+    captureChordStartBaseline();
     renderChordEditor();
   }
 });
@@ -2015,30 +2522,46 @@ function commitCejillaDrag(evt) {
     if (!exists) editingChord.cejillas.push({ traste: trasteAbs, desde, hasta });
   }
   cejillaDrag = null;
+  captureChordStartBaseline();
   renderChordEditor();
 }
 chordEditorSvg.addEventListener("pointerup", commitCejillaDrag);
 chordEditorSvg.addEventListener("pointercancel", () => { cejillaDrag = null; renderChordEditor(); });
 
-function clampChordPointsToRange() {
-  if (!editingChord) return;
-  const v = editingChord.traste;
-  const maxFret = v + editingChord.frets;
-  editingChord.pos = editingChord.pos.map(arr => arr.filter(p => p <= 0 || (p >= v && p < maxFret)));
-  editingChord.hollowPos = editingChord.hollowPos.map(arr => arr.filter(p => p >= v && p < maxFret));
-  editingChord.cejillas = editingChord.cejillas.filter(c => c.traste >= v && c.traste < maxFret);
-}
+chordStartFretInput.addEventListener("focus", captureChordStartBaseline);
 chordStartFretInput.addEventListener("input", () => {
   if (!editingChord) return;
-  editingChord.traste = Math.max(1, Math.min(24, parseInt(chordStartFretInput.value) || 1));
-  clampChordPointsToRange();
+  const raw = chordStartFretInput.value.trim();
+  if (!raw) return;
+  const parsed = parseInt(raw, 10);
+  if (Number.isNaN(parsed)) return;
+  const nextTraste = Math.max(1, Math.min(24, parsed));
+  if (!editingChordStartBaseline) captureChordStartBaseline();
+  const base = editingChordStartBaseline;
+  const delta = nextTraste - base.traste;
+  editingChord.traste = nextTraste;
+  editingChord.pos = base.pos.map(arr => arr.map(p => (p > 0 ? Math.max(1, p + delta) : p)));
+  editingChord.hollowPos = base.hollowPos.map(arr => arr.map(p => (p > 0 ? Math.max(1, p + delta) : p)));
+  editingChord.cejillas = base.cejillas.map(cj => ({ ...cj, traste: Math.max(1, cj.traste + delta) }));
   renderChordEditor();
+});
+chordStartFretInput.addEventListener("blur", () => {
+  if (!editingChord) return;
+  chordStartFretInput.value = String(editingChord.traste);
+  captureChordStartBaseline();
 });
 chordFretCountInput.addEventListener("input", () => {
   if (!editingChord) return;
-  editingChord.frets = Math.max(1, Math.min(15, parseInt(chordFretCountInput.value) || 5));
-  clampChordPointsToRange();
+  const raw = chordFretCountInput.value.trim();
+  if (!raw) return;
+  const parsed = parseInt(raw, 10);
+  if (Number.isNaN(parsed)) return;
+  editingChord.frets = Math.max(1, Math.min(15, parsed));
   renderChordEditor();
+});
+chordFretCountInput.addEventListener("blur", () => {
+  if (!editingChord) return;
+  chordFretCountInput.value = String(editingChord.frets);
 });
 chordNameInput.addEventListener("input", renderChordEditor);
 
@@ -2062,6 +2585,7 @@ function openChordEditorForElement(element) {
   editingChordElement = element;
   const normalized = normalizeChordModel(model);
   editingChord = normalized;
+  captureChordStartBaseline();
   chordNameInput.value = model.nombre || "";
   chordStartFretInput.value = String(normalized.traste);
   chordFretCountInput.value = String(normalized.frets);
@@ -2078,6 +2602,7 @@ document.getElementById("createChord").addEventListener("click", () => {
   editingChordElement = null;
   resetChordEditorControls();
   editingChord = newEmptyChord();
+  captureChordStartBaseline();
   chordNameInput.value = "";
   chordStartFretInput.value = "1";
   chordFretCountInput.value = "5";
@@ -2089,6 +2614,7 @@ document.getElementById("createChord").addEventListener("click", () => {
 document.getElementById("chordEditorCancel").addEventListener("click", () => {
   chordEditor.style.display = "none";
   editingChord = null;
+  editingChordStartBaseline = null;
   editingChordElement = null;
   resetChordEditorControls();
 });
@@ -2320,6 +2846,7 @@ function refreshSelectionBox() {
   }
 }
 
+function isHole(el) { return el.classList && el.classList.contains("block-hole"); }
 function snapshot(el) {
   if (isScalableGroup(el)) {
     return {
@@ -2330,6 +2857,11 @@ function snapshot(el) {
     };
   }
   if (isBlock(el)) return { kind: "block", x: parseFloat(el.dataset.x), y: parseFloat(el.dataset.y) };
+  if (isHole(el)) return {
+    kind: "hole",
+    x: parseFloat(el.getAttribute("x")), y: parseFloat(el.getAttribute("y")),
+    w: parseFloat(el.getAttribute("width")), h: parseFloat(el.getAttribute("height")),
+  };
   if (el.tagName === "text") return { kind: "text", x: parseFloat(el.getAttribute("x")), y: parseFloat(el.getAttribute("y")), size: parseFloat(el.getAttribute("font-size")) };
   if (el.tagName === "line") return {
     kind: "line",
@@ -2682,7 +3214,80 @@ overlay.addEventListener("pointerdown", (evt) => {
     overlay.setPointerCapture(evt.pointerId);
     evt.stopPropagation(); return;
   }
+  if (state.tool === "addspace") {
+    const NS = "http://www.w3.org/2000/svg";
+    const vw = overlay.viewBox.baseVal.width || bgCanvas.width || 1000;
+    const g = document.createElementNS(NS, "g");
+    const band = document.createElementNS(NS, "rect");
+    band.setAttribute("x", 0); band.setAttribute("y", p.y);
+    band.setAttribute("width", vw); band.setAttribute("height", 0);
+    band.setAttribute("class", "space-cut-band");
+    const ln = document.createElementNS(NS, "line");
+    ln.setAttribute("x1", 0); ln.setAttribute("y1", p.y);
+    ln.setAttribute("x2", vw); ln.setAttribute("y2", p.y);
+    ln.setAttribute("class", "space-cut-line");
+    const lblBg = document.createElementNS(NS, "rect");
+    lblBg.setAttribute("x", Math.max(12, Math.min(vw - 170, p.x - 60)));
+    lblBg.setAttribute("y", p.y + 6);
+    lblBg.setAttribute("width", 140); lblBg.setAttribute("height", 24);
+    lblBg.setAttribute("class", "space-cut-label-bg");
+    const lbl = document.createElementNS(NS, "text");
+    lbl.setAttribute("x", Math.max(12, Math.min(vw - 170, p.x - 60)) + 70);
+    lbl.setAttribute("y", p.y + 22);
+    lbl.setAttribute("text-anchor", "middle");
+    lbl.setAttribute("class", "space-cut-label-text");
+    lbl.textContent = "Arrastra ↓";
+    g.append(band, ln, lblBg, lbl);
+    overlay.appendChild(g);
+    drawing = { type: "addspace", startY: p.y, deltaY: 0, el: g, band, lblBg, lbl };
+    overlay.setPointerCapture(evt.pointerId);
+    evt.stopPropagation(); return;
+  }
 }, true);
+
+function applySpaceCut(cutY, deltaY) {
+  const delta = Math.round(deltaY);
+  const cy = Math.round(cutY);
+  if (delta < 12) return;
+  const pNum = state.page;
+  if (!state.pageSpaceCuts[pNum]) state.pageSpaceCuts[pNum] = [];
+  const cut = { id: `cut-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, y: cy, delta };
+  state.pageSpaceCuts[pNum].push(cut);
+
+  const shiftedEls = [];
+  Array.from(overlay.children).forEach(el => {
+    if (el.classList?.contains("sel-rect") || el.classList?.contains("sel-handle") || el.classList?.contains("inline-editor-host")) return;
+    const from = snapshot(el);
+    if (!from) return;
+    const to = { ...from };
+    let changed = false;
+    if (["chord", "finger", "loop", "text", "rect", "block", "hole"].includes(to.kind)) {
+      const refY = to.kind === "text" ? to.y - (to.size || 14) * 0.8 : to.y;
+      if (refY >= cy) { to.y += delta; changed = true; }
+    } else if (to.kind === "line") {
+      if (to.y1 >= cy) { to.y1 += delta; changed = true; }
+      if (to.y2 >= cy) { to.y2 += delta; changed = true; }
+    }
+    if (changed) {
+      applySnapshot(el, to);
+      shiftedEls.push({ el, from, to });
+    }
+  });
+
+  const shiftedSystems = [];
+  getPageSystems(pNum).forEach(sys => {
+    if (sys.y >= cy) {
+      const fromY = sys.y;
+      sys.y = sys.y + delta;
+      shiftedSystems.push({ sys, fromY, toY: sys.y });
+    }
+  });
+
+  history.push({ type: "space-cut", page: pNum, cut, shiftedEls, shiftedSystems });
+  if (selectedEl) refreshSelectionBox();
+  renderPage(pNum, { preserveOverlay: true });
+  showToast(`Espacio añadido (+${delta} px)`);
+}
 
 overlay.addEventListener("pointermove", (evt) => {
   if (lastSelectPress && Math.hypot(evt.clientX - lastSelectPress.x, evt.clientY - lastSelectPress.y) > 10) {
@@ -2708,6 +3313,13 @@ overlay.addEventListener("pointermove", (evt) => {
     const w = Math.abs(p.x - drawing.startX), h = Math.abs(p.y - drawing.startY);
     drawing.el.setAttribute("x", x); drawing.el.setAttribute("y", y);
     drawing.el.setAttribute("width", w); drawing.el.setAttribute("height", h);
+  } else if (drawing.type === "addspace") {
+    const dy = Math.max(0, Math.round(p.y - drawing.startY));
+    drawing.deltaY = dy;
+    drawing.band.setAttribute("height", dy);
+    drawing.lblBg.setAttribute("y", drawing.startY + dy + 6);
+    drawing.lbl.setAttribute("y", drawing.startY + dy + 22);
+    drawing.lbl.textContent = `+${dy} px`;
   }
 }, true);
 
@@ -2729,6 +3341,15 @@ overlay.addEventListener("pointerup", () => {
     finalizeBlock(bbox.x, bbox.y, bbox.w, bbox.h);
     return;
   }
+  if (drawing.type === "addspace") {
+    const cutY = drawing.startY;
+    const deltaY = drawing.deltaY;
+    drawing.el.remove();
+    drawing = null;
+    if (deltaY >= 12) applySpaceCut(cutY, deltaY);
+    else showToast("Haz clic y arrastra hacia abajo para abrir espacio.");
+    return;
+  }
   history.push({ type: "add", el: drawing.el });
   const el = drawing.el;
   drawing = null;
@@ -2745,7 +3366,7 @@ overlay.addEventListener("pointercancel", () => {
   if (drawing) { drawing.el.remove(); drawing = null; }
 }, true);
 
-/* ============ MODO PRACTICAR: METRÓNOMO, CUENTA ATRÁS, SIGNOS MUSICALES Y PANTALLA COMPLETA (v8.0) ============ */
+/* ============ MODO PRACTICAR: ORDEN 2D, NUMERACIÓN CONTINUA, SIGNOS MUSICALES Y PANTALLA COMPLETA (v9.0) ============ */
 let practiceCalibrating = false;
 let selectedSystemIdx = -1;
 let selectedMeasureIdx = -1;
@@ -2754,6 +3375,7 @@ let audioCtx = null;
 
 const playback = {
   running: false,
+  advancing: false,
   waitingForPedal: false,
   timerId: null,
   cursor: 0,
@@ -2761,10 +3383,8 @@ const playback = {
   countInRemaining: 0,
   countInBar: 1,
   countInBeat: 0,
-  repeatCounts: {},
-  currentVoltaPass: 1,
-  jumpedDaCapoOrSegno: false,
   timeline: [],
+  plan: [],
 };
 
 function getTimeSigBeats(sig) {
@@ -2774,10 +3394,85 @@ function getTimeSigBeats(sig) {
   return 4;
 }
 
+function getPageSystemsObj(pageNum) {
+  if (!state.practice.pages[pageNum] || typeof state.practice.pages[pageNum] !== "object") {
+    state.practice.pages[pageNum] = { systems: [], manualOrder: false };
+  }
+  if (!Array.isArray(state.practice.pages[pageNum].systems)) {
+    state.practice.pages[pageNum].systems = [];
+  }
+  return state.practice.pages[pageNum];
+}
+
 function getPageSystems(pageNum) {
-  if (!state.practice.pages[pageNum]) state.practice.pages[pageNum] = { systems: [] };
-  if (!Array.isArray(state.practice.pages[pageNum].systems)) state.practice.pages[pageNum].systems = [];
-  return state.practice.pages[pageNum].systems;
+  return getPageSystemsObj(pageNum).systems;
+}
+
+// Ordenación 2D estable: agrupa sistemas/compases que comparten fila visual y ordena izquierda->derecha
+function sortSystemsReadingOrder(systemsList) {
+  const arr = [...systemsList];
+  if (arr.length <= 1) return arr;
+  arr.sort((a, b) => (a.y + a.h * 0.5) - (b.y + b.h * 0.5));
+  const rows = [];
+  for (const sys of arr) {
+    const cy = sys.y + sys.h * 0.5;
+    const lastRow = rows[rows.length - 1];
+    if (lastRow) {
+      const tol = Math.max(22, Math.min(lastRow.avgH, sys.h) * 0.65);
+      if (Math.abs(cy - lastRow.avgCy) <= tol) {
+        lastRow.items.push(sys);
+        const n = lastRow.items.length;
+        lastRow.avgCy = lastRow.items.reduce((s, it) => s + it.y + it.h * 0.5, 0) / n;
+        lastRow.avgH = lastRow.items.reduce((s, it) => s + it.h, 0) / n;
+        continue;
+      }
+    }
+    rows.push({ items: [sys], avgCy: cy, avgH: sys.h });
+  }
+  const ordered = [];
+  for (const row of rows) {
+    row.items.sort((a, b) => (a.x - b.x) || (a.y - b.y));
+    ordered.push(...row.items);
+  }
+  return ordered;
+}
+
+function getOrderedPageSystems(pageNum) {
+  const pObj = getPageSystemsObj(pageNum);
+  if (pObj.manualOrder) return [...pObj.systems];
+  return sortSystemsReadingOrder(pObj.systems);
+}
+
+function syncPageSystemsOrderIfAuto(pageNum) {
+  const pObj = getPageSystemsObj(pageNum);
+  if (!pObj.manualOrder && pObj.systems.length > 1) {
+    pObj.systems = sortSystemsReadingOrder(pObj.systems);
+  }
+}
+
+function getGlobalOffsetsForPage(targetPage) {
+  let sysOffset = 0;
+  let measureOffset = 0;
+  for (let p = 1; p < targetPage; p++) {
+    const list = getOrderedPageSystems(p);
+    sysOffset += list.length;
+    for (const s of list) measureOffset += Math.max(1, s.measures || 4);
+  }
+  return { sysOffset, measureOffset };
+}
+
+function getSystemGlobalSpan(pageNum, localIdx) {
+  const systems = getPageSystems(pageNum);
+  const { sysOffset, measureOffset } = getGlobalOffsetsForPage(pageNum);
+  let beforeMeasures = 0;
+  for (let i = 0; i < localIdx; i++) {
+    beforeMeasures += Math.max(1, systems[i]?.measures || 4);
+  }
+  const mTotal = Math.max(1, systems[localIdx]?.measures || 4);
+  const globalSysNum = sysOffset + localIdx + 1;
+  const firstMeasure = measureOffset + beforeMeasures + 1;
+  const lastMeasure = firstMeasure + mTotal - 1;
+  return { globalSysNum, firstMeasure, lastMeasure, mTotal };
 }
 
 // Lee marcas de compás con retrocompatibilidad v7 (repeatStartMeasure/repeatEndMeasure)
@@ -2881,36 +3576,59 @@ document.getElementById("toggleCalibrateBtn").addEventListener("click", () => {
 
 document.getElementById("duplicateLastSysBtn").addEventListener("click", () => {
   if (!state.pdfDoc) return;
-  const systems = getPageSystems(state.page);
+  const pObj = getPageSystemsObj(state.page);
+  const systems = pObj.systems;
   if (systems.length === 0) {
     showToast("Dibuja primero un sistema con «Calibrar sistemas».");
     return;
   }
-  const last = systems[systems.length - 1];
+  const ref = selectedSystemIdx >= 0 && systems[selectedSystemIdx] ? systems[selectedSystemIdx] : systems[systems.length - 1];
   const vh = overlay.viewBox.baseVal.height || bgCanvas.height || 1000;
-  const ny = Math.min(vh - last.h - 8, last.y + last.h + Math.round(last.h * 0.35));
-  const mCount = last.measures || state.lastCalibratedMeasures || 4;
+  const ny = Math.min(vh - ref.h - 8, ref.y + ref.h + Math.round(ref.h * 0.35));
+  const mCount = ref.measures || state.lastCalibratedMeasures || 4;
   state.lastCalibratedMeasures = mCount;
   const copy = {
     id: `sys-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
-    x: last.x,
+    x: ref.x,
     y: Math.max(8, ny),
-    w: last.w,
-    h: last.h,
+    w: ref.w,
+    h: ref.h,
     measures: mCount,
     repeatCount: 2,
     measureMarks: {},
   };
   systems.push(copy);
+  syncPageSystemsOrderIfAuto(state.page);
+  const finalIdx = systems.indexOf(copy);
   setDirty(true);
   if (!practiceCalibrating) setCalibrating(true);
-  openSystemPopover(systems.length - 1, 0);
+  openSystemPopover(finalIdx, 0);
   renderPracticeOverlay();
+});
+
+document.getElementById("autoOrderSystemsBtn").addEventListener("click", () => {
+  if (!state.pdfDoc) return;
+  const pObj = getPageSystemsObj(state.page);
+  if (pObj.systems.length < 2) {
+    pObj.manualOrder = false;
+    showToast("Sistemas ordenados (izq.→der., arriba→abajo)");
+    return;
+  }
+  const activeSys = selectedSystemIdx >= 0 ? pObj.systems[selectedSystemIdx] : null;
+  pObj.systems = sortSystemsReadingOrder(pObj.systems);
+  pObj.manualOrder = false;
+  if (activeSys) {
+    const newIdx = pObj.systems.indexOf(activeSys);
+    if (newIdx >= 0) openSystemPopover(newIdx, Math.max(0, selectedMeasureIdx));
+  }
+  setDirty(true);
+  renderPracticeOverlay();
+  showToast("Sistemas ordenados en sentido de lectura");
 });
 
 document.getElementById("clearPageSystemsBtn").addEventListener("click", () => {
   if (!state.pdfDoc) return;
-  state.practice.pages[state.page] = { systems: [] };
+  state.practice.pages[state.page] = { systems: [], manualOrder: false };
   closeSystemPopover();
   setDirty(true);
   renderPracticeOverlay();
@@ -2937,21 +3655,31 @@ function summarizeMeasureBadge(marks) {
   return parts.join(" ");
 }
 
-function openSystemPopover(sysIdx, measureIdx = 0) {
+function openSystemPopover(sysIdx, measureIdx = 0, opts = {}) {
   const systems = getPageSystems(state.page);
   const sys = systems[sysIdx];
   if (!sys) { closeSystemPopover(); return; }
   selectedSystemIdx = sysIdx;
-  const mTotal = sys.measures || 4;
+  const mTotal = Math.max(1, sys.measures || 4);
   state.lastCalibratedMeasures = mTotal;
   selectedMeasureIdx = Math.max(0, Math.min(mTotal - 1, measureIdx));
 
-  document.getElementById("sysPopTitle").textContent = `Sistema ${sysIdx + 1}`;
-  document.getElementById("sysMeasuresInput").value = String(mTotal);
-  const curMarks = getMeasureMarks(sys, selectedMeasureIdx);
-  document.getElementById("sysRepeatCount").value = String(curMarks.repeatCount || sys.repeatCount || 2);
+  const span = getSystemGlobalSpan(state.page, sysIdx);
+  const rangeLabel = span.mTotal > 1 ? `c.${span.firstMeasure}–${span.lastMeasure}` : `c.${span.firstMeasure}`;
+  document.getElementById("sysPopTitle").textContent = `Sistema ${span.globalSysNum} (${rangeLabel})`;
 
-  // Selector de compases del sistema
+  const orderInput = document.getElementById("sysOrderInput");
+  orderInput.max = String(Math.max(1, systems.length));
+  if (!opts.keepOrderInput) orderInput.value = String(sysIdx + 1);
+
+  const measuresInput = document.getElementById("sysMeasuresInput");
+  if (!opts.keepMeasuresInput) measuresInput.value = String(mTotal);
+
+  const curMarks = getMeasureMarks(sys, selectedMeasureIdx);
+  const repeatInput = document.getElementById("sysRepeatCount");
+  if (!opts.keepRepeatInput) repeatInput.value = String(curMarks.repeatCount || sys.repeatCount || 2);
+
+  // Selector de compases del sistema con numeración continua global
   const btnRow = document.getElementById("sysMeasureButtons");
   btnRow.innerHTML = "";
   const mLbl = document.createElement("span");
@@ -2963,19 +3691,22 @@ function openSystemPopover(sysIdx, measureIdx = 0) {
     const b = document.createElement("button");
     const mk = getMeasureMarks(sys, m);
     const badge = summarizeMeasureBadge(mk);
+    const gNum = span.firstMeasure + m;
     b.type = "button";
-    b.textContent = badge ? `c.${m + 1} (${badge})` : `c.${m + 1}`;
+    b.textContent = badge ? `c.${gNum} (${badge})` : `c.${gNum}`;
     if (m === selectedMeasureIdx) b.classList.add("active");
     b.addEventListener("click", () => openSystemPopover(sysIdx, m));
     btnRow.appendChild(b);
   }
+
+  const activeGlobalM = span.firstMeasure + selectedMeasureIdx;
 
   // Fila de Repeticiones y Casillas
   const marksRow = document.getElementById("sysMarksRow");
   marksRow.innerHTML = "";
   const rLbl = document.createElement("span");
   rLbl.className = "pop-subtitle";
-  rLbl.textContent = `c.${selectedMeasureIdx + 1} Repetición:`;
+  rLbl.textContent = `c.${activeGlobalM} Repetición:`;
   marksRow.appendChild(rLbl);
 
   const addToggle = (parent, label, active, onClick) => {
@@ -3003,7 +3734,7 @@ function openSystemPopover(sysIdx, measureIdx = 0) {
   jumpsRow.innerHTML = "";
   const jLbl = document.createElement("span");
   jLbl.className = "pop-subtitle";
-  jLbl.textContent = `c.${selectedMeasureIdx + 1} Signos:`;
+  jLbl.textContent = `c.${activeGlobalM} Signos:`;
   jumpsRow.appendChild(jLbl);
 
   addToggle(jumpsRow, "𝄋 Segno", curMarks.segno, () => toggleMeasureMark(sys, selectedMeasureIdx, "segno"));
@@ -3016,7 +3747,7 @@ function openSystemPopover(sysIdx, measureIdx = 0) {
   const clearMeasureBtn = document.createElement("button");
   clearMeasureBtn.type = "button";
   clearMeasureBtn.className = "danger";
-  clearMeasureBtn.textContent = `Limpiar c.${selectedMeasureIdx + 1}`;
+  clearMeasureBtn.textContent = `Limpiar c.${activeGlobalM}`;
   clearMeasureBtn.addEventListener("click", () => {
     migrateLegacyMarksOnSystem(sys);
     if (sys.measureMarks) delete sys.measureMarks[selectedMeasureIdx];
@@ -3029,35 +3760,74 @@ function openSystemPopover(sysIdx, measureIdx = 0) {
   document.getElementById("systemPopover").classList.add("open");
 }
 
-document.getElementById("sysMeasuresInput").addEventListener("input", (e) => {
+const sysOrderInputEl = document.getElementById("sysOrderInput");
+sysOrderInputEl.addEventListener("change", () => {
+  const pObj = getPageSystemsObj(state.page);
+  const systems = pObj.systems;
+  if (selectedSystemIdx < 0 || selectedSystemIdx >= systems.length) return;
+  const parsed = parseInt(sysOrderInputEl.value, 10);
+  if (Number.isNaN(parsed)) { sysOrderInputEl.value = String(selectedSystemIdx + 1); return; }
+  const targetIdx = Math.max(0, Math.min(systems.length - 1, parsed - 1));
+  if (targetIdx !== selectedSystemIdx) {
+    const [moved] = systems.splice(selectedSystemIdx, 1);
+    systems.splice(targetIdx, 0, moved);
+    pObj.manualOrder = true;
+    selectedSystemIdx = targetIdx;
+    setDirty(true);
+    renderPracticeOverlay();
+  }
+  openSystemPopover(selectedSystemIdx, Math.max(0, selectedMeasureIdx));
+});
+
+const sysMeasuresInputEl = document.getElementById("sysMeasuresInput");
+sysMeasuresInputEl.addEventListener("input", () => {
   const systems = getPageSystems(state.page);
   const sys = systems[selectedSystemIdx];
   if (!sys) return;
-  const val = Math.max(1, Math.min(16, parseInt(e.target.value) || 4));
+  const raw = sysMeasuresInputEl.value.trim();
+  if (!raw) return;
+  const parsed = parseInt(raw, 10);
+  if (Number.isNaN(parsed) || parsed < 1) return;
+  const val = Math.min(16, parsed);
   sys.measures = val;
   state.lastCalibratedMeasures = val;
   if (sys.measureMarks) {
     Object.keys(sys.measureMarks).forEach(k => { if (Number(k) >= val) delete sys.measureMarks[k]; });
   }
-  if (sys.repeatStartMeasure !== null && sys.repeatStartMeasure >= val) sys.repeatStartMeasure = null;
-  if (sys.repeatEndMeasure !== null && sys.repeatEndMeasure >= val) sys.repeatEndMeasure = null;
+  if (sys.repeatStartMeasure !== null && sys.repeatStartMeasure !== undefined && sys.repeatStartMeasure >= val) sys.repeatStartMeasure = null;
+  if (sys.repeatEndMeasure !== null && sys.repeatEndMeasure !== undefined && sys.repeatEndMeasure >= val) sys.repeatEndMeasure = null;
   setDirty(true);
-  openSystemPopover(selectedSystemIdx, Math.min(selectedMeasureIdx, val - 1));
+  openSystemPopover(selectedSystemIdx, Math.min(Math.max(0, selectedMeasureIdx), val - 1), { keepMeasuresInput: true });
   renderPracticeOverlay();
 });
+sysMeasuresInputEl.addEventListener("blur", () => {
+  const sys = getPageSystems(state.page)[selectedSystemIdx];
+  if (sys) sysMeasuresInputEl.value = String(Math.max(1, sys.measures || 4));
+});
 
-document.getElementById("sysRepeatCount").addEventListener("input", (e) => {
-  const systems = getPageSystems(state.page);
-  const sys = systems[selectedSystemIdx];
+const sysRepeatCountEl = document.getElementById("sysRepeatCount");
+sysRepeatCountEl.addEventListener("input", () => {
+  const sys = getPageSystems(state.page)[selectedSystemIdx];
   if (!sys) return;
-  const val = Math.max(2, Math.min(12, parseInt(e.target.value) || 2));
+  const raw = sysRepeatCountEl.value.trim();
+  if (!raw) return;
+  const parsed = parseInt(raw, 10);
+  if (Number.isNaN(parsed) || parsed < 2) return;
+  const val = Math.min(12, parsed);
   sys.repeatCount = val;
   migrateLegacyMarksOnSystem(sys);
   if (!sys.measureMarks) sys.measureMarks = {};
   sys.measureMarks[selectedMeasureIdx] = { ...(sys.measureMarks[selectedMeasureIdx] || {}), repeatCount: val };
   setDirty(true);
-  openSystemPopover(selectedSystemIdx, selectedMeasureIdx);
+  openSystemPopover(selectedSystemIdx, selectedMeasureIdx, { keepRepeatInput: true });
   renderPracticeOverlay();
+});
+sysRepeatCountEl.addEventListener("blur", () => {
+  const sys = getPageSystems(state.page)[selectedSystemIdx];
+  if (sys) {
+    const mk = getMeasureMarks(sys, selectedMeasureIdx);
+    sysRepeatCountEl.value = String(mk.repeatCount || sys.repeatCount || 2);
+  }
 });
 
 document.getElementById("sysDeleteBtn").addEventListener("click", () => {
@@ -3166,10 +3936,16 @@ function renderPracticeOverlay() {
   const NS = "http://www.w3.org/2000/svg";
   const systems = getPageSystems(state.page);
   const showBoxes = practiceCalibrating;
+  const { sysOffset, measureOffset } = getGlobalOffsetsForPage(state.page);
+  let runningMeasures = measureOffset;
 
   systems.forEach((sys, idx) => {
     const measures = Math.max(1, sys.measures || 4);
     const mw = sys.w / measures;
+    const gSysNum = sysOffset + idx + 1;
+    const firstM = runningMeasures + 1;
+    const lastM = runningMeasures + measures;
+    runningMeasures += measures;
 
     if (showBoxes) {
       const isSelected = idx === selectedSystemIdx;
@@ -3211,7 +3987,7 @@ function renderPracticeOverlay() {
       tag.setAttribute("font-size", "13"); tag.setAttribute("font-weight", "bold");
       tag.setAttribute("font-family", "sans-serif"); tag.setAttribute("fill", "#0c6654");
       tag.setAttribute("pointer-events", "none");
-      tag.textContent = `S${idx + 1} · ${measures} comp.`;
+      tag.textContent = measures > 1 ? `S${gSysNum} · c.${firstM}–${lastM}` : `S${gSysNum} · c.${firstM}`;
       g.appendChild(tag);
 
       if (isSelected) {
@@ -3242,8 +4018,9 @@ function renderPracticeOverlay() {
   }
 
   // Resaltado durante cuenta atrás (pre-inicio) o reproducción activa
-  if (playback.running && playback.timeline.length > 0) {
-    const cur = playback.timeline[playback.cursor];
+  if (playback.running && playback.plan.length > 0) {
+    const step = playback.plan[playback.cursor];
+    const cur = step?.item;
     if (cur && cur.page === state.page) {
       if (playback.countInRemaining > 0) {
         const prepRect = document.createElementNS(NS, "rect");
@@ -3336,22 +4113,30 @@ practiceOverlay.addEventListener("pointermove", (evt) => {
 
 practiceOverlay.addEventListener("pointerup", () => {
   if (!sysDrag) return;
-  const systems = getPageSystems(state.page);
+  const pObj = getPageSystemsObj(state.page);
+  const systems = pObj.systems;
   if (sysDrag.type === "create") {
     if (sysDrag.w >= 40 && sysDrag.h >= 20) {
       const mCount = state.lastCalibratedMeasures || 4;
-      systems.push({
+      const newSys = {
         id: `sys-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
         x: Math.round(sysDrag.x), y: Math.round(sysDrag.y),
         w: Math.round(sysDrag.w), h: Math.round(sysDrag.h),
         measures: mCount,
         repeatCount: 2,
         measureMarks: {},
-      });
+      };
+      systems.push(newSys);
+      syncPageSystemsOrderIfAuto(state.page);
       setDirty(true);
-      openSystemPopover(systems.length - 1, 0);
+      openSystemPopover(systems.indexOf(newSys), 0);
     }
   } else {
+    const movedSys = systems[sysDrag.idx];
+    syncPageSystemsOrderIfAuto(state.page);
+    if (movedSys && selectedSystemIdx >= 0) {
+      openSystemPopover(systems.indexOf(movedSys), Math.max(0, selectedMeasureIdx));
+    }
     setDirty(true);
   }
   sysDrag = null;
@@ -3361,16 +4146,22 @@ practiceOverlay.addEventListener("pointercancel", () => { sysDrag = null; render
 
 function buildPracticeTimeline() {
   const items = [];
+  let globalSysNum = 0;
+  let globalMeasureNum = 0;
   for (let p = 1; p <= state.pageCount; p++) {
-    const systems = [...getPageSystems(p)].sort((a, b) => a.y - b.y);
+    const systems = getOrderedPageSystems(p);
     systems.forEach((sys, sIdx) => {
+      globalSysNum++;
       const mCount = Math.max(1, sys.measures || 4);
       const mw = sys.w / mCount;
       for (let m = 0; m < mCount; m++) {
+        globalMeasureNum++;
         items.push({
           page: p,
           sysIdx: sIdx,
+          globalSysNum,
           measureIdx: m,
+          globalMeasureNum,
           x: sys.x + m * mw,
           y: sys.y,
           w: mw,
@@ -3381,6 +4172,111 @@ function buildPracticeTimeline() {
     });
   }
   return items;
+}
+
+// Compilador determinista de recorrido musical completo:
+// soporta |: :|, casillas 1./2./3. simples o de varios compases, múltiples repeticiones, D.C., D.S., Segno, Al ⊕, ⊕ Coda y Fine.
+function buildPracticePlaybackPlan(rawTimeline) {
+  if (!Array.isArray(rawTimeline) || rawTimeline.length === 0) return [];
+  const n = rawTimeline.length;
+  const effVolta = new Array(n).fill(null);
+
+  for (let i = 0; i < n; i++) {
+    const v = rawTimeline[i].marks.volta;
+    if (!v) continue;
+    effVolta[i] = v;
+    if (rawTimeline[i].marks.repeatEnd) continue;
+    // Propagar casilla de varios compases hasta el compás con :| o el inicio de otra casilla/signo
+    let hasRepeatEndAhead = false;
+    let endAt = i;
+    for (let j = i + 1; j < n; j++) {
+      const mj = rawTimeline[j].marks;
+      if (mj.volta || mj.repeatStart || mj.segno || mj.codaDest) break;
+      endAt = j;
+      if (mj.repeatEnd) { hasRepeatEndAhead = true; break; }
+      if (mj.dc || mj.ds || mj.fine || mj.toCoda) break;
+    }
+    if (hasRepeatEndAhead) {
+      for (let j = i + 1; j <= endAt; j++) effVolta[j] = v;
+    }
+  }
+
+  const plan = [];
+  const MAX_STEPS = Math.max(600, n * 16);
+  let idx = 0;
+  let pass = 1;
+  let jumpedReturn = false;
+  let repeatVisitCounts = new Map();
+
+  while (idx >= 0 && idx < n && plan.length < MAX_STEPS) {
+    const cur = rawTimeline[idx];
+    const mk = cur.marks;
+    plan.push({ tlIndex: idx, item: cur, pass, jumpedReturn, endedByFine: Boolean(mk.fine && jumpedReturn) });
+
+    if (mk.fine && jumpedReturn) break;
+
+    if (mk.toCoda && jumpedReturn) {
+      const codaIdx = rawTimeline.findIndex(it => it.marks.codaDest);
+      if (codaIdx >= 0) {
+        pass = 1;
+        repeatVisitCounts.clear();
+        idx = codaIdx;
+        continue;
+      }
+    }
+
+    if (mk.dc && !jumpedReturn) {
+      jumpedReturn = true;
+      pass = 1;
+      repeatVisitCounts.clear();
+      idx = 0;
+      continue;
+    }
+
+    if (mk.ds && !jumpedReturn) {
+      jumpedReturn = true;
+      pass = 1;
+      repeatVisitCounts.clear();
+      const segnoIdx = rawTimeline.findIndex(it => it.marks.segno);
+      idx = segnoIdx >= 0 ? segnoIdx : 0;
+      continue;
+    }
+
+    if (mk.repeatEnd) {
+      const totalPlays = Math.max(2, mk.repeatCount || 2);
+      const countSoFar = (repeatVisitCounts.get(idx) || 0) + 1;
+      if (countSoFar < totalPlays) {
+        repeatVisitCounts.set(idx, countSoFar);
+        pass = pass + 1;
+        let startIdx = idx;
+        while (startIdx > 0 && !rawTimeline[startIdx].marks.repeatStart) startIdx--;
+        if (!rawTimeline[startIdx].marks.repeatStart) startIdx = 0;
+        idx = startIdx;
+        continue;
+      }
+      // Hemos completado todas las pasadas de este :|
+      repeatVisitCounts.delete(idx);
+      pass = 1;
+    }
+
+    // Avance lineal saltando casillas que no correspondan a la vuelta actual
+    let nextIdx = idx + 1;
+    let skippedVolta = false;
+    while (nextIdx < n && effVolta[nextIdx] !== null && effVolta[nextIdx] !== pass) {
+      skippedVolta = true;
+      nextIdx++;
+    }
+    if (nextIdx >= n) break;
+
+    // Al salir de cualquier casilla hacia un compás normal (o al entrar en un nuevo |:), reiniciar contador de vueltas
+    if ((effVolta[nextIdx] === null && (effVolta[idx] !== null || skippedVolta)) || rawTimeline[nextIdx].marks.repeatStart) {
+      pass = 1;
+    }
+
+    idx = nextIdx;
+  }
+
+  return plan;
 }
 
 function updatePracticeReadout() {
@@ -3397,9 +4293,10 @@ function updatePracticeReadout() {
     el.classList.add("countin-flag");
   } else if (playback.running) {
     const beats = getTimeSigBeats(state.practice.timeSig);
-    if (playback.timeline.length > 0) {
-      const cur = playback.timeline[playback.cursor];
-      txt = `Pág. ${cur.page} · S${cur.sysIdx + 1} c.${cur.measureIdx + 1} · ${playback.beatIdx + 1}/${beats}`;
+    const step = playback.plan[playback.cursor];
+    if (step?.item) {
+      const cur = step.item;
+      txt = `Pág. ${cur.page} · S${cur.globalSysNum} · c.${cur.globalMeasureNum} · ${playback.beatIdx + 1}/${beats}`;
     } else {
       txt = `Metrónomo · ${playback.beatIdx + 1}/${beats}`;
     }
@@ -3408,135 +4305,91 @@ function updatePracticeReadout() {
   fsEl.textContent = txt;
 }
 
-function scrollSystemIntoViewIfNeeded(item) {
-  if (!item || state.practice.viewMode !== "chunks") return;
+function scrollSystemIntoViewIfNeeded(item, forceAlign = false) {
+  if (!item) return;
   const overlayRect = practiceOverlay.getBoundingClientRect();
   const vbH = practiceOverlay.viewBox.baseVal.height || 1;
+  if (overlayRect.height <= 0 || vbH <= 0) return;
   const scaleY = overlayRect.height / vbH;
   const sysTopViewport = overlayRect.top + item.y * scaleY;
   const sysBottomViewport = overlayRect.top + (item.y + item.h) * scaleY;
   const isFs = document.body.classList.contains("practice-fullscreen");
-  const headerBottom = isFs ? 12 : ((document.getElementById("toolbar").offsetHeight || 54) + (document.getElementById("practiceBar").offsetHeight || 46) + 12);
-  if (sysBottomViewport > window.innerHeight - 54 || sysTopViewport < headerBottom) {
-    const targetDocY = window.scrollY + sysTopViewport - headerBottom - 16;
+  const tbRect = document.getElementById("toolbar")?.getBoundingClientRect();
+  const pBarRect = document.getElementById("practiceBar")?.getBoundingClientRect();
+  const headerBottom = isFs ? 14 : (Math.max(tbRect?.bottom || 0, pBarRect?.bottom || 0, 0) + 14);
+  const footerSafe = isFs ? 68 : 28;
+  const isChunks = state.practice.viewMode === "chunks";
+  if (forceAlign || sysBottomViewport > window.innerHeight - footerSafe || sysTopViewport < headerBottom) {
+    const margin = isChunks ? 18 : 24;
+    const targetDocY = window.scrollY + sysTopViewport - headerBottom - margin;
     window.scrollTo({ top: Math.max(0, targetDocY), behavior: "smooth" });
   }
 }
 
-function computeNextTimelineIndex() {
-  const tl = playback.timeline;
-  const curIdx = playback.cursor;
-  const cur = tl[curIdx];
-  if (!cur) return curIdx + 1;
-  const mk = cur.marks;
-
-  // 1. Fine tras un salto D.C. o D.S.
-  if (mk.fine && playback.jumpedDaCapoOrSegno) return -1;
-
-  // 2. Al Coda (To Coda) tras D.C. o D.S.
-  if (mk.toCoda && playback.jumpedDaCapoOrSegno) {
-    const codaIdx = tl.findIndex(item => item.marks.codaDest);
-    if (codaIdx >= 0) return codaIdx;
-    showToast("Se marcó «Al ⊕» pero falta el compás destino «⊕ Coda».");
-  }
-
-  // 3. Da Capo (D.C.)
-  if (mk.dc && !playback.jumpedDaCapoOrSegno) {
-    playback.jumpedDaCapoOrSegno = true;
-    playback.repeatCounts = {};
-    playback.currentVoltaPass = 1;
-    return 0;
-  }
-
-  // 4. Dal Segno (D.S.)
-  if (mk.ds && !playback.jumpedDaCapoOrSegno) {
-    playback.jumpedDaCapoOrSegno = true;
-    playback.repeatCounts = {};
-    playback.currentVoltaPass = 1;
-    const segnoIdx = tl.findIndex(item => item.marks.segno);
-    return segnoIdx >= 0 ? segnoIdx : 0;
-  }
-
-  // 5. Repetición estándar (|: ... :|)
-  if (mk.repeatEnd) {
-    const totalPlays = mk.repeatCount || 2;
-    const played = playback.repeatCounts[curIdx] || 1;
-    if (played < totalPlays) {
-      playback.repeatCounts[curIdx] = played + 1;
-      playback.currentVoltaPass = played + 1;
-      let startIdx = curIdx;
-      while (startIdx > 0 && !tl[startIdx].marks.repeatStart) startIdx--;
-      if (!tl[startIdx].marks.repeatStart) {
-        startIdx = tl.findIndex(item => item.page === cur.page);
-        if (startIdx < 0) startIdx = 0;
-      }
-      return startIdx;
-    }
-    playback.currentVoltaPass = 1;
-  }
-
-  // 6. Avance normal saltando casillas (1., 2., 3.) de otras vueltas
-  let nextIdx = curIdx + 1;
-  while (nextIdx < tl.length && tl[nextIdx].marks.volta && tl[nextIdx].marks.volta !== playback.currentVoltaPass) {
-    nextIdx++;
-  }
-  return nextIdx;
-}
-
 async function advanceBeatTick() {
-  if (!playback.running || playback.waitingForPedal) return;
-  const beats = getTimeSigBeats(state.practice.timeSig);
+  if (!playback.running || playback.waitingForPedal || playback.advancing) return;
+  playback.advancing = true;
+  try {
+    const beats = getTimeSigBeats(state.practice.timeSig);
 
-  // Fase de cuenta atrás (2 compases previos por defecto)
-  if (playback.countInRemaining > 0) {
-    playMetronomeClick(playback.countInBeat, state.practice.timeSig, true);
-    renderPracticeOverlay();
-    updatePracticeReadout();
-    playback.countInRemaining--;
-    playback.countInBeat++;
-    if (playback.countInBeat >= beats) {
-      playback.countInBeat = 0;
-      playback.countInBar++;
-    }
-    return;
-  }
-
-  playMetronomeClick(playback.beatIdx, state.practice.timeSig);
-  if (playback.timeline.length > 0) {
-    const cur = playback.timeline[playback.cursor];
-    if (cur && cur.page === state.page) scrollSystemIntoViewIfNeeded(cur);
-  }
-  renderPracticeOverlay();
-  updatePracticeReadout();
-
-  playback.beatIdx++;
-  if (playback.beatIdx < beats) return;
-
-  playback.beatIdx = 0;
-  if (playback.timeline.length === 0) return;
-
-  const nextIdx = computeNextTimelineIndex();
-  if (nextIdx < 0 || nextIdx >= playback.timeline.length) {
-    stopPracticePlayback();
-    showToast(nextIdx < 0 ? "Fine · Fin de la partitura" : "Fin de la práctica");
-    return;
-  }
-
-  const nextItem = playback.timeline[nextIdx];
-  if (nextItem.page !== state.page) {
-    if (state.practice.advanceMode === "manual") {
-      playback.cursor = nextIdx;
-      playback.waitingForPedal = true;
-      clearInterval(playback.timerId);
-      playback.timerId = null;
+    // Fase de cuenta atrás (2 compases previos por defecto)
+    if (playback.countInRemaining > 0) {
+      playMetronomeClick(playback.countInBeat, state.practice.timeSig, true);
+      if (playback.plan.length > 0) {
+        const cur = playback.plan[playback.cursor]?.item;
+        if (cur && cur.page === state.page) scrollSystemIntoViewIfNeeded(cur);
+      }
+      renderPracticeOverlay();
       updatePracticeReadout();
+      playback.countInRemaining--;
+      playback.countInBeat++;
+      if (playback.countInBeat >= beats) {
+        playback.countInBeat = 0;
+        playback.countInBar++;
+      }
       return;
     }
-    playback.cursor = nextIdx;
-    await renderPage(nextItem.page);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  } else {
-    playback.cursor = nextIdx;
+
+    playMetronomeClick(playback.beatIdx, state.practice.timeSig);
+    if (playback.plan.length > 0) {
+      const cur = playback.plan[playback.cursor]?.item;
+      if (cur && cur.page === state.page) scrollSystemIntoViewIfNeeded(cur);
+    }
+    renderPracticeOverlay();
+    updatePracticeReadout();
+
+    playback.beatIdx++;
+    if (playback.beatIdx < beats) return;
+
+    playback.beatIdx = 0;
+    if (playback.plan.length === 0) return;
+
+    const prevStep = playback.plan[playback.cursor];
+    const nextCursor = playback.cursor + 1;
+    if (nextCursor >= playback.plan.length) {
+      const endedFine = Boolean(prevStep?.endedByFine);
+      stopPracticePlayback();
+      showToast(endedFine ? "Fine · Fin de la partitura" : "Fin de la práctica");
+      return;
+    }
+
+    const nextItem = playback.plan[nextCursor].item;
+    playback.cursor = nextCursor;
+    if (nextItem.page !== state.page) {
+      if (state.practice.advanceMode === "manual") {
+        playback.waitingForPedal = true;
+        clearInterval(playback.timerId);
+        playback.timerId = null;
+        updatePracticeReadout();
+        return;
+      }
+      await renderPage(nextItem.page);
+      renderPracticeOverlay();
+      updatePracticeReadout();
+      scrollSystemIntoViewIfNeeded(nextItem, true);
+    }
+  } finally {
+    playback.advancing = false;
   }
 }
 
@@ -3561,23 +4414,25 @@ function startPracticePlayback(isResume = false) {
   const beats = getTimeSigBeats(state.practice.timeSig);
   if (!isResume) {
     playback.timeline = buildPracticeTimeline();
-    if (playback.timeline.length > 0) {
-      const firstOnPage = playback.timeline.findIndex(item => item.page === state.page);
+    playback.plan = buildPracticePlaybackPlan(playback.timeline);
+    if (playback.plan.length > 0) {
+      const firstOnPage = playback.plan.findIndex(step => step.item.page === state.page);
       playback.cursor = firstOnPage >= 0 ? firstOnPage : 0;
     } else {
       playback.cursor = 0;
     }
     playback.beatIdx = 0;
-    playback.repeatCounts = {};
-    playback.currentVoltaPass = 1;
-    playback.jumpedDaCapoOrSegno = false;
     playback.countInRemaining = (state.practice.countInBars || 0) * beats;
     playback.countInBar = 1;
     playback.countInBeat = 0;
   }
   playback.waitingForPedal = false;
+  playback.advancing = false;
   playback.running = true;
   syncPlayButtonsUI(true);
+
+  const curItem = playback.plan[playback.cursor]?.item;
+  if (curItem && curItem.page === state.page) scrollSystemIntoViewIfNeeded(curItem, true);
 
   const intervalMs = Math.round(60000 / Math.max(35, Math.min(240, state.practice.bpm)));
   advanceBeatTick();
@@ -3607,14 +4462,12 @@ function stopPracticePlayback() {
   if (playback.timerId) clearInterval(playback.timerId);
   playback.timerId = null;
   playback.running = false;
+  playback.advancing = false;
   playback.waitingForPedal = false;
   wasPausedMidway = false;
   playback.cursor = 0;
   playback.beatIdx = 0;
   playback.countInRemaining = 0;
-  playback.repeatCounts = {};
-  playback.currentVoltaPass = 1;
-  playback.jumpedDaCapoOrSegno = false;
   syncPlayButtonsUI(false, false);
   renderPracticeOverlay();
   updatePracticeReadout();
@@ -3630,23 +4483,21 @@ function restartPracticeTimerIfRunning() {
 async function pedalNextStep() {
   if (!state.pdfDoc) return;
   if (playback.waitingForPedal) {
-    const nextItem = playback.timeline[playback.cursor];
+    const nextItem = playback.plan[playback.cursor]?.item;
     playback.waitingForPedal = false;
     if (nextItem && nextItem.page !== state.page) await renderPage(nextItem.page);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (nextItem) scrollSystemIntoViewIfNeeded(nextItem, true);
     playback.running = true;
     const intervalMs = Math.round(60000 / Math.max(35, Math.min(240, state.practice.bpm)));
     advanceBeatTick();
     playback.timerId = setInterval(advanceBeatTick, intervalMs);
     return;
   }
-  if (state.practice.viewMode === "chunks") {
-    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-    if (window.scrollY + 24 < maxScroll) {
-      const step = Math.max(180, Math.round(window.innerHeight * 0.65));
-      window.scrollTo({ top: Math.min(maxScroll, window.scrollY + step), behavior: "smooth" });
-      return;
-    }
+  const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+  if (maxScroll > 24 && window.scrollY + 24 < maxScroll) {
+    const step = Math.max(180, Math.round(window.innerHeight * 0.65));
+    window.scrollTo({ top: Math.min(maxScroll, window.scrollY + step), behavior: "smooth" });
+    return;
   }
   if (state.page < state.pageCount) {
     await renderPage(state.page + 1);
@@ -3656,7 +4507,7 @@ async function pedalNextStep() {
 
 async function pedalPrevStep() {
   if (!state.pdfDoc) return;
-  if (state.practice.viewMode === "chunks" && window.scrollY > 24) {
+  if (window.scrollY > 24) {
     const step = Math.max(180, Math.round(window.innerHeight * 0.65));
     window.scrollTo({ top: Math.max(0, window.scrollY - step), behavior: "smooth" });
     return;
@@ -3751,6 +4602,7 @@ function updateScoreSummary() {
   saveCurrentPageAnnotations();
   let loopCount = 0;
   let sysCount = 0;
+  let cutCount = 0;
   const parser = new DOMParser();
   for (let p = 1; p <= state.pageCount; p++) {
     const markup = p === state.page ? overlay.innerHTML : (state.pageSvgCache[p] || "");
@@ -3759,8 +4611,9 @@ function updateScoreSummary() {
       loopCount += doc.querySelectorAll(".loop-label").length;
     }
     sysCount += getPageSystems(p).length;
+    cutCount += (state.pageSpaceCuts[p] || []).length;
   }
-  summary.textContent = `Archivo: ${state.sourcePdfName} · ${state.pageCount} pág. · ${loopCount} bucle(s) · ${sysCount} sistema(s) calibrado(s).`;
+  summary.textContent = `Archivo: ${state.sourcePdfName} · ${state.pageCount} pág. · ${loopCount} bucle(s) · ${sysCount} sistema(s) · ${cutCount} espacio(s) añadido(s).`;
 }
 
 function switchSettingsTab(tabName) {
@@ -3826,6 +4679,50 @@ document.getElementById("testLoopUrlBtn").addEventListener("click", () => {
   if (state.loopTargetUrl) openExternalUrl(state.loopTargetUrl);
   else showToast("Escribe primero una URL válida.");
 });
+
+document.getElementById("resetPageCutsBtn").addEventListener("click", async () => {
+  if (!state.pdfDoc) return;
+  const cuts = state.pageSpaceCuts[state.page] || [];
+  if (cuts.length === 0) {
+    showToast("Esta página no tiene espacios añadidos.");
+    return;
+  }
+  // Revertir en orden inverso cada corte sobre anotaciones y sistemas
+  for (let i = cuts.length - 1; i >= 0; i--) {
+    const cut = cuts[i];
+    const threshold = cut.y + cut.delta;
+    Array.from(overlay.children).forEach(el => {
+      if (el.classList?.contains("sel-rect") || el.classList?.contains("sel-handle") || el.classList?.contains("inline-editor-host")) return;
+      const snap = snapshot(el);
+      if (!snap) return;
+      if (["chord", "finger", "loop", "text", "rect", "block", "hole"].includes(snap.kind)) {
+        const refY = snap.kind === "text" ? snap.y - (snap.size || 14) * 0.8 : snap.y;
+        if (refY >= threshold) {
+          snap.y = Math.max(0, snap.y - cut.delta);
+          applySnapshot(el, snap);
+        }
+      } else if (snap.kind === "line") {
+        if (snap.y1 >= threshold) snap.y1 = Math.max(0, snap.y1 - cut.delta);
+        if (snap.y2 >= threshold) snap.y2 = Math.max(0, snap.y2 - cut.delta);
+        applySnapshot(el, snap);
+      }
+    });
+    getPageSystems(state.page).forEach(sys => {
+      if (sys.y >= threshold) sys.y = Math.max(0, sys.y - cut.delta);
+    });
+  }
+  state.pageSpaceCuts[state.page] = [];
+  if (history.byPage[state.page]) {
+    history.byPage[state.page].undoStack = history.byPage[state.page].undoStack.filter(a => a.type !== "space-cut");
+    history.byPage[state.page].redoStack = history.byPage[state.page].redoStack.filter(a => a.type !== "space-cut");
+  }
+  if (selectedEl) refreshSelectionBox();
+  setDirty(true);
+  await renderPage(state.page, { preserveOverlay: true });
+  updateScoreSummary();
+  showToast("Espacios añadidos eliminados de esta página");
+});
+
 document.getElementById("resetPrefsBtn").addEventListener("click", () => {
   Object.entries(DEFAULT_PREFS).forEach(([id, val]) => {
     const el = document.getElementById(id);
@@ -3843,6 +4740,7 @@ document.getElementById("redo").addEventListener("click", () => history.redo());
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     if (document.body.classList.contains("practice-fullscreen")) { setPracticeFullscreen(false); return; }
+    if (libraryModal.classList.contains("open")) { closeLibraryModal(); return; }
     if (settingsModal.classList.contains("open")) { closeSettingsModal(); return; }
     if (loopModal.classList.contains("open")) { closeLoopModal(); return; }
     if (chordEditor.style.display === "block") { document.getElementById("chordEditorCancel").click(); return; }
@@ -3915,14 +4813,12 @@ document.addEventListener("keydown", (e) => {
   else if (k === "y" || (k === "z" && e.shiftKey)) { e.preventDefault(); history.redo(); }
 });
 
-/* ============ EXPORTAR PNG Y PDF (CON ENLACES REALES EN BUCLES) ============ */
+/* ============ EXPORTAR PNG Y PDF VECTORIAL HÍBRIDO (CON ENLACES EN BUCLES) ============ */
 async function composePageCanvas(pageNum, pageObj) {
-  const viewport = pageObj.getViewport({ scale: state.scale });
   const out = document.createElement("canvas");
-  out.width = viewport.width;
-  out.height = viewport.height;
+  const cuts = state.pageSpaceCuts[pageNum] || [];
+  await renderPdfCanvasWithCuts(pageObj, state.scale, cuts, out);
   const ctx = out.getContext("2d");
-  await pageObj.render({ canvasContext: ctx, viewport }).promise;
 
   let svgStr;
   if (pageNum === state.page) {
@@ -3959,18 +4855,19 @@ async function composePageCanvas(pageNum, pageObj) {
   return out;
 }
 
+function getPageAnnotationsDoc(pageNum) {
+  if (pageNum === state.page) return overlay;
+  const savedInner = state.pageSvgCache[pageNum] || "";
+  if (!savedInner) return null;
+  return new DOMParser().parseFromString(
+    `<svg xmlns="http://www.w3.org/2000/svg">${savedInner}</svg>`,
+    "image/svg+xml"
+  );
+}
+
 function collectLoopBoxesForPage(pageNum) {
-  let rootDoc;
-  if (pageNum === state.page) {
-    rootDoc = overlay;
-  } else {
-    const savedInner = state.pageSvgCache[pageNum] || "";
-    if (!savedInner) return [];
-    rootDoc = new DOMParser().parseFromString(
-      `<svg xmlns="http://www.w3.org/2000/svg">${savedInner}</svg>`,
-      "image/svg+xml"
-    );
-  }
+  const rootDoc = getPageAnnotationsDoc(pageNum);
+  if (!rootDoc) return [];
   const boxes = [];
   rootDoc.querySelectorAll(".loop-label").forEach(g => {
     const x = parseFloat(g.getAttribute("data-x"));
@@ -3986,6 +4883,261 @@ function collectLoopBoxesForPage(pageNum) {
     });
   });
   return boxes;
+}
+
+function parseColorToPdfRgb(rawColor, rgbFn) {
+  const c = (rawColor || "#000000").trim();
+  if (/^#[0-9a-f]{6}$/i.test(c)) {
+    return rgbFn(
+      parseInt(c.slice(1, 3), 16) / 255,
+      parseInt(c.slice(3, 5), 16) / 255,
+      parseInt(c.slice(5, 7), 16) / 255
+    );
+  }
+  if (/^#[0-9a-f]{3}$/i.test(c)) {
+    return rgbFn(
+      parseInt(c[1] + c[1], 16) / 255,
+      parseInt(c[2] + c[2], 16) / 255,
+      parseInt(c[3] + c[3], 16) / 255
+    );
+  }
+  const m = c.match(/rgb\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)\)/i);
+  if (m) return rgbFn(Number(m[1]) / 255, Number(m[2]) / 255, Number(m[3]) / 255);
+  return rgbFn(0, 0, 0);
+}
+
+function canDrawWinAnsiText(font, txt) {
+  if (!txt) return true;
+  try {
+    font.encodeText(txt);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function canExportPageAsVector(pageNum, pdfLibPage) {
+  if (!state.sourcePdfBytes || state.pdfExportMode !== "vector") return false;
+  if ((state.pageSpaceCuts[pageNum] || []).length > 0) return false;
+  const rot = ((pdfLibPage.getRotation()?.angle || 0) % 360 + 360) % 360;
+  if (rot !== 0) return false;
+  const rootDoc = getPageAnnotationsDoc(pageNum);
+  if (!rootDoc) return true;
+  if (rootDoc.querySelector(".block-rect, .block-hole")) return false;
+  return true;
+}
+
+function drawVectorAnnotationsOnPdfPage(pdfPage, pageNum, fonts, validLink, rgbFn) {
+  const rootDoc = getPageAnnotationsDoc(pageNum);
+  if (!rootDoc) return true;
+
+  const crop = pdfPage.getCropBox?.() || pdfPage.getMediaBox?.() || { x: 0, y: 0, width: pdfPage.getWidth(), height: pdfPage.getHeight() };
+  const s = state.scale || 3;
+  const px = (sx) => (crop.x || 0) + sx / s;
+  const py = (sy) => (crop.y || 0) + (crop.height || pdfPage.getHeight()) - sy / s;
+
+  const nodes = Array.from(rootDoc.documentElement ? rootDoc.documentElement.children : rootDoc.children);
+  for (const node of nodes) {
+    const cl = node.classList;
+    if (cl?.contains("sel-rect") || cl?.contains("sel-handle") || cl?.contains("inline-editor-host") || cl?.contains("block-selection")) continue;
+
+    if (node.tagName === "rect" && node.getAttribute("data-resizable") === "1") {
+      const rx = parseFloat(node.getAttribute("x")) || 0;
+      const ry = parseFloat(node.getAttribute("y")) || 0;
+      const rw = parseFloat(node.getAttribute("width")) || 0;
+      const rh = parseFloat(node.getAttribute("height")) || 0;
+      const color = parseColorToPdfRgb(node.getAttribute("fill") || "#ffffff", rgbFn);
+      pdfPage.drawRectangle({ x: px(rx), y: py(ry + rh), width: rw / s, height: rh / s, color });
+    } else if (node.tagName === "line") {
+      const x1 = parseFloat(node.getAttribute("x1")) || 0;
+      const y1 = parseFloat(node.getAttribute("y1")) || 0;
+      const x2 = parseFloat(node.getAttribute("x2")) || 0;
+      const y2 = parseFloat(node.getAttribute("y2")) || 0;
+      const sw = parseFloat(node.getAttribute("stroke-width")) || 2;
+      const color = parseColorToPdfRgb(node.getAttribute("stroke") || "#000000", rgbFn);
+      pdfPage.drawLine({
+        start: { x: px(x1), y: py(y1) },
+        end: { x: px(x2), y: py(y2) },
+        thickness: sw / s,
+        color,
+      });
+    } else if (node.tagName === "text") {
+      const txt = node.textContent || "";
+      if (!canDrawWinAnsiText(fonts.helveticaBold, txt)) return false;
+      const tx = parseFloat(node.getAttribute("x")) || 0;
+      const ty = parseFloat(node.getAttribute("y")) || 0;
+      const fs = parseFloat(node.getAttribute("font-size")) || 18;
+      const color = parseColorToPdfRgb(node.getAttribute("fill") || "#000000", rgbFn);
+      if (txt) {
+        pdfPage.drawText(txt, { x: px(tx), y: py(ty), size: fs / s, font: fonts.helveticaBold, color });
+      }
+    } else if (cl?.contains("finger-marker")) {
+      const gx = parseFloat(node.getAttribute("data-x")) || 0;
+      const gy = parseFloat(node.getAttribute("data-y")) || 0;
+      const size = parseFloat(node.getAttribute("data-size")) || 40;
+      const finger = node.getAttribute("data-finger") || node.querySelector("text")?.textContent || "1";
+      if (!canDrawWinAnsiText(fonts.courierBold, finger)) return false;
+      const k = (size / 100) / s;
+      const cx = px(gx) + 50 * k;
+      const cy = py(gy) - 50 * k;
+      pdfPage.drawCircle({
+        x: cx, y: cy, size: 45 * k,
+        color: rgbFn(1, 1, 1), borderColor: rgbFn(0, 0, 0), borderWidth: 4 * k,
+      });
+      const fsPt = 60 * k;
+      const tw = fonts.courierBold.widthOfTextAtSize(finger, fsPt);
+      const th = fonts.courierBold.heightAtSize(fsPt, { descender: false });
+      pdfPage.drawText(finger, { x: cx - tw / 2, y: cy - th * 0.45, size: fsPt, font: fonts.courierBold, color: rgbFn(0, 0, 0) });
+    } else if (cl?.contains("loop-label")) {
+      const gx = parseFloat(node.getAttribute("data-x")) || 0;
+      const gy = parseFloat(node.getAttribute("data-y")) || 0;
+      const size = parseFloat(node.getAttribute("data-size")) || 60;
+      const txt = node.getAttribute("data-text") || node.querySelector("text")?.textContent || "";
+      if (!canDrawWinAnsiText(fonts.courierBold, txt)) return false;
+      const k = (size / 100) / s;
+      const col = validLink ? rgbFn(0.047, 0.4, 0.329) : rgbFn(0, 0, 0);
+      pdfPage.drawRectangle({
+        x: px(gx) + 2 * k,
+        y: py(gy) - 58 * k,
+        width: 96 * k,
+        height: 56 * k,
+        color: rgbFn(1, 1, 1),
+        borderColor: col,
+        borderWidth: 3 * k,
+      });
+      if (validLink) {
+        pdfPage.drawLine({
+          start: { x: px(gx) + 16 * k, y: py(gy) - 46 * k },
+          end: { x: px(gx) + 84 * k, y: py(gy) - 46 * k },
+          thickness: 2.4 * k,
+          color: rgbFn(0.078, 0.49, 0.408),
+        });
+      }
+      const fsPt = (txt.length > 4 ? 26 : 34) * k;
+      const tw = fonts.courierBold.widthOfTextAtSize(txt, fsPt);
+      const th = fonts.courierBold.heightAtSize(fsPt, { descender: false });
+      pdfPage.drawText(txt, {
+        x: px(gx) + 50 * k - tw / 2,
+        y: py(gy) - 28 * k - th * 0.42,
+        size: fsPt,
+        font: fonts.courierBold,
+        color: col,
+      });
+    } else if (cl?.contains("chord-diagram")) {
+      let model = null;
+      try { model = JSON.parse(node.getAttribute("data-chord-model") || "null"); } catch (e) {}
+      if (!model || !Array.isArray(model.pos)) return false;
+      const gx = parseFloat(node.getAttribute("data-x")) || 0;
+      const gy = parseFloat(node.getAttribute("data-y")) || 0;
+      const size = parseFloat(node.getAttribute("data-size")) || 120;
+      const frets = Math.max(1, Math.min(15, parseInt(model.frets) || 5));
+      const trasteIni = Math.max(1, parseInt(model.traste) || 1);
+      const cleanName = (model.nombre || "").trim();
+      if (!canDrawWinAnsiText(fonts.courierBold, cleanName)) return false;
+
+      const k = (size / 100) / s;
+      const H = chordDiagramHeight(frets);
+      const cx = (lx) => px(gx) + lx * k;
+      const cy = (ly) => py(gy) - ly * k;
+
+      pdfPage.drawRectangle({
+        x: cx(0), y: cy(H), width: ED.W * k, height: H * k, color: rgbFn(1, 1, 1),
+      });
+
+      if (cleanName) {
+        const nfs = 14 * k;
+        const tw = fonts.courierBold.widthOfTextAtSize(cleanName, nfs);
+        pdfPage.drawText(cleanName, {
+          x: cx((ED.left + ED.right) / 2) - tw / 2,
+          y: cy(15),
+          size: nfs,
+          font: fonts.courierBold,
+          color: rgbFn(0, 0, 0),
+        });
+      }
+
+      const bottom = ED.top + frets * ED.fGap;
+      for (let i = 0; i < ED.strings; i++) {
+        const xpos = ED.left + i * ED.sGap;
+        pdfPage.drawLine({
+          start: { x: cx(xpos), y: cy(ED.top) },
+          end: { x: cx(xpos), y: cy(bottom) },
+          thickness: 1 * k,
+          color: rgbFn(0, 0, 0),
+        });
+      }
+      for (let i = 0; i <= frets; i++) {
+        const ypos = ED.top + i * ED.fGap;
+        pdfPage.drawLine({
+          start: { x: cx(ED.left), y: cy(ypos) },
+          end: { x: cx(ED.right), y: cy(ypos) },
+          thickness: (i === 0 && trasteIni === 1 ? 3 : 1) * k,
+          color: rgbFn(0, 0, 0),
+        });
+      }
+
+      if (trasteIni > 1) {
+        const fStr = String(trasteIni);
+        const ffs = 14 * k;
+        const tw = fonts.courierBold.widthOfTextAtSize(fStr, ffs);
+        const th = fonts.courierBold.heightAtSize(ffs, { descender: false });
+        pdfPage.drawText(fStr, {
+          x: cx(ED.left - 4) - tw,
+          y: cy(ED.top + ED.fGap * 0.5) - th * 0.45,
+          size: ffs,
+          font: fonts.courierBold,
+          color: rgbFn(0, 0, 0),
+        });
+      }
+
+      const cejList = model.cejillas || [];
+      cejList.forEach(cj => {
+        const rel = cj.traste - trasteIni;
+        if (rel < 0 || rel >= frets) return;
+        const yc = ED.top + (rel + 0.5) * ED.fGap;
+        const x1 = ED.left + (cj.desde - 1) * ED.sGap;
+        const x2 = ED.left + (cj.hasta - 1) * ED.sGap;
+        pdfPage.drawRectangle({
+          x: cx(Math.min(x1, x2) - 4),
+          y: cy(yc + 5),
+          width: (Math.abs(x2 - x1) + 8) * k,
+          height: 10 * k,
+          color: rgbFn(0, 0, 0),
+        });
+      });
+
+      for (let i = 0; i < ED.strings; i++) {
+        const xpos = ED.left + i * ED.sGap;
+        const arr = model.pos[i] || [];
+        if (arr.includes(-1)) {
+          const xfs = 11 * k;
+          const tw = fonts.courier.widthOfTextAtSize("X", xfs);
+          pdfPage.drawText("X", { x: cx(xpos) - tw / 2, y: cy(ED.top - 5), size: xfs, font: fonts.courier, color: rgbFn(0, 0, 0) });
+        } else if (arr.includes(0)) {
+          pdfPage.drawCircle({
+            x: cx(xpos), y: cy(ED.top - 9), size: 3.5 * k,
+            borderColor: rgbFn(0, 0, 0), borderWidth: 1 * k,
+          });
+        }
+        const drawPos = (fret, hollow) => {
+          if (fret <= 0) return;
+          if (cejList.some(cj => cj.traste === fret && i + 1 >= cj.desde && i + 1 <= cj.hasta)) return;
+          const rel = fret - trasteIni;
+          if (rel < 0 || rel >= frets) return;
+          const yc = ED.top + (rel + 0.5) * ED.fGap;
+          pdfPage.drawCircle({
+            x: cx(xpos), y: cy(yc), size: 5 * k,
+            color: hollow ? rgbFn(1, 1, 1) : rgbFn(0, 0, 0),
+            borderColor: rgbFn(0, 0, 0),
+            borderWidth: hollow ? 1.6 * k : 0,
+          });
+        };
+        arr.forEach(f => drawPos(f, false));
+        (model.hollowPos?.[i] || []).forEach(f => drawPos(f, true));
+      }
+    }
+  }
+  return true;
 }
 
 document.getElementById("exportPng").addEventListener("click", async () => {
@@ -4004,30 +5156,74 @@ document.getElementById("exportPdf").addEventListener("click", async () => {
   saveCurrentPageAnnotations();
   showToast("Generando PDF completo...");
 
-  const { PDFDocument, PDFName, PDFString } = PDFLib;
+  const { PDFDocument, PDFName, PDFString, StandardFonts, rgb } = PDFLib;
   const pdfDoc = await PDFDocument.create();
+  const fonts = {
+    helveticaBold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
+    courierBold: await pdfDoc.embedFont(StandardFonts.CourierBold),
+    courier: await pdfDoc.embedFont(StandardFonts.Courier),
+  };
+
+  let srcPdfDoc = null;
+  if (state.sourcePdfBytes && state.pdfExportMode === "vector") {
+    try { srcPdfDoc = await PDFDocument.load(state.sourcePdfBytes, { ignoreEncryption: true }); }
+    catch (e) { srcPdfDoc = null; }
+  }
+
   const loopUrl = state.loopTargetUrl ? normalizeLoopUrl(state.loopTargetUrl) : "";
   const validLink = Boolean(loopUrl && isValidHttpUrl(loopUrl));
+  let vectorPagesCount = 0;
+  let rasterPagesCount = 0;
 
   for (let p = 1; p <= state.pageCount; p++) {
-    const pageObj = await state.pdfDoc.getPage(p);
-    const out = await composePageCanvas(p, pageObj);
-    const pngDataUrl = out.toDataURL("image/png");
-    const pngBytes = await fetch(pngDataUrl).then(r => r.arrayBuffer());
-    const ptWidth = out.width / state.scale;
-    const ptHeight = out.height / state.scale;
-    const page = pdfDoc.addPage([ptWidth, ptHeight]);
-    const pngImage = await pdfDoc.embedPng(pngBytes);
-    page.drawImage(pngImage, { x: 0, y: 0, width: ptWidth, height: ptHeight });
+    let page = null;
+    let crop = { x: 0, y: 0, width: 0, height: 0 };
+    let usedVector = false;
 
-    if (validLink) {
+    if (srcPdfDoc && canExportPageAsVector(p, srcPdfDoc.getPage(p - 1))) {
+      try {
+        const [copied] = await pdfDoc.copyPages(srcPdfDoc, [p - 1]);
+        pdfDoc.addPage(copied);
+        crop = copied.getCropBox?.() || copied.getMediaBox?.() || { x: 0, y: 0, width: copied.getWidth(), height: copied.getHeight() };
+        const ok = drawVectorAnnotationsOnPdfPage(copied, p, fonts, validLink, rgb);
+        if (ok) {
+          page = copied;
+          usedVector = true;
+          vectorPagesCount++;
+        } else {
+          pdfDoc.removePage(pdfDoc.getPageCount() - 1);
+        }
+      } catch (err) {
+        if (pdfDoc.getPageCount() >= p) pdfDoc.removePage(pdfDoc.getPageCount() - 1);
+        usedVector = false;
+      }
+    }
+
+    if (!usedVector) {
+      const pageObj = await state.pdfDoc.getPage(p);
+      const out = await composePageCanvas(p, pageObj);
+      const pngDataUrl = out.toDataURL("image/png");
+      const pngBytes = await fetch(pngDataUrl).then(r => r.arrayBuffer());
+      const ptWidth = out.width / state.scale;
+      const ptHeight = out.height / state.scale;
+      page = pdfDoc.addPage([ptWidth, ptHeight]);
+      crop = { x: 0, y: 0, width: ptWidth, height: ptHeight };
+      const pngImage = await pdfDoc.embedPng(pngBytes);
+      page.drawImage(pngImage, { x: 0, y: 0, width: ptWidth, height: ptHeight });
+      rasterPagesCount++;
+    }
+
+    if (validLink && page) {
       const boxes = collectLoopBoxesForPage(p);
       if (boxes.length > 0) {
+        const ox = crop.x || 0;
+        const oy = crop.y || 0;
+        const ch = crop.height || page.getHeight();
         const annotRefs = boxes.map(box => {
-          const x1 = box.x / state.scale;
-          const x2 = (box.x + box.w) / state.scale;
-          const y1 = ptHeight - (box.y + box.h) / state.scale;
-          const y2 = ptHeight - box.y / state.scale;
+          const x1 = ox + box.x / state.scale;
+          const x2 = ox + (box.x + box.w) / state.scale;
+          const y1 = oy + ch - (box.y + box.h) / state.scale;
+          const y2 = oy + ch - box.y / state.scale;
           const linkAnnot = pdfDoc.context.obj({
             Type: "Annot",
             Subtype: "Link",
@@ -4054,7 +5250,12 @@ document.getElementById("exportPdf").addEventListener("click", async () => {
   a.download = `${baseName}_editado.pdf`;
   a.href = url; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1500);
-  showToast(validLink ? "PDF exportado con enlaces de bucle" : "PDF exportado");
+  const modeMsg = vectorPagesCount > 0 && rasterPagesCount === 0
+    ? "PDF vectorial exportado"
+    : vectorPagesCount > 0
+      ? `PDF híbrido exportado (${vectorPagesCount} vect. / ${rasterPagesCount} img.)`
+      : "PDF exportado";
+  showToast(validLink ? `${modeMsg} con enlaces` : modeMsg);
 });
 </script>
 </body>
