@@ -1,4 +1,4 @@
-const CACHE_NAME = "partituras-pwa-v11-1";
+const CACHE_NAME = "partituras-pwa-v11-2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -19,7 +19,12 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      await cache.addAll(APP_SHELL);
+      await Promise.allSettled(
+        APP_SHELL.map(async (url) => {
+          const resp = await fetch(url, { cache: "reload" });
+          if (resp && resp.ok) await cache.put(url, resp);
+        })
+      );
       await Promise.allSettled(
         CDN_LIBS.map(async (url) => {
           const resp = await fetch(url, { mode: "cors" });

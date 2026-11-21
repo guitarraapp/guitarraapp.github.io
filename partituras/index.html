@@ -6018,26 +6018,61 @@ document.getElementById("exportPdf").addEventListener("click", async () => {
 });
 </script>
 
+<div id="pwaInstallModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pwaInstallTitle">
+  <div class="modal-card" style="max-width:460px;">
+    <div class="modal-header">
+      <h3 id="pwaInstallTitle">Instalar aplicación (PWA)</h3>
+      <button id="pwaInstallClose" class="modal-close" type="button">Cerrar</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <h4>Cómo instalarla en el móvil o PC</h4>
+        <p class="settings-desc" style="line-height:1.55;">
+          <strong>Chrome / Edge / Samsung en Android:</strong> pulsa el menú <strong>⋮</strong> (arriba a la derecha) y elige <strong>Instalar aplicación</strong> o <strong>Añadir a pantalla de inicio</strong>.<br><br>
+          <strong>Brave en Android:</strong> si el navegador bloquea la instalación automática, abre el menú <strong>⋮ → Añadir a pantalla de inicio</strong>.<br><br>
+          <strong>Safari en iPhone / iPad:</strong> pulsa <strong>Compartir</strong> y luego <strong>Añadir a pantalla de inicio</strong>.
+        </p>
+        <p id="pwaDiagLine" class="settings-desc" style="margin-bottom:8px; font-weight:600; color:var(--accent-dark);"></p>
+        <div class="field-row" style="margin-bottom:0;">
+          <button id="pwaNativePromptBtn" class="btn-ui primary" type="button" style="display:none; background:var(--accent); color:#fff; border-color:var(--accent);">Instalar ahora</button>
+          <button id="pwaRefreshSwBtn" class="btn-ui" type="button">Actualizar caché PWA</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="pwaOfflineBadge" role="status" aria-live="polite">Sin conexión · Modo local activo</div>
 <script>
 (() => {
-  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.protocol === "http:")) {
+  const canUseSw = "serviceWorker" in navigator && (location.protocol === "https:" || location.protocol === "http:");
+  let swActiveInfo = canUseSw ? "Registrando Service Worker..." : "Solo disponible bajo HTTPS / localhost";
+  if (canUseSw) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {});
+      navigator.serviceWorker.register("./sw.js", { scope: "./" })
+        .then((reg) => {
+          reg.update().catch(() => {});
+          swActiveInfo = reg.active ? "Service Worker activo (listo offline)" : "Service Worker instalado (recarga si no aparece Instalar)";
+        })
+        .catch(() => {
+          swActiveInfo = "No se pudo registrar sw.js en este navegador";
+        });
     });
   }
 
   let deferredInstall = null;
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-  const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
   const deskBtn = document.getElementById("pwaInstallBtn");
   const mobBtn = document.getElementById("mobInstallBtn");
   const offBadge = document.getElementById("pwaOfflineBadge");
+  const pwaModal = document.getElementById("pwaInstallModal");
+  const pwaDiagLine = document.getElementById("pwaDiagLine");
+  const pwaNativeBtn = document.getElementById("pwaNativePromptBtn");
 
   function syncInstallButtons() {
-    const show = !isStandalone && (Boolean(deferredInstall) || isIOS);
+    const show = !isStandalone && canUseSw;
     if (deskBtn) deskBtn.style.display = show ? "inline-flex" : "none";
     if (mobBtn) mobBtn.style.display = show ? "inline-flex" : "none";
+    if (pwaNativeBtn) pwaNativeBtn.style.display = deferredInstall ? "inline-flex" : "none";
   }
 
   async function triggerInstall() {
@@ -6047,16 +6082,35 @@ document.getElementById("exportPdf").addEventListener("click", async () => {
       if (res && res.outcome === "accepted") {
         deferredInstall = null;
         syncInstallButtons();
+        if (pwaModal) pwaModal.classList.remove("open");
       }
       return;
     }
-    if (isIOS) {
-      showToast("En Safari pulsa Compartir y luego «Añadir a pantalla de inicio».");
+    if (pwaDiagLine) {
+      const hasPrompt = deferredInstall ? "Prompt nativo listo" : "Usa el menú del navegador si no salta el aviso automático";
+      pwaDiagLine.textContent = "Estado: " + swActiveInfo + " · " + hasPrompt;
     }
+    if (pwaModal) pwaModal.classList.add("open");
   }
 
   if (deskBtn) deskBtn.addEventListener("click", triggerInstall);
   if (mobBtn) mobBtn.addEventListener("click", triggerInstall);
+  if (pwaNativeBtn) pwaNativeBtn.addEventListener("click", triggerInstall);
+  document.getElementById("pwaInstallClose")?.addEventListener("click", () => pwaModal?.classList.remove("open"));
+  pwaModal?.addEventListener("click", (e) => { if (e.target === pwaModal) pwaModal.classList.remove("open"); });
+  document.getElementById("pwaRefreshSwBtn")?.addEventListener("click", async () => {
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch (e) {}
+    location.reload();
+  });
 
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
@@ -6066,6 +6120,7 @@ document.getElementById("exportPdf").addEventListener("click", async () => {
   window.addEventListener("appinstalled", () => {
     deferredInstall = null;
     syncInstallButtons();
+    if (pwaModal) pwaModal.classList.remove("open");
     showToast("Aplicación instalada correctamente");
   });
   syncInstallButtons();

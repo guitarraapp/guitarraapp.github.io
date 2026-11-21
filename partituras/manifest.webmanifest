@@ -1,11 +1,11 @@
 {
-  "id": "./",
   "name": "Editor PDF de Partituras",
   "short_name": "Partituras",
   "description": "Editor y estudio personal de partituras en PDF para guitarra con metrónomo, bucles de estudio y biblioteca offline.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "prefer_related_applications": false,
   "background_color": "#f3f5f4",
   "theme_color": "#147d68",
   "lang": "es",
