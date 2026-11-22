@@ -947,20 +947,6 @@
 
       <!-- Tab 4: Ayuda -->
       <div id="tab-help" class="settings-tab-panel" style="display:none;">
-        <div class="settings-section" id="v11DownloadBox" style="background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:12px;">
-          <h4 style="margin-bottom:4px;">Descargar archivos v11.1 (sin copiar ni pegar)</h4>
-          <p class="settings-desc" style="margin-bottom:10px;">
-            Descarga directa del editor autocontenido <code>.html</code>, los archivos PWA actualizados y el documento de continuidad para las siguientes fases:
-          </p>
-          <div class="field-row" style="margin-bottom:0;">
-            <button type="button" class="btn-ui primary" data-dl-v11="partituras-editor-v11.1.html">⬇ partituras-editor-v11.1.html</button>
-            <button type="button" class="btn-ui" data-dl-v11="index.html">⬇ index.html (PWA)</button>
-            <button type="button" class="btn-ui" data-dl-v11="manifest.webmanifest">⬇ manifest.webmanifest</button>
-            <button type="button" class="btn-ui" data-dl-v11="sw.js">⬇ sw.js</button>
-            <button type="button" class="btn-ui" data-dl-v11="CONTINUIDAD.md">⬇ CONTINUIDAD.md</button>
-          </div>
-        </div>
-
         <div class="help-block">
           <h4>Novedades de la versión v11.1</h4>
           <ul>
@@ -1027,7 +1013,6 @@
     <button id="emptyOpenPdf">Abrir PDF</button>
     <button id="emptyOpenProject">Abrir editable (.scoreproj)</button>
     <button id="emptyOpenHelp">Ver ayuda v11.1</button>
-    <button id="emptyDownloadV11">Descargar archivos v11.1</button>
   </div>
 </div>
 
@@ -1458,36 +1443,8 @@ document.getElementById("openPdfBtn").addEventListener("click", () => document.g
 document.getElementById("emptyOpenPdf").addEventListener("click", () => document.getElementById("pdfFile").click());
 document.getElementById("emptyOpenProject").addEventListener("click", () => document.getElementById("projectFile").click());
 document.getElementById("emptyOpenHelp").addEventListener("click", () => openSettingsModal("help"));
-document.getElementById("emptyDownloadV11")?.addEventListener("click", () => openSettingsModal("help"));
 document.getElementById("emptyOpenLibrary").addEventListener("click", () => openLibraryModal());
 document.getElementById("openLibraryBtn").addEventListener("click", () => openLibraryModal());
-
-document.querySelectorAll("[data-dl-v11]").forEach((btn) => {
-  btn.addEventListener("click", async () => {
-    const file = btn.getAttribute("data-dl-v11");
-    if (!file) return;
-    try {
-      const res = await fetch(`/v11.1/${encodeURIComponent(file)}`, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = file;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
-      showToast(`Descargando ${file}`);
-    } catch (err) {
-      if (location.protocol === "file:") {
-        showToast("Abre la app web para descargar los archivos PWA.");
-      } else {
-        window.open(`/v11.1/${encodeURIComponent(file)}`, "_blank", "noopener");
-      }
-    }
-  });
-});
 
 function resetPracticeStateToDefaults() {
   stopPracticePlayback();
@@ -2227,8 +2184,10 @@ function setAppMode(mode) {
     if (activeInlineEditor) finishInlineTextEdit(true);
     clearSelection();
     clearPendingPlacement();
-    chordPanel.style.display = "none";
-    chordEditor.style.display = "none";
+    const cp = document.getElementById("chordPanel");
+    const ce = document.getElementById("chordEditor");
+    if (cp) cp.style.display = "none";
+    if (ce) ce.style.display = "none";
   }
 
   if (isRead) {
@@ -2252,9 +2211,6 @@ function setAppMode(mode) {
 document.getElementById("toggleMode").addEventListener("click", () => {
   setAppMode(state.mode === "edit" ? "practice" : "edit");
 });
-if (isCompactTouchDevice()) {
-  setAppMode("read");
-}
 
 let drawing = null;
 
@@ -5491,7 +5447,7 @@ document.querySelectorAll("#mobileModePicker [data-mobile-mode]").forEach((btn) 
 stageFrame.addEventListener("pointerdown", () => {
   if (document.body.classList.contains("mobile-menu-open")) closeMobileMenu();
 });
-["openLibraryBtn","openPdfBtn","openProject","openSettings","createChord","insertChord","toggleCalibrateBtn","autoDetectSystemsBtn","practiceFullscreenBtn"].forEach(id => {
+["openLibraryBtn","quickSaveLibraryBtn","openPdfBtn","openProject","saveProject","openSettings","exportPng","exportPdf","createChord","insertChord","toggleCalibrateBtn","autoDetectSystemsBtn","practiceFullscreenBtn"].forEach(id => {
   document.getElementById(id)?.addEventListener("click", () => closeMobileMenu());
 });
 document.querySelectorAll("[data-tool]").forEach(btn => {
@@ -6259,6 +6215,10 @@ document.getElementById("exportPdf").addEventListener("click", async () => {
       : "PDF exportado";
   showToast(validLink ? `${modeMsg} con enlaces` : modeMsg);
 });
+
+if (isCompactTouchDevice()) {
+  setAppMode("read");
+}
 </script>
 
 <div id="pwaInstallModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pwaInstallTitle">
