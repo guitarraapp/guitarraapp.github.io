@@ -3,8 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Editor PDF de partituras · v11.0</title>
-<meta name="description" content="Editor y estudio personal de partituras en PDF para guitarra con Biblioteca local IndexedDB, Modo Practicar con bucles y uso sin conexión.">
+<title>Editor PDF de Partituras · v11.1</title>
+<meta name="description" content="Editor y estudio personal de partituras en PDF para guitarra con Biblioteca local, Modo Lectura protegido y Modo Practicar.">
+<meta property="og:title" content="Editor PDF de Partituras">
+<meta property="og:description" content="Editor y estudio personal de partituras en PDF para guitarra con Biblioteca local, Modo Lectura protegido y Modo Practicar.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#147d68">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,6 +25,10 @@
     --shadow: 0 12px 34px rgba(25, 55, 45, .12);
   }
   * { box-sizing: border-box; }
+  html, body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
   body {
     margin: 0;
     font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -28,18 +36,22 @@
     color: var(--text);
     font-size: 13px;
   }
+  .mobile-only { display: none; }
   #menusHost { display: contents; }
   #mobileQuickBar {
     display: none;
     position: sticky; top: 0; z-index: 24;
-    align-items: center; gap: 6px; padding: 7px 10px;
+    width: 100%; max-width: 100%; overflow-x: auto; scrollbar-width: none;
+    align-items: center; gap: 5px; padding: 6px 8px;
     background: rgba(255,255,255,.97); border-bottom: 1px solid var(--border);
     box-shadow: 0 3px 14px rgba(25,55,45,.07); backdrop-filter: blur(12px);
   }
+  #mobileQuickBar::-webkit-scrollbar { display: none; }
   #mobileQuickBar button {
+    flex: 0 0 auto;
     font-family: inherit; font-size: 12px; font-weight: 600; color: var(--text);
     background: #fff; border: 1px solid var(--border); border-radius: 8px;
-    padding: 6px 10px; min-height: 36px; cursor: pointer; white-space: nowrap;
+    padding: 6px 8px; min-height: 36px; cursor: pointer; white-space: nowrap;
     display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   }
   #mobileQuickBar button:hover { background: #eef5f2; }
@@ -47,11 +59,20 @@
   #mobileQuickBar button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
   #mobileQuickBar button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-dark); }
   #mobileQuickBar button.btn-play-active { background: #1e2d28; border-color: #1e2d28; color: #fff; }
-  #mobileQuickBar .mob-spacer { flex: 1 1 auto; }
-  #mobPageLabel { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 2px; white-space: nowrap; }
+  #mobileQuickBar .mob-spacer { flex: 1 1 auto; min-width: 4px; }
+  #mobPageLabel { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 2px; white-space: nowrap; flex: 0 0 auto; }
+  #mobReadBadge {
+    display: none; flex: 0 0 auto; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 700; color: var(--accent-dark);
+    background: var(--accent-soft); border: 1px solid #b8dcd0;
+    border-radius: 7px; padding: 4px 8px; white-space: nowrap;
+  }
   #mobileQuickBar .practice-only { display: none; }
   body.practice-mode #mobileQuickBar .practice-only { display: inline-flex; }
-  body.practice-mode #mobileQuickBar .edit-only { display: none; }
+  body.practice-mode #mobileQuickBar .edit-only,
+  body.read-mode #mobileQuickBar .edit-only,
+  body.read-mode #mobileQuickBar .practice-only { display: none; }
+  body.read-mode #mobileQuickBar .read-only { display: inline-flex; }
 
   #toolbar {
     position: sticky; top: 0; z-index: 20;
@@ -66,9 +87,12 @@
     padding: 8px 14px; background: #edf4f1; border-bottom: 1px solid #c9dcd5;
   }
   body.practice-mode #practiceBar { display: flex; }
-  body.practice-mode .edit-only { display: none !important; }
-  body.practice-mode #overlay { pointer-events: none; }
-  body.practice-mode.has-loop-url #overlay { pointer-events: auto; }
+  body.practice-mode .edit-only,
+  body.read-mode .edit-only { display: none !important; }
+  body.practice-mode #overlay,
+  body.read-mode #overlay { pointer-events: none; }
+  body.practice-mode.has-loop-url #overlay,
+  body.read-mode.has-loop-url #overlay { pointer-events: auto; }
 
   /* Pantalla completa en reproducción */
   body.practice-fullscreen { background: #141d1a; }
@@ -80,7 +104,8 @@
   body.practice-fullscreen #stageFrame { margin: 10px auto 64px; }
   #fullscreenHud {
     display: none; position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
-    z-index: 45; align-items: center; gap: 8px; flex-wrap: wrap;
+    width: max-content; max-width: calc(100vw - 16px);
+    z-index: 45; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;
     padding: 7px 12px; border-radius: 12px;
     background: rgba(255,255,255,.94); border: 1px solid var(--border);
     box-shadow: 0 12px 32px rgba(0,0,0,.35); backdrop-filter: blur(10px);
@@ -167,17 +192,22 @@
   #stageFrame { position: relative; width: 1px; height: 1px; margin: 18px auto 48px; }
   #stage {
     position: relative; transform: scale(var(--view-zoom, 1)); transform-origin: top left;
-    margin: 0; width: fit-content; max-width: calc(100vw - 32px);
+    margin: 0; width: fit-content;
     background: #fff; box-shadow: var(--shadow); border: 1px solid #d9dfdc;
   }
-  #bgCanvas { display: block; height: auto; }
+  body:not(.read-mode) #stage { user-select: none; -webkit-user-select: none; }
+  .inline-text-editor { user-select: text; -webkit-user-select: text; }
+  #bgCanvas { display: block; max-width: 100%; }
   #overlay, #practiceOverlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none;
   }
+  body.read-mode #overlay,
+  body.read-mode #practiceOverlay,
   body.practice-mode #overlay,
-  body:not(.calibrating) #practiceOverlay { touch-action: pan-x pan-y; }
-  #overlay.tool-select { touch-action: pan-x pan-y; cursor: default; }
+  body:not(.calibrating) #practiceOverlay { touch-action: pan-x pan-y pinch-zoom; }
+  #overlay.tool-select { touch-action: pan-x pan-y pinch-zoom; cursor: default; }
   #overlay.tool-select > * { touch-action: none; }
+  body.read-mode #overlay.tool-select > * { touch-action: pan-x pan-y pinch-zoom; }
   #practiceOverlay { pointer-events: none; z-index: 3; }
   body.calibrating #practiceOverlay { pointer-events: auto; cursor: crosshair; touch-action: none; }
   #overlay { z-index: 2; }
@@ -241,32 +271,62 @@
   @media (max-width: 860px) {
     #mobileQuickBar { display: flex; }
     #menusHost { display: none; }
+    .mobile-only { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+    .desktop-only { display: none !important; }
     body.mobile-menu-open #menusHost {
       display: block;
-      position: fixed; top: 51px; left: 0; right: 0; z-index: 23;
-      max-height: calc(100dvh - 51px); overflow-y: auto;
+      position: fixed; top: 49px; left: 0; right: 0; z-index: 23;
+      max-height: calc(100dvh - 49px); overflow-y: auto; overflow-x: hidden;
       background: rgba(243,245,244,.98); backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
       box-shadow: 0 18px 42px rgba(25,55,45,.22);
       padding-bottom: 14px;
     }
     #toolbar, #practiceBar {
-      position: static;
+      position: static; max-width: 100%;
       padding: 8px 10px; gap: 6px;
       box-shadow: none; backdrop-filter: none;
     }
     #toolbar button, #toolbar select, #practiceBar button, #practiceBar select, #practiceBar input[type="number"] {
-      min-height: 36px; font-size: 12px;
+      min-height: 36px; font-size: 12px; max-width: 100%;
     }
-    .group { flex: 1 1 100%; }
+    .group { flex: 1 1 100%; min-width: 0; max-width: 100%; }
     #hint { display: none; }
     #stageFrame { margin: 8px auto 72px; }
-    #stage { max-width: calc(100vw - 14px); }
-    #fullscreenHud { max-width: calc(100vw - 16px); bottom: 10px; justify-content: center; padding: 6px 8px; gap: 5px; }
+    #fullscreenHud { bottom: 10px; padding: 6px 8px; gap: 5px; }
     #fullscreenHud button { min-height: 36px; padding: 6px 8px; font-size: 12px; }
     #systemPopover { left: 8px; right: 8px; bottom: 8px; max-width: none; }
     #emptyState { margin: 20px 12px; padding: 20px 16px; }
   }
+  body.mobile-ui #mobileQuickBar { display: flex; }
+  body.mobile-ui #menusHost { display: none; }
+  body.mobile-ui .mobile-only { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  body.mobile-ui .desktop-only { display: none !important; }
+  body.mobile-ui.mobile-menu-open #menusHost {
+    display: block;
+    position: fixed; top: 49px; left: 0; right: 0; z-index: 23;
+    max-height: calc(100dvh - 49px); overflow-y: auto; overflow-x: hidden;
+    background: rgba(243,245,244,.98); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 18px 42px rgba(25,55,45,.22);
+    padding-bottom: 14px;
+  }
+  body.mobile-ui #toolbar, body.mobile-ui #practiceBar {
+    position: static; max-width: 100%;
+    padding: 8px 10px; gap: 6px;
+    box-shadow: none; backdrop-filter: none;
+  }
+  body.mobile-ui #toolbar button, body.mobile-ui #toolbar select,
+  body.mobile-ui #practiceBar button, body.mobile-ui #practiceBar select, body.mobile-ui #practiceBar input[type="number"] {
+    min-height: 36px; font-size: 12px; max-width: 100%;
+  }
+  body.mobile-ui .group { flex: 1 1 100%; min-width: 0; max-width: 100%; }
+  body.mobile-ui #hint { display: none; }
+  body.mobile-ui #stageFrame { margin: 8px auto 72px; }
+  body.mobile-ui #fullscreenHud { bottom: 10px; padding: 6px 8px; gap: 5px; }
+  body.mobile-ui #fullscreenHud button { min-height: 36px; padding: 6px 8px; font-size: 12px; }
+  body.mobile-ui #systemPopover { left: 8px; right: 8px; bottom: 8px; max-width: none; }
+  body.mobile-ui #emptyState { margin: 20px 12px; padding: 20px 16px; }
   @media (max-width: 480px) {
     #chordList { grid-template-columns: repeat(3, 1fr) !important; }
     #mobMenuToggle { padding: 6px 8px; }
@@ -449,7 +509,7 @@
   }
   #pwaOfflineBadge.show { display: inline-flex; align-items: center; gap: 6px; }
 </style>
-</head>
+<script src="/_aistudio-iframe.js?v=29045eb3"></script></head>
 <body>
 
 <div id="mobileQuickBar" aria-label="Barra rápida móvil">
@@ -458,18 +518,20 @@
   <span id="mobPageLabel">—/—</span>
   <button id="mobNextPage" type="button" aria-label="Página siguiente">›</button>
   <div class="mob-spacer"></div>
+  <span id="pwaReactMobileMount"></span>
   <button id="mobInstallBtn" type="button" title="Instalar app offline">📲</button>
+  <span id="mobReadBadge" class="read-only" title="Modo protegido: desplaza y haz pellizco de zoom sin riesgo de tocar anotaciones">🔒 Lectura</span>
   <button id="mobUndoBtn" class="edit-only" type="button" title="Deshacer">↶</button>
   <button id="mobPlayBtn" class="practice-only primary" type="button" title="Practicar / Pausar">▶</button>
   <button id="mobLoopBtn" class="practice-only" type="button" title="Activar o desactivar bucle">🔁</button>
   <button id="mobFullscreenBtn" class="practice-only" type="button" title="Pantalla completa">⛶</button>
-  <button id="mobModeToggle" type="button" title="Cambiar entre Editar y Practicar">Practicar</button>
+  <button id="mobModeToggle" type="button" title="Cambiar modo de estudio">Practicar</button>
 </div>
 
 <div id="menusHost">
 <div id="toolbar">
   <div class="group">
-    <span class="group-label">Partitura · v11.0</span>
+    <span class="group-label">Partitura · v11.1</span>
     <button id="openLibraryBtn" title="Abrir biblioteca local guardada en este navegador">Biblioteca</button>
     <button id="quickSaveLibraryBtn" title="Guardar o actualizar esta partitura en tu biblioteca local">+ Guardar en bibl.</button>
     <button id="openPdfBtn">Abrir PDF</button>
@@ -490,7 +552,12 @@
     <span id="zoomLabel" aria-live="polite" style="font-variant-numeric:tabular-nums;">100%</span>
     <button id="zoomIn" aria-label="Ampliar zoom">+</button>
     <button id="zoomReset">Encajar</button>
-    <button id="toggleMode" title="Cambiar entre Editar y Practicar">Modo: Editar</button>
+    <button id="toggleMode" class="desktop-only" title="Cambiar entre Editar y Practicar">Modo: Editar</button>
+    <span id="mobileModePicker" class="mobile-only" role="group" aria-label="Modo de uso en móvil">
+      <button type="button" data-mobile-mode="read" class="active">Lectura</button>
+      <button type="button" data-mobile-mode="practice">Practicar</button>
+      <button type="button" data-mobile-mode="edit">Editar</button>
+    </span>
   </div>
 
   <div class="group edit-only">
@@ -549,6 +616,7 @@
   </div>
 
   <div class="group">
+    <span id="pwaReactDesktopMount"></span>
     <button id="pwaInstallBtn" type="button" title="Instalar aplicación para usar sin conexión">📲 Instalar app</button>
     <button id="openSettings">Ajustes y ayuda</button>
     <button id="exportPng">PNG (pág.)</button>
@@ -774,7 +842,7 @@
       <button class="modal-tab active" data-settings-tab="score" role="tab" aria-selected="true">Partitura actual</button>
       <button class="modal-tab" data-settings-tab="practice" role="tab" aria-selected="false">Práctica y pedal</button>
       <button class="modal-tab" data-settings-tab="prefs" role="tab" aria-selected="false">Estilos y calidad</button>
-      <button class="modal-tab" data-settings-tab="help" role="tab" aria-selected="false">Ayuda (v11.0)</button>
+      <button class="modal-tab" data-settings-tab="help" role="tab" aria-selected="false">Ayuda (v11.1)</button>
     </div>
 
     <div class="modal-body">
@@ -879,10 +947,33 @@
 
       <!-- Tab 4: Ayuda -->
       <div id="tab-help" class="settings-tab-panel" style="display:none;">
+        <div class="settings-section" id="v11DownloadBox" style="background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:12px;">
+          <h4 style="margin-bottom:4px;">Descargar archivos v11.1 (sin copiar ni pegar)</h4>
+          <p class="settings-desc" style="margin-bottom:10px;">
+            Descarga directa del editor autocontenido <code>.html</code>, los archivos PWA actualizados y el documento de continuidad para las siguientes fases:
+          </p>
+          <div class="field-row" style="margin-bottom:0;">
+            <button type="button" class="btn-ui primary" data-dl-v11="partituras-editor-v11.1.html">⬇ partituras-editor-v11.1.html</button>
+            <button type="button" class="btn-ui" data-dl-v11="index.html">⬇ index.html (PWA)</button>
+            <button type="button" class="btn-ui" data-dl-v11="manifest.webmanifest">⬇ manifest.webmanifest</button>
+            <button type="button" class="btn-ui" data-dl-v11="sw.js">⬇ sw.js</button>
+            <button type="button" class="btn-ui" data-dl-v11="CONTINUIDAD.md">⬇ CONTINUIDAD.md</button>
+          </div>
+        </div>
+
+        <div class="help-block">
+          <h4>Novedades de la versión v11.1</h4>
+          <ul>
+            <li><strong>Modo Lectura protegido en móvil/tablet:</strong> al abrir un PDF, <code>.scoreproj</code> o partitura de la Biblioteca en móvil o tablet entra automáticamente en <strong>Modo: Lectura</strong> (no dibuja, selecciona ni borra al tocar; permite scroll, pellizco de zoom y abrir enlaces <code>Lxx</code> con un toque limpio). Desde la barra rápida pasas a <strong>Practicar</strong> o vuelves a <strong>Lectura</strong> con un toque, y puedes elegir <strong>Editar</strong> desde <strong>☰ Menú</strong>. En PC sigue abriendo en <strong>Modo: Editar</strong> (100% idéntico a v10).</li>
+            <li><strong>Corrección de formato móvil y superposición de partitura:</strong> detección fiable para móvil vertical/horizontal y tablet, barra rápida contenida sin desbordamiento y renderizado atómico en canvas offscreen que evita saltos o partituras superpuestas al cargar o reproducir.</li>
+            <li><strong>HUD y scroll en móvil corregidos:</strong> la barra flotante de pantalla completa mantiene su anchura completa y el desplazamiento automático respeta la barra rápida superior.</li>
+          </ul>
+        </div>
+
         <div class="help-block">
           <h4>Novedades de la versión v11.0</h4>
           <ul>
-            <li><strong>Interfaz adaptativa para móvil y Android:</strong> en pantallas estrechas los menús completos se recogen en un cajón desplegable (<strong>☰ Menú</strong>) dejando una barra rápida fija para cambiar de página, alternar <em>Editar / Practicar</em>, lanzar <strong>▶</strong>, <strong>🔁 Bucle</strong> y <strong>⛶ Pantalla completa</strong>. El desplazamiento táctil con un dedo funciona con naturalidad en la partitura.</li>
+            <li><strong>Interfaz adaptativa para móvil y Android:</strong> en pantallas estrechas los menús completos se recogen en un cajón desplegable (<strong>☰ Menú</strong>) dejando una barra rápida fija para cambiar de página, lanzar <strong>▶</strong>, <strong>🔁 Bucle</strong> y <strong>⛶ Pantalla completa</strong>.</li>
             <li><strong>PWA instalable offline (versión web HTTPS):</strong> desde Chrome en Android puedes instalar el editor en tu pantalla de inicio (<em>Instalar app</em>) para estudiar sin conexión tus partituras guardadas en la <strong>Biblioteca local</strong>. El archivo <code>.html</code> sigue siendo 100% autocontenido para PC.</li>
             <li><strong>Cursor del último pulso y reinicio de bucle corregidos:</strong> en <em>🔁 Bucle</em> el último pulso del último compás permanece iluminado en verde todo su tiempo antes de saltar al inicio; al apagar <em>🔁 Bucle</em> o pulsar <strong>⏹ Reiniciar</strong>, se limpia la marca del compás y se vuelve al principio de la página 1.</li>
             <li><strong>Apertura siempre en la página 1:</strong> al abrir un PDF, un <code>.scoreproj</code> o una partitura de la Biblioteca, el visor arranca siempre en la parte superior de la página 1.</li>
@@ -935,7 +1026,8 @@
     <button id="emptyOpenLibrary" class="primary">Abrir de mi biblioteca</button>
     <button id="emptyOpenPdf">Abrir PDF</button>
     <button id="emptyOpenProject">Abrir editable (.scoreproj)</button>
-    <button id="emptyOpenHelp">Ver ayuda v11.0</button>
+    <button id="emptyOpenHelp">Ver ayuda v11.1</button>
+    <button id="emptyDownloadV11">Descargar archivos v11.1</button>
   </div>
 </div>
 
@@ -958,7 +1050,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 /* ============ ESTADO GLOBAL ============ */
 const state = {
   tool: "patch",
-  mode: "edit", // "edit" | "practice"
+  mode: "edit", // "edit" | "practice" | "read"
   page: 1,
   pageCount: 0,
   pdfDoc: null,
@@ -1092,9 +1184,25 @@ function onQualityChange() {
 }
 
 /* ============ ZOOM Y LIENZO ============ */
+function isCompactTouchDevice() {
+  const narrow = window.matchMedia("(max-width: 860px)").matches;
+  const coarse = window.matchMedia("(pointer: coarse)").matches;
+  const vw = document.documentElement.clientWidth || window.innerWidth;
+  return narrow || (coarse && vw <= 1180);
+}
+function syncResponsiveUiMode() {
+  document.body.classList.toggle("mobile-ui", isCompactTouchDevice());
+}
+function applyInitialModeForDevice() {
+  setAppMode(isCompactTouchDevice() ? "read" : "edit");
+}
+syncResponsiveUiMode();
+
 function syncCanvasDisplaySize() {
   if (!bgCanvas.width || !bgCanvas.height) return;
-  const availableWidth = Math.max(1, window.innerWidth - (window.innerWidth <= 860 ? 14 : 32));
+  const vw = document.documentElement.clientWidth || window.innerWidth;
+  const isMobile = document.body.classList.contains("mobile-ui") || vw <= 860;
+  const availableWidth = Math.max(1, vw - (isMobile ? 14 : 32));
   const displayWidth = Math.min(bgCanvas.width, availableWidth);
   const ratio = displayWidth / bgCanvas.width;
   bgCanvas.style.width = `${displayWidth}px`;
@@ -1110,7 +1218,7 @@ function setViewZoom(value) {
   document.getElementById("zoomLabel").textContent = `${Math.round(state.viewZoom * 100)}%`;
   syncZoomFrame();
 }
-window.addEventListener("resize", () => { syncCanvasDisplaySize(); syncZoomFrame(); });
+window.addEventListener("resize", () => { syncResponsiveUiMode(); syncCanvasDisplaySize(); syncZoomFrame(); });
 document.getElementById("zoomOut").addEventListener("click", () => setViewZoom(state.viewZoom - 0.1));
 document.getElementById("zoomIn").addEventListener("click", () => setViewZoom(state.viewZoom + 0.1));
 document.getElementById("zoomReset").addEventListener("click", () => setViewZoom(1));
@@ -1350,8 +1458,36 @@ document.getElementById("openPdfBtn").addEventListener("click", () => document.g
 document.getElementById("emptyOpenPdf").addEventListener("click", () => document.getElementById("pdfFile").click());
 document.getElementById("emptyOpenProject").addEventListener("click", () => document.getElementById("projectFile").click());
 document.getElementById("emptyOpenHelp").addEventListener("click", () => openSettingsModal("help"));
+document.getElementById("emptyDownloadV11")?.addEventListener("click", () => openSettingsModal("help"));
 document.getElementById("emptyOpenLibrary").addEventListener("click", () => openLibraryModal());
 document.getElementById("openLibraryBtn").addEventListener("click", () => openLibraryModal());
+
+document.querySelectorAll("[data-dl-v11]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const file = btn.getAttribute("data-dl-v11");
+    if (!file) return;
+    try {
+      const res = await fetch(`/v11.1/${encodeURIComponent(file)}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      showToast(`Descargando ${file}`);
+    } catch (err) {
+      if (location.protocol === "file:") {
+        showToast("Abre la app web para descargar los archivos PWA.");
+      } else {
+        window.open(`/v11.1/${encodeURIComponent(file)}`, "_blank", "noopener");
+      }
+    }
+  });
+});
 
 function resetPracticeStateToDefaults() {
   stopPracticePlayback();
@@ -1401,6 +1537,7 @@ document.getElementById("pdfFile").addEventListener("change", async (e) => {
     emptyState.style.display = "none";
     stageFrame.style.display = "block";
     await renderPage(state.page, { skipSave: true });
+    applyInitialModeForDevice();
     window.scrollTo(0, 0);
     setDirty(false);
     document.getElementById("projectStatus").textContent = state.sourcePdfName;
@@ -1577,6 +1714,7 @@ async function loadProjectObject(project, libMeta = null) {
   emptyState.style.display = "none";
   stageFrame.style.display = "block";
   await renderPage(state.page, { skipSave: true });
+  applyInitialModeForDevice();
   window.scrollTo(0, 0);
   setDirty(false);
   document.getElementById("projectStatus").textContent = libMeta ? `Biblioteca: ${state.libraryTitle}` : "Proyecto editable abierto";
@@ -1898,13 +2036,7 @@ async function renderPdfCanvasWithCuts(pageObj, scale, cuts, targetCanvas) {
   const srcW = Math.round(viewport.width);
   const srcH = Math.round(viewport.height);
   const cleanCuts = Array.isArray(cuts) ? cuts : [];
-  if (cleanCuts.length === 0) {
-    targetCanvas.width = srcW;
-    targetCanvas.height = srcH;
-    const tctx = targetCanvas.getContext("2d");
-    await pageObj.render({ canvasContext: tctx, viewport }).promise;
-    return { width: srcW, height: srcH };
-  }
+
   const srcCanvas = document.createElement("canvas");
   srcCanvas.width = srcW;
   srcCanvas.height = srcH;
@@ -2060,25 +2192,52 @@ document.getElementById("practiceFullscreenBtn").addEventListener("click", () =>
 document.getElementById("fsExitBtn").addEventListener("click", () => setPracticeFullscreen(false));
 
 function setAppMode(mode) {
-  state.mode = mode;
-  const isPractice = mode === "practice";
+  const nextMode = (mode === "practice" || mode === "read") ? mode : "edit";
+  state.mode = nextMode;
+  const isPractice = nextMode === "practice";
+  const isRead = nextMode === "read";
   document.body.classList.toggle("practice-mode", isPractice);
+  document.body.classList.toggle("read-mode", isRead);
+
   const btn = document.getElementById("toggleMode");
-  btn.textContent = isPractice ? "Modo: Practicar" : "Modo: Editar";
-  btn.classList.toggle("btn-play-active", isPractice);
+  if (btn) {
+    btn.textContent = isPractice ? "Modo: Practicar" : "Modo: Editar";
+    btn.classList.toggle("btn-play-active", isPractice);
+  }
 
   const mobModeBtn = document.getElementById("mobModeToggle");
   if (mobModeBtn) {
-    mobModeBtn.textContent = isPractice ? "Editar" : "Practicar";
-    mobModeBtn.classList.toggle("btn-play-active", isPractice);
+    if (isRead) {
+      mobModeBtn.textContent = "Practicar";
+      mobModeBtn.classList.remove("btn-play-active");
+    } else if (isPractice) {
+      mobModeBtn.textContent = isCompactTouchDevice() ? "Lectura" : "Editar";
+      mobModeBtn.classList.add("btn-play-active");
+    } else {
+      mobModeBtn.textContent = isCompactTouchDevice() ? "Lectura" : "Practicar";
+      mobModeBtn.classList.remove("btn-play-active");
+    }
   }
 
-  if (isPractice) {
+  document.querySelectorAll("#mobileModePicker [data-mobile-mode]").forEach((mBtn) => {
+    mBtn.classList.toggle("active", mBtn.dataset.mobileMode === nextMode);
+  });
+
+  if (isPractice || isRead) {
     if (activeInlineEditor) finishInlineTextEdit(true);
     clearSelection();
     clearPendingPlacement();
     chordPanel.style.display = "none";
     chordEditor.style.display = "none";
+  }
+
+  if (isRead) {
+    setPracticeFullscreen(false);
+    stopPracticePlayback();
+    setCalibrating(false);
+    document.getElementById("hintText").innerHTML =
+      "<strong>Modo Lectura (protegido)</strong>: desplaza, haz pellizco de zoom y pulsa enlaces de bucle sin riesgo de editar. Cambia a <b>Practicar</b> o <b>Editar</b> cuando quieras.";
+  } else if (isPractice) {
     document.getElementById("hintText").innerHTML =
       "<strong>Modo Practicar</strong>: haz clic en cualquier compás para fijar el inicio y activa <b>🔁 Bucle</b> (elige nº de compases). Pulsa <b>▶ Practicar</b>, <b>Calibrar sistemas</b> o <b>Detectar sistemas</b>.";
   } else {
@@ -2093,6 +2252,9 @@ function setAppMode(mode) {
 document.getElementById("toggleMode").addEventListener("click", () => {
   setAppMode(state.mode === "edit" ? "practice" : "edit");
 });
+if (isCompactTouchDevice()) {
+  setAppMode("read");
+}
 
 let drawing = null;
 
@@ -3256,16 +3418,150 @@ function finalizeBlock(x, y, w, h) {
 }
 
 /* ============ LISTENERS OVERLAY ============ */
+const activeOverlayPointers = new Set();
+let addspaceWinCleanup = null;
+
+function safeSetOverlayPointerCapture(pointerId) {
+  try { overlay.setPointerCapture(pointerId); } catch (e) {}
+}
+
+function detachAddspaceWindowListeners() {
+  if (addspaceWinCleanup) {
+    addspaceWinCleanup();
+    addspaceWinCleanup = null;
+  }
+}
+
+function cancelActiveOverlayInteraction() {
+  if (dragState) {
+    applySnapshot(dragState.el, dragState.orig);
+    dragState = null;
+    refreshSelectionBox();
+  }
+  if (drawing) {
+    drawing.el?.remove();
+    drawing = null;
+  }
+  detachAddspaceWindowListeners();
+}
+
+function handleOverlayPointerMove(evt) {
+  if (lastSelectPress && Math.hypot(evt.clientX - lastSelectPress.x, evt.clientY - lastSelectPress.y) > 10) {
+    lastSelectPress = null;
+  }
+  if (dragState) {
+    const p = svgPoint(evt);
+    if (dragState.type === "move") applyMove(p);
+    else applyResize(p);
+    evt.preventDefault?.();
+    return;
+  }
+  if (!drawing) return;
+  const p = svgPoint(evt);
+  if (drawing.type === "patch") {
+    const x = Math.min(drawing.startX, p.x), y = Math.min(drawing.startY, p.y);
+    const w = Math.abs(p.x - drawing.startX), h = Math.abs(p.y - drawing.startY);
+    drawing.el.setAttribute("x", x); drawing.el.setAttribute("y", y);
+    drawing.el.setAttribute("width", w); drawing.el.setAttribute("height", h);
+  } else if (drawing.type === "line") {
+    drawing.el.setAttribute("x2", p.x); drawing.el.setAttribute("y2", p.y);
+  } else if (drawing.type === "block") {
+    const x = Math.min(drawing.startX, p.x), y = Math.min(drawing.startY, p.y);
+    const w = Math.abs(p.x - drawing.startX), h = Math.abs(p.y - drawing.startY);
+    drawing.el.setAttribute("x", x); drawing.el.setAttribute("y", y);
+    drawing.el.setAttribute("width", w); drawing.el.setAttribute("height", h);
+  } else if (drawing.type === "addspace") {
+    const dy = Math.max(0, Math.round(p.y - drawing.startY));
+    drawing.deltaY = dy;
+    drawing.band.setAttribute("height", dy);
+    drawing.lblBg.setAttribute("y", drawing.startY + dy + 6);
+    drawing.lbl.setAttribute("y", drawing.startY + dy + 22);
+    drawing.lbl.textContent = `+${dy} px`;
+  }
+}
+
+function handleOverlayPointerUp(evt) {
+  if (evt && evt.pointerId !== undefined) activeOverlayPointers.delete(evt.pointerId);
+  detachAddspaceWindowListeners();
+  if (dragState) {
+    if (dragState.type === "move") finishMove();
+    else if (dragState.type === "resize") finishResize();
+    return;
+  }
+  if (!drawing) return;
+  if (drawing.type === "block") {
+    const r = drawing.el;
+    const bbox = {
+      x: parseFloat(r.getAttribute("x")), y: parseFloat(r.getAttribute("y")),
+      w: parseFloat(r.getAttribute("width")), h: parseFloat(r.getAttribute("height")),
+    };
+    r.remove();
+    drawing = null;
+    finalizeBlock(bbox.x, bbox.y, bbox.w, bbox.h);
+    return;
+  }
+  if (drawing.type === "addspace") {
+    const cutY = drawing.startY;
+    const deltaY = drawing.deltaY;
+    drawing.el.remove();
+    drawing = null;
+    if (deltaY >= 12) applySpaceCut(cutY, deltaY);
+    else showToast("Haz clic y arrastra hacia abajo para abrir espacio.");
+    return;
+  }
+  history.push({ type: "add", el: drawing.el });
+  const el = drawing.el;
+  drawing = null;
+  ensureOverlayLayers();
+  selectElement(el);
+}
+
+function attachAddspaceWindowListeners(pointerId) {
+  detachAddspaceWindowListeners();
+  const onWinMove = (e) => {
+    if (e.pointerId !== pointerId || !drawing || drawing.type !== "addspace") return;
+    handleOverlayPointerMove(e);
+  };
+  const onWinUp = (e) => {
+    if (e.pointerId !== pointerId) return;
+    handleOverlayPointerUp(e);
+  };
+  const onWinCancel = (e) => {
+    if (e.pointerId !== pointerId) return;
+    activeOverlayPointers.delete(e.pointerId);
+    cancelActiveOverlayInteraction();
+  };
+  window.addEventListener("pointermove", onWinMove, true);
+  window.addEventListener("pointerup", onWinUp, true);
+  window.addEventListener("pointercancel", onWinCancel, true);
+  addspaceWinCleanup = () => {
+    window.removeEventListener("pointermove", onWinMove, true);
+    window.removeEventListener("pointerup", onWinUp, true);
+    window.removeEventListener("pointercancel", onWinCancel, true);
+  };
+}
+
+overlay.addEventListener("click", (evt) => {
+  if (!state.pdfDoc) return;
+  if (state.mode !== "read" && state.mode !== "practice") return;
+  const root = resolveRoot(evt.target);
+  if (root && root.classList?.contains("loop-label") && state.loopTargetUrl) {
+    openExternalUrl(state.loopTargetUrl);
+    evt.preventDefault(); evt.stopPropagation();
+  }
+});
+
 overlay.addEventListener("pointerdown", (evt) => {
   if (activeInlineEditor?.host.contains(evt.target)) { evt.stopPropagation(); return; }
   if (!state.pdfDoc) return;
 
-  if (state.mode === "practice") {
-    const root = resolveRoot(evt.target);
-    if (root && root.classList?.contains("loop-label") && state.loopTargetUrl) {
-      openExternalUrl(state.loopTargetUrl);
-      evt.preventDefault(); evt.stopPropagation();
-    }
+  activeOverlayPointers.add(evt.pointerId);
+  if (activeOverlayPointers.size > 1) {
+    cancelActiveOverlayInteraction();
+    return;
+  }
+
+  if (state.mode === "read" || state.mode === "practice") {
     return;
   }
 
@@ -3320,12 +3616,12 @@ overlay.addEventListener("pointerdown", (evt) => {
     const target = evt.target;
     if (selectedInfo && selectedInfo.handle && target === selectedInfo.handle) {
       startResize(selectedEl, p);
-      overlay.setPointerCapture(evt.pointerId);
+      safeSetOverlayPointerCapture(evt.pointerId);
       evt.preventDefault(); evt.stopPropagation(); return;
     }
     if (selectedEl && selectedInfo && target === selectedInfo.rect) {
       startMove(selectedEl, p);
-      overlay.setPointerCapture(evt.pointerId);
+      safeSetOverlayPointerCapture(evt.pointerId);
       evt.preventDefault(); evt.stopPropagation(); return;
     }
     const root = resolveRoot(target);
@@ -3346,7 +3642,7 @@ overlay.addEventListener("pointerdown", (evt) => {
       if (root === selectedEl) startMove(root, p);
       else { selectElement(root); startMove(root, p); }
       lastSelectPress = { el: root, time: performance.now(), x: evt.clientX, y: evt.clientY };
-      overlay.setPointerCapture(evt.pointerId);
+      safeSetOverlayPointerCapture(evt.pointerId);
       evt.preventDefault(); evt.stopPropagation(); return;
     }
     clearSelection();
@@ -3379,7 +3675,7 @@ overlay.addEventListener("pointerdown", (evt) => {
     overlay.appendChild(r);
     ensureOverlayLayers();
     drawing = { type: "patch", startX: p.x, startY: p.y, el: r };
-    overlay.setPointerCapture(evt.pointerId);
+    safeSetOverlayPointerCapture(evt.pointerId);
     evt.stopPropagation(); return;
   }
   if (state.tool === "line") {
@@ -3392,7 +3688,7 @@ overlay.addEventListener("pointerdown", (evt) => {
     overlay.appendChild(l);
     ensureOverlayLayers();
     drawing = { type: "line", startX: p.x, startY: p.y, el: l };
-    overlay.setPointerCapture(evt.pointerId);
+    safeSetOverlayPointerCapture(evt.pointerId);
     evt.stopPropagation(); return;
   }
   if (state.tool === "block") {
@@ -3402,7 +3698,7 @@ overlay.addEventListener("pointerdown", (evt) => {
     r.setAttribute("class", "block-selection");
     overlay.appendChild(r);
     drawing = { type: "block", startX: p.x, startY: p.y, el: r };
-    overlay.setPointerCapture(evt.pointerId);
+    safeSetOverlayPointerCapture(evt.pointerId);
     evt.stopPropagation(); return;
   }
   if (state.tool === "addspace") {
@@ -3431,8 +3727,9 @@ overlay.addEventListener("pointerdown", (evt) => {
     g.append(band, ln, lblBg, lbl);
     overlay.appendChild(g);
     drawing = { type: "addspace", startY: p.y, deltaY: 0, el: g, band, lblBg, lbl };
-    overlay.setPointerCapture(evt.pointerId);
-    evt.stopPropagation(); return;
+    safeSetOverlayPointerCapture(evt.pointerId);
+    attachAddspaceWindowListeners(evt.pointerId);
+    evt.preventDefault(); evt.stopPropagation(); return;
   }
 }, true);
 
@@ -3480,81 +3777,17 @@ function applySpaceCut(cutY, deltaY) {
   showToast(`Espacio añadido (+${delta} px)`);
 }
 
-overlay.addEventListener("pointermove", (evt) => {
-  if (lastSelectPress && Math.hypot(evt.clientX - lastSelectPress.x, evt.clientY - lastSelectPress.y) > 10) {
-    lastSelectPress = null;
-  }
-  if (dragState) {
-    const p = svgPoint(evt);
-    if (dragState.type === "move") applyMove(p);
-    else applyResize(p);
-    evt.preventDefault(); return;
-  }
-  if (!drawing) return;
-  const p = svgPoint(evt);
-  if (drawing.type === "patch") {
-    const x = Math.min(drawing.startX, p.x), y = Math.min(drawing.startY, p.y);
-    const w = Math.abs(p.x - drawing.startX), h = Math.abs(p.y - drawing.startY);
-    drawing.el.setAttribute("x", x); drawing.el.setAttribute("y", y);
-    drawing.el.setAttribute("width", w); drawing.el.setAttribute("height", h);
-  } else if (drawing.type === "line") {
-    drawing.el.setAttribute("x2", p.x); drawing.el.setAttribute("y2", p.y);
-  } else if (drawing.type === "block") {
-    const x = Math.min(drawing.startX, p.x), y = Math.min(drawing.startY, p.y);
-    const w = Math.abs(p.x - drawing.startX), h = Math.abs(p.y - drawing.startY);
-    drawing.el.setAttribute("x", x); drawing.el.setAttribute("y", y);
-    drawing.el.setAttribute("width", w); drawing.el.setAttribute("height", h);
-  } else if (drawing.type === "addspace") {
-    const dy = Math.max(0, Math.round(p.y - drawing.startY));
-    drawing.deltaY = dy;
-    drawing.band.setAttribute("height", dy);
-    drawing.lblBg.setAttribute("y", drawing.startY + dy + 6);
-    drawing.lbl.setAttribute("y", drawing.startY + dy + 22);
-    drawing.lbl.textContent = `+${dy} px`;
-  }
+overlay.addEventListener("pointermove", handleOverlayPointerMove, true);
+overlay.addEventListener("pointerup", handleOverlayPointerUp, true);
+overlay.addEventListener("pointercancel", (evt) => {
+  if (evt && evt.pointerId !== undefined) activeOverlayPointers.delete(evt.pointerId);
+  cancelActiveOverlayInteraction();
 }, true);
-
-overlay.addEventListener("pointerup", () => {
-  if (dragState) {
-    if (dragState.type === "move") finishMove();
-    else if (dragState.type === "resize") finishResize();
-    return;
-  }
-  if (!drawing) return;
-  if (drawing.type === "block") {
-    const r = drawing.el;
-    const bbox = {
-      x: parseFloat(r.getAttribute("x")), y: parseFloat(r.getAttribute("y")),
-      w: parseFloat(r.getAttribute("width")), h: parseFloat(r.getAttribute("height")),
-    };
-    r.remove();
-    drawing = null;
-    finalizeBlock(bbox.x, bbox.y, bbox.w, bbox.h);
-    return;
-  }
-  if (drawing.type === "addspace") {
-    const cutY = drawing.startY;
-    const deltaY = drawing.deltaY;
-    drawing.el.remove();
-    drawing = null;
-    if (deltaY >= 12) applySpaceCut(cutY, deltaY);
-    else showToast("Haz clic y arrastra hacia abajo para abrir espacio.");
-    return;
-  }
-  history.push({ type: "add", el: drawing.el });
-  const el = drawing.el;
-  drawing = null;
-  ensureOverlayLayers();
-  selectElement(el);
+window.addEventListener("pointerup", (evt) => {
+  if (evt && evt.pointerId !== undefined) activeOverlayPointers.delete(evt.pointerId);
 }, true);
-
-overlay.addEventListener("pointercancel", () => {
-  if (dragState) {
-    applySnapshot(dragState.el, dragState.orig);
-    dragState = null;
-    refreshSelectionBox();
-  }
-  if (drawing) { drawing.el.remove(); drawing = null; }
+window.addEventListener("pointercancel", (evt) => {
+  if (evt && evt.pointerId !== undefined) activeOverlayPointers.delete(evt.pointerId);
 }, true);
 
 /* ============ MODO PRACTICAR: v11.0 (BUCLE DE ESTUDIO, PULSO COMPLETO, REINICIO LIMPIO Y MÓVIL) ============ */
@@ -4882,7 +5115,8 @@ function scrollSystemIntoViewIfNeeded(item, forceAlign = false) {
   const isFs = document.body.classList.contains("practice-fullscreen");
   const tbRect = document.getElementById("toolbar")?.getBoundingClientRect();
   const pBarRect = document.getElementById("practiceBar")?.getBoundingClientRect();
-  const headerBottom = isFs ? 14 : (Math.max(tbRect?.bottom || 0, pBarRect?.bottom || 0, 0) + 14);
+  const mobBarRect = document.getElementById("mobileQuickBar")?.getBoundingClientRect();
+  const headerBottom = isFs ? 14 : (Math.max(tbRect?.bottom || 0, pBarRect?.bottom || 0, mobBarRect?.bottom || 0, 0) + 14);
   const footerSafe = isFs ? 68 : 28;
   const isChunks = state.practice.viewMode === "chunks";
   if (forceAlign || sysBottomViewport > window.innerHeight - footerSafe || sysTopViewport < headerBottom) {
@@ -5073,7 +5307,8 @@ async function startPracticePlayback(isResume = false) {
 
   if (playback.timerId) clearInterval(playback.timerId);
   const intervalMs = Math.round(60000 / Math.max(35, Math.min(240, state.practice.bpm)));
-  advanceBeatTick();
+  await advanceBeatTick();
+  if (!playback.running) return;
   playback.timerId = setInterval(advanceBeatTick, intervalMs);
 }
 
@@ -5183,7 +5418,8 @@ async function pedalNextStep() {
     if (nextItem) scrollSystemIntoViewIfNeeded(nextItem, true);
     playback.running = true;
     const intervalMs = Math.round(60000 / Math.max(35, Math.min(240, state.practice.bpm)));
-    advanceBeatTick();
+    await advanceBeatTick();
+    if (!playback.running) return;
     playback.timerId = setInterval(advanceBeatTick, intervalMs);
     return;
   }
@@ -5244,7 +5480,13 @@ document.getElementById("mobFullscreenBtn").addEventListener("click", () => {
   setPracticeFullscreen(true);
 });
 document.getElementById("mobModeToggle").addEventListener("click", () => {
-  setAppMode(state.mode === "edit" ? "practice" : "edit");
+  setAppMode(state.mode === "read" ? "practice" : isCompactTouchDevice() ? "read" : "edit");
+});
+document.querySelectorAll("#mobileModePicker [data-mobile-mode]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    setAppMode(btn.dataset.mobileMode);
+    closeMobileMenu();
+  });
 });
 stageFrame.addEventListener("pointerdown", () => {
   if (document.body.classList.contains("mobile-menu-open")) closeMobileMenu();
@@ -5537,6 +5779,7 @@ document.addEventListener("keydown", (e) => {
   if ((e.key === "PageUp" || (e.key === "ArrowLeft" && !selectedEl)) && state.pdfDoc && state.page > 1) {
     e.preventDefault(); renderPage(state.page - 1, { fromNav: true }); return;
   }
+  if (state.mode === "read") return;
 
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key) && selectedEl) {
     e.preventDefault();
@@ -6044,10 +6287,18 @@ document.getElementById("exportPdf").addEventListener("click", async () => {
 <div id="pwaOfflineBadge" role="status" aria-live="polite">Sin conexión · Modo local activo</div>
 <script>
 (() => {
+  if (window.__VITE_PWA_ACTIVE__) {
+    const deskBtn = document.getElementById("pwaInstallBtn");
+    const mobBtn = document.getElementById("mobInstallBtn");
+    if (deskBtn) deskBtn.style.display = "none";
+    if (mobBtn) mobBtn.style.display = "none";
+    return;
+  }
   const canUseSw = "serviceWorker" in navigator && (location.protocol === "https:" || location.protocol === "http:");
   let swActiveInfo = canUseSw ? "Registrando Service Worker..." : "Solo disponible bajo HTTPS / localhost";
   if (canUseSw) {
     window.addEventListener("load", () => {
+      if (window.__VITE_PWA_ACTIVE__) return;
       navigator.serviceWorker.register("./sw.js", { scope: "./" })
         .then((reg) => {
           reg.update().catch(() => {});
@@ -6069,6 +6320,11 @@ document.getElementById("exportPdf").addEventListener("click", async () => {
   const pwaNativeBtn = document.getElementById("pwaNativePromptBtn");
 
   function syncInstallButtons() {
+    if (window.__VITE_PWA_ACTIVE__) {
+      if (deskBtn) deskBtn.style.display = "none";
+      if (mobBtn) mobBtn.style.display = "none";
+      return;
+    }
     const show = !isStandalone && canUseSw;
     if (deskBtn) deskBtn.style.display = show ? "inline-flex" : "none";
     if (mobBtn) mobBtn.style.display = show ? "inline-flex" : "none";
@@ -6113,6 +6369,7 @@ document.getElementById("exportPdf").addEventListener("click", async () => {
   });
 
   window.addEventListener("beforeinstallprompt", (e) => {
+    if (window.__VITE_PWA_ACTIVE__) return;
     e.preventDefault();
     deferredInstall = e;
     syncInstallButtons();

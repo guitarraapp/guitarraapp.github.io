@@ -1,7 +1,8 @@
 {
+  "id": "./",
   "name": "Editor PDF de Partituras",
   "short_name": "Partituras",
-  "description": "Editor y estudio personal de partituras en PDF para guitarra con metrónomo, bucles de estudio y biblioteca offline.",
+  "description": "Editor y estudio personal de partituras en PDF para guitarra con Modo Lectura protegido, metrónomo, bucles de estudio y biblioteca offline.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
