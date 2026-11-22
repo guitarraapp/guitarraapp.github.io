@@ -1,4 +1,4 @@
-const CACHE_NAME = "partituras-pwa-v11-1";
+const CACHE_NAME = "partituras-pwa-v11-1-r3";
 const APP_SHELL = [
   "./",
   "./index.html",

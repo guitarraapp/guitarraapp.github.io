@@ -14,9 +14,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Partituras">
-<link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="./icon.svg">
+<link rel="manifest" href="./manifest.webmanifest">
 <style>
   :root {
     --bg: #f3f5f4; --panel: #ffffff; --panel-2: #f7f9f8; --border: #dce4e0;
@@ -27,7 +27,6 @@
   * { box-sizing: border-box; }
   html, body {
     max-width: 100%;
-    overflow-x: clip;
   }
   body {
     margin: 0;
@@ -42,6 +41,7 @@
     display: none;
     position: sticky; top: 0; z-index: 24;
     width: 100%; max-width: 100%; overflow-x: auto; scrollbar-width: none;
+    flex-wrap: nowrap; min-height: 49px;
     align-items: center; gap: 5px; padding: 6px 8px;
     background: rgba(255,255,255,.97); border-bottom: 1px solid var(--border);
     box-shadow: 0 3px 14px rgba(25,55,45,.07); backdrop-filter: blur(12px);
@@ -197,7 +197,7 @@
   }
   body:not(.read-mode) #stage { user-select: none; -webkit-user-select: none; }
   .inline-text-editor { user-select: text; -webkit-user-select: text; }
-  #bgCanvas { display: block; max-width: 100%; }
+  #bgCanvas { display: block; max-width: none !important; }
   #overlay, #practiceOverlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none;
   }
@@ -1171,9 +1171,10 @@ function onQualityChange() {
 /* ============ ZOOM Y LIENZO ============ */
 function isCompactTouchDevice() {
   const narrow = window.matchMedia("(max-width: 860px)").matches;
-  const coarse = window.matchMedia("(pointer: coarse)").matches;
+  const coarse = window.matchMedia("(pointer: coarse)").matches || window.matchMedia("(any-pointer: coarse)").matches;
+  const fine = window.matchMedia("(pointer: fine)").matches;
   const vw = document.documentElement.clientWidth || window.innerWidth;
-  return narrow || (coarse && vw <= 1180);
+  return narrow || (coarse && !fine && vw <= 1280) || (coarse && vw <= 1024);
 }
 function syncResponsiveUiMode() {
   document.body.classList.toggle("mobile-ui", isCompactTouchDevice());
@@ -1190,13 +1191,18 @@ function syncCanvasDisplaySize() {
   const availableWidth = Math.max(1, vw - (isMobile ? 14 : 32));
   const displayWidth = Math.min(bgCanvas.width, availableWidth);
   const ratio = displayWidth / bgCanvas.width;
+  const displayHeight = Math.round(bgCanvas.height * ratio * 100) / 100;
   bgCanvas.style.width = `${displayWidth}px`;
-  bgCanvas.style.height = `${bgCanvas.height * ratio}px`;
+  bgCanvas.style.height = `${displayHeight}px`;
+  stage.style.width = `${displayWidth + 2}px`;
+  stage.style.height = `${displayHeight + 2}px`;
 }
 function syncZoomFrame() {
   stage.style.setProperty("--view-zoom", state.viewZoom);
-  stageFrame.style.width = `${Math.max(1, stage.offsetWidth * state.viewZoom)}px`;
-  stageFrame.style.height = `${Math.max(1, stage.offsetHeight * state.viewZoom)}px`;
+  const stageW = parseFloat(stage.style.width) || stage.offsetWidth || bgCanvas.getBoundingClientRect().width || 1;
+  const stageH = parseFloat(stage.style.height) || stage.offsetHeight || bgCanvas.getBoundingClientRect().height || 1;
+  stageFrame.style.width = `${Math.max(1, stageW * state.viewZoom)}px`;
+  stageFrame.style.height = `${Math.max(1, stageH * state.viewZoom)}px`;
 }
 function setViewZoom(value) {
   state.viewZoom = Math.max(0.5, Math.min(2.5, Math.round(value * 10) / 10));
@@ -3413,6 +3419,7 @@ function handleOverlayPointerMove(evt) {
     return;
   }
   if (!drawing) return;
+  evt.preventDefault?.();
   const p = svgPoint(evt);
   if (drawing.type === "patch") {
     const x = Math.min(drawing.startX, p.x), y = Math.min(drawing.startY, p.y);
@@ -3511,10 +3518,14 @@ overlay.addEventListener("pointerdown", (evt) => {
   if (activeInlineEditor?.host.contains(evt.target)) { evt.stopPropagation(); return; }
   if (!state.pdfDoc) return;
 
-  activeOverlayPointers.add(evt.pointerId);
-  if (activeOverlayPointers.size > 1) {
-    cancelActiveOverlayInteraction();
-    return;
+  if (evt.pointerType === "mouse") {
+    activeOverlayPointers.clear();
+  } else {
+    activeOverlayPointers.add(evt.pointerId);
+    if (activeOverlayPointers.size > 1) {
+      cancelActiveOverlayInteraction();
+      return;
+    }
   }
 
   if (state.mode === "read" || state.mode === "practice") {
@@ -3632,7 +3643,7 @@ overlay.addEventListener("pointerdown", (evt) => {
     ensureOverlayLayers();
     drawing = { type: "patch", startX: p.x, startY: p.y, el: r };
     safeSetOverlayPointerCapture(evt.pointerId);
-    evt.stopPropagation(); return;
+    evt.preventDefault(); evt.stopPropagation(); return;
   }
   if (state.tool === "line") {
     const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -3645,7 +3656,7 @@ overlay.addEventListener("pointerdown", (evt) => {
     ensureOverlayLayers();
     drawing = { type: "line", startX: p.x, startY: p.y, el: l };
     safeSetOverlayPointerCapture(evt.pointerId);
-    evt.stopPropagation(); return;
+    evt.preventDefault(); evt.stopPropagation(); return;
   }
   if (state.tool === "block") {
     const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -3655,7 +3666,7 @@ overlay.addEventListener("pointerdown", (evt) => {
     overlay.appendChild(r);
     drawing = { type: "block", startX: p.x, startY: p.y, el: r };
     safeSetOverlayPointerCapture(evt.pointerId);
-    evt.stopPropagation(); return;
+    evt.preventDefault(); evt.stopPropagation(); return;
   }
   if (state.tool === "addspace") {
     const NS = "http://www.w3.org/2000/svg";
@@ -3745,6 +3756,8 @@ window.addEventListener("pointerup", (evt) => {
 window.addEventListener("pointercancel", (evt) => {
   if (evt && evt.pointerId !== undefined) activeOverlayPointers.delete(evt.pointerId);
 }, true);
+window.addEventListener("blur", () => { activeOverlayPointers.clear(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) activeOverlayPointers.clear(); });
 
 /* ============ MODO PRACTICAR: v11.0 (BUCLE DE ESTUDIO, PULSO COMPLETO, REINICIO LIMPIO Y MÓVIL) ============ */
 let practiceCalibrating = false;
@@ -5419,6 +5432,13 @@ document.getElementById("fsPedalPrev").addEventListener("click", pedalPrevStep);
 /* ============ BARRA RÁPIDA MÓVIL (v11.0) ============ */
 document.getElementById("mobMenuToggle").addEventListener("click", () => {
   const willOpen = !document.body.classList.contains("mobile-menu-open");
+  const qb = document.getElementById("mobileQuickBar");
+  const mh = document.getElementById("menusHost");
+  if (willOpen && qb && mh) {
+    const topPx = Math.max(44, Math.round(qb.getBoundingClientRect().bottom));
+    mh.style.top = `${topPx}px`;
+    mh.style.maxHeight = `calc(100dvh - ${topPx}px)`;
+  }
   document.body.classList.toggle("mobile-menu-open", willOpen);
   const btn = document.getElementById("mobMenuToggle");
   btn.setAttribute("aria-expanded", willOpen ? "true" : "false");
