@@ -76,6 +76,7 @@ export const DEFAULT_SETTINGS = {
   loopSize: 30,
   fontSize: 12,
   lineWidth: 1,
+  eraserSize: 10,       // ancho del borrador (pt)
   color: "#000000",
   patchColor: "#ffffff",
 };

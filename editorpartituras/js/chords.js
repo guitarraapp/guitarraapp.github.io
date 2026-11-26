@@ -4,10 +4,12 @@ import { getCustomChords, saveCustomChords } from "./db.js";
 import { sanitizeChordModel } from "./model.js";
 
 // Geometría interna del diagrama (unidades propias; el ancho total es ED.W)
-export const ED = { W: 102, left: 21, right: 91, top: 25, strings: 6, fGap: 16 };
+export const ED = { W: 102, left: 21, right: 91, strings: 6, fGap: 16 };
 ED.sGap = (ED.right - ED.left) / (ED.strings - 1);
+// Con nombre arriba se deja una franja para O / X, así no se pisan
+export function chordTop(m) { return m.name ? 33 : 18; }
 export function chordHeight(m) {
-  return ED.top + m.frets * ED.fGap + (m.label ? 30 : 15);
+  return chordTop(m) + m.frets * ED.fGap + (m.label ? 30 : 15);
 }
 
 const P = (arr) => arr.map(v => (v === null ? [] : [v]));
@@ -55,7 +57,7 @@ export async function deleteChordFromLibrary(name) {
 /* ---------- Dibujo SVG en unidades internas ---------- */
 export function buildChordContent(m, opts = {}) {
   const g = svg("g");
-  const frets = m.frets, top = ED.top, left = ED.left, right = ED.right, fGap = ED.fGap, sGap = ED.sGap;
+  const frets = m.frets, top = chordTop(m), left = ED.left, right = ED.right, fGap = ED.fGap, sGap = ED.sGap;
   const bottom = top + frets * fGap;
   const H = chordHeight(m);
   g.append(svg("rect", { x: 0, y: 0, width: ED.W, height: H, fill: "#fff" }));
@@ -83,8 +85,8 @@ export function buildChordContent(m, opts = {}) {
   for (let i = 0; i < ED.strings; i++) {
     const x = left + i * sGap;
     const arr = m.pos[i] || [];
-    if (arr.includes(-1)) g.append(T(x, top - 5, "X", 11, "middle", "normal"));
-    else if (arr.includes(0)) g.append(svg("circle", { cx: x, cy: top - 9, r: 3.5, fill: "none", stroke: "#000", "stroke-width": 1 }));
+    if (arr.includes(-1)) g.append(T(x, top - 4, "X", 11, "middle", "normal"));
+    else if (arr.includes(0)) g.append(svg("circle", { cx: x, cy: top - 8, r: 3.5, fill: "none", stroke: "#000", "stroke-width": 1 }));
     const dot = (fret, hollow) => {
       if (fret <= 0) return;
       if (m.cejillas.some(cj => cj.traste === fret && i + 1 >= Math.min(cj.desde, cj.hasta) && i + 1 <= Math.max(cj.desde, cj.hasta))) return;
@@ -138,18 +140,18 @@ export function openChordEditor(initial, mode = "new") {
     // zonas de clic
     for (let i = 0; i < ED.strings; i++) {
       const x = ED.left + i * ED.sGap;
-      canvas.append(svg("rect", { x: x - ED.sGap / 2, y: 0, width: ED.sGap, height: ED.top, fill: "transparent", "data-top": i }));
+      canvas.append(svg("rect", { x: x - ED.sGap / 2, y: chordTop(m) - 14, width: ED.sGap, height: 14, fill: "transparent", "data-top": i }));
     }
     if (tool === "dots") {
       for (let s = 0; s < ED.strings; s++) for (let f = 0; f < m.frets; f++) {
-        canvas.append(svg("rect", { x: ED.left + s * ED.sGap - ED.sGap / 2, y: ED.top + f * ED.fGap, width: ED.sGap, height: ED.fGap, fill: "transparent", "data-s": s, "data-f": f }));
+        canvas.append(svg("rect", { x: ED.left + s * ED.sGap - ED.sGap / 2, y: chordTop(m) + f * ED.fGap, width: ED.sGap, height: ED.fGap, fill: "transparent", "data-s": s, "data-f": f }));
       }
     } else {
       content.querySelectorAll("[data-cejilla-idx]").forEach(r => { r.style.cursor = "pointer"; canvas.append(r); });
     }
     if (drag) {
       const a = Math.min(drag.s0, drag.s1), b = Math.max(drag.s0, drag.s1);
-      const yc = ED.top + (drag.f + 0.5) * ED.fGap;
+      const yc = chordTop(m) + (drag.f + 0.5) * ED.fGap;
       canvas.append(svg("rect", { x: ED.left + a * ED.sGap - 4, y: yc - 5, width: (b - a) * ED.sGap + 8, height: 10, rx: 5, fill: "rgba(20,125,104,.65)", "pointer-events": "none" }));
     }
   }
@@ -176,9 +178,10 @@ export function openChordEditor(initial, mode = "new") {
     if (tool === "cejilla") {
       if (t.dataset.cejillaIdx !== undefined) { m.cejillas.splice(Number(t.dataset.cejillaIdx), 1); capture(); render(); return; }
       const p = pt(evt);
-      if (p.y < ED.top || p.y > ED.top + m.frets * ED.fGap) return;
+      const T0 = chordTop(m);
+      if (p.y < T0 || p.y > T0 + m.frets * ED.fGap) return;
       const s = Math.max(0, Math.min(5, Math.round((p.x - ED.left) / ED.sGap)));
-      const f = Math.max(0, Math.min(m.frets - 1, Math.floor((p.y - ED.top) / ED.fGap)));
+      const f = Math.max(0, Math.min(m.frets - 1, Math.floor((p.y - T0) / ED.fGap)));
       drag = { s0: s, s1: s, f };
       canvas.setPointerCapture(evt.pointerId);
       render();

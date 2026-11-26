@@ -1,11 +1,11 @@
 // Service worker de Partituras. Solo toca sus propias cachés (prefijo + carpeta).
-const VER = "11.0.0-f0-1";
+const VER = "11.1.0-f1-1";
 const SCOPE_KEY = new URL(self.registration.scope).pathname.replace(/[^a-z0-9]+/gi, "_");
 const PREFIX = `partituras-app-${SCOPE_KEY}-`;
 const CACHE = PREFIX + VER;
 const CORE = [
   "./", "index.html", "manifest.webmanifest", "css/app.css",
-  "js/app.js", "js/util.js", "js/db.js", "js/pdfjs.js", "js/model.js", "js/chords.js", "js/objects.js",
+  "js/app.js", "js/util.js", "js/db.js", "js/pdfjs.js", "js/model.js", "js/chords.js", "js/objects.js", "js/clips.js",
   "js/editor.js", "js/exportpdf.js", "js/backup.js", "js/ideas.js", "js/help.js",
   "vendor/pdf-lib.min.js", "vendor/pdfjs/pdf.min.js", "vendor/pdfjs/pdf.worker.min.js",
   "icons/icon-192.png", "icons/icon-512.png",

@@ -82,7 +82,7 @@ async function pieceMenu(p) {
   } else if (r === "dup") {
     await duplicatePiece(p); await bumpAndRefresh(); toast("Pieza duplicada");
   } else if (r === "pdf") {
-    try { toast("Generando PDF…", 10000); await exportPiecePdf(p, () => null); toast("PDF exportado"); }
+    try { toast("Generando PDF…", 10000); await exportPiecePdf(p); toast("PDF exportado"); }
     catch (e) { toast("No se pudo exportar: " + e.message); }
   } else if (r === "file") {
     const size = await exportPieceFile(p);

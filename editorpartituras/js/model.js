@@ -5,7 +5,7 @@ import { dbPut, dbPutMany, dbAll, dbDel, dbGet } from "./db.js";
 import { openPdfBytes, pageInfo, makeThumb, destroyDoc } from "./pdfjs.js";
 
 export const A4 = { w: 595.28, h: 841.89 };
-export const OBJ_TYPES = ["text", "line", "rect", "chord", "finger", "loop"];
+export const OBJ_TYPES = ["text", "line", "rect", "chord", "finger", "loop", "path", "ellipse", "clip"];
 
 export function newPiece(title) {
   const now = Date.now();
@@ -55,13 +55,20 @@ export async function listPieces() {
   return all.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
 
-// Borra la pieza y su PDF si ninguna otra pieza lo usa
+// PDFs que usa una pieza: el suyo y los de recortes pegados desde otras piezas
+export function pdfIdsOf(piece) {
+  const ids = new Set();
+  if (piece.pdfId) ids.add(piece.pdfId);
+  for (const pg of piece.pages) for (const o of pg.objs) if (o.t === "clip" && o.src?.pdfId) ids.add(o.src.pdfId);
+  return [...ids];
+}
+
+// Borra la pieza y los PDF que ya no use ninguna otra pieza
 export async function deletePiece(piece) {
   await dbDel("pieces", piece.id);
-  if (piece.pdfId) {
-    const others = (await dbAll("pieces")).some(p => p.pdfId === piece.pdfId);
-    if (!others) await dbDel("pdfs", piece.pdfId);
-  }
+  const others = await dbAll("pieces");
+  const used = new Set(others.flatMap(pdfIdsOf));
+  for (const id of pdfIdsOf(piece)) if (!used.has(id)) await dbDel("pdfs", id);
 }
 
 export async function duplicatePiece(piece) {
@@ -100,7 +107,21 @@ export function sanitizeObj(o) {
   const N = (v, d = 0) => clamp(num(v, d), -5000, 5000);
   switch (o.t) {
     case "text": return { id, t: "text", x: N(o.x), y: N(o.y), size: clamp(num(o.size, 12), 3, 200), text: str(o.text, 500), color: color(o.color, "#000000"), font: o.font === "mono" ? "mono" : "sans", bold: o.bold !== false };
-    case "line": return { id, t: "line", x1: N(o.x1), y1: N(o.y1), x2: N(o.x2), y2: N(o.y2), w: clamp(num(o.w, 1), 0.2, 20), color: color(o.color, "#000000") };
+    case "line": return { id, t: "line", x1: N(o.x1), y1: N(o.y1), x2: N(o.x2), y2: N(o.y2), w: clamp(num(o.w, 1), 0.2, 20), color: color(o.color, "#000000"), arrow: o.arrow ? 1 : 0 };
+    case "path": {
+      const pts = (Array.isArray(o.pts) ? o.pts : []).slice(0, 5000).map(p => [N(p?.[0]), N(p?.[1])]);
+      if (!pts.length) return null;
+      return { id, t: "path", pts, w: clamp(num(o.w, 1.5), 0.2, 80), color: color(o.color, "#000000"), kind: o.kind === "eraser" ? "eraser" : "pen" };
+    }
+    case "ellipse": return { id, t: "ellipse", x: N(o.x), y: N(o.y), w: clamp(num(o.w, 10), 0.5, 5000), h: clamp(num(o.h, 10), 0.5, 5000), sw: clamp(num(o.sw, 1.5), 0.2, 20), color: color(o.color, "#000000") };
+    case "clip": {
+      if (!o.src || typeof o.src.pdfId !== "string") return null;
+      return {
+        id, t: "clip", x: N(o.x), y: N(o.y), scale: clamp(num(o.scale, 1), 0.05, 20),
+        sx: N(o.sx), sy: N(o.sy), sw: clamp(num(o.sw, 10), 1, 5000), sh: clamp(num(o.sh, 10), 1, 5000),
+        src: { pdfId: o.src.pdfId.slice(0, 60), index: clamp(Math.round(num(o.src.index, 0)), 0, 100000), view: (Array.isArray(o.src.view) ? o.src.view : [0, 0, A4.w, A4.h]).slice(0, 4).map(v => num(v)), rotate: [0, 90, 180, 270].includes(num(o.src.rotate)) ? num(o.src.rotate) : 0 },
+      };
+    }
     case "rect": return { id, t: "rect", x: N(o.x), y: N(o.y), w: clamp(num(o.w, 10), 0.5, 5000), h: clamp(num(o.h, 10), 0.5, 5000), fill: color(o.fill, "#ffffff") };
     case "chord": return { id, t: "chord", x: N(o.x), y: N(o.y), size: clamp(num(o.size, 55), 10, 600), model: sanitizeChordModel(o.model) };
     case "finger": return { id, t: "finger", x: N(o.x), y: N(o.y), size: clamp(num(o.size, 14), 4, 200), n: clamp(Math.round(num(o.n, 1)), 0, 9) };

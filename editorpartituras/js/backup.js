@@ -1,13 +1,13 @@
 // Copias de seguridad locales (.ptbak): JSON + PDFs en binario, sin convertir a texto
 import { dbAll, dbGet, dbPutMany, getBackupState, saveBackupState, getSettings, getCustomChords, saveCustomChords, saveSettings, DEFAULT_SETTINGS } from "./db.js";
-import { sanitizePiece, sanitizeChordModel } from "./model.js";
+import { sanitizePiece, sanitizeChordModel, pdfIdsOf } from "./model.js";
 import { downloadBlob, safeFileName, APP_VERSION, clamp, num } from "./util.js";
 
 const MAGIC = "PTBAK1\n";
 const enc = new TextEncoder(), dec = new TextDecoder();
 
 async function buildBackup(pieces, { includeMeta }) {
-  const pdfIds = [...new Set(pieces.map(p => p.pdfId).filter(Boolean))];
+  const pdfIds = [...new Set(pieces.flatMap(pdfIdsOf))];
   const pdfRecs = [];
   for (const id of pdfIds) { const r = await dbGet("pdfs", id); if (r) pdfRecs.push(r); }
   let offset = 0;
@@ -64,7 +64,7 @@ export async function readBackupFile(file) {
   }
   const pieces = header.pieces.map(sanitizePiece).filter(Boolean);
   const pdfIds = new Set(pdfs.map(p => p.id));
-  for (const p of pieces) if (p.pdfId && !pdfIds.has(p.pdfId) && !(await dbGet("pdfs", p.pdfId))) throw new Error(`Falta el PDF de «${p.title}».`);
+  for (const p of pieces) for (const id of pdfIdsOf(p)) if (!pdfIds.has(id) && !(await dbGet("pdfs", id))) throw new Error(`Falta un PDF de «${p.title}».`);
   const ideas = Array.isArray(header.ideas) ? header.ideas.filter(i => i && typeof i.id === "string").map(i => ({
     id: i.id.slice(0, 60), text: String(i.text || "").slice(0, 5000), done: Boolean(i.done), createdAt: num(i.createdAt, Date.now()), updatedAt: num(i.updatedAt, Date.now()),
   })) : null;

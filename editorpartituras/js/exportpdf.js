@@ -1,6 +1,8 @@
 // Exportar una pieza a PDF vectorial con pdf-lib (incluido en local)
 import { getPdfBytes } from "./pdfjs.js";
-import { ED, chordHeight } from "./chords.js";
+import { renderObj, pathD, arrowHead } from "./objects.js";
+import { clipUrl } from "./clips.js";
+import { ED, chordHeight, chordTop } from "./chords.js";
 import { downloadBlob, safeFileName, normalizeUrl, isHttpUrl } from "./util.js";
 
 function hexToRgb(hex, rgb) {
@@ -12,9 +14,15 @@ function hexToRgb(hex, rgb) {
 function canEncode(font, txt) { try { font.encodeText(txt); return true; } catch { return false; } }
 
 // Dibuja un objeto como imagen (para textos con símbolos que las fuentes PDF estándar no tienen)
-async function rasterObject(out, page, H, gEl) {
-  if (!gEl) return false;
-  const b = gEl.getBBox();
+async function rasterObject(out, page, H, o) {
+  // se dibuja en un SVG oculto para medirlo y convertirlo en imagen
+  const host = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  host.setAttribute("style", "position:absolute;left:-9999px;top:0;width:10px;height:10px;overflow:visible");
+  const gEl = renderObj(o);
+  host.append(gEl); document.body.append(host);
+  let b;
+  try { b = gEl.getBBox(); } finally { host.remove(); }
+  if (!b || (!b.width && !b.height)) return false;
   const pad = 2;
   const x = b.x - pad, y = b.y - pad, w = b.width + pad * 2, h = b.height + pad * 2;
   const scale = 6;
@@ -33,7 +41,7 @@ async function rasterObject(out, page, H, gEl) {
 }
 
 function drawChord(page, o, H, F, rgb) {
-  const m = o.model, k = o.size / ED.W;
+  const m = o.model, k = o.size / ED.W, TOP = chordTop(m);
   const X = lx => o.x + lx * k, Y = ly => H - (o.y + ly * k);
   const black = rgb(0, 0, 0), white = rgb(1, 1, 1);
   const hh = chordHeight(m);
@@ -44,20 +52,20 @@ function drawChord(page, o, H, F, rgb) {
     page.drawText(t, { x, y: cy, size, font, color: black });
   };
   if (m.name) text(m.name, X((ED.left + ED.right) / 2), Y(15), 14 * k, F.monoB);
-  const bottom = ED.top + m.frets * ED.fGap;
+  const bottom = TOP + m.frets * ED.fGap;
   for (let i = 0; i < 6; i++) {
     const x = ED.left + i * ED.sGap;
-    page.drawLine({ start: { x: X(x), y: Y(ED.top) }, end: { x: X(x), y: Y(bottom) }, thickness: k, color: black });
+    page.drawLine({ start: { x: X(x), y: Y(TOP) }, end: { x: X(x), y: Y(bottom) }, thickness: k, color: black });
   }
   for (let i = 0; i <= m.frets; i++) {
-    const y = ED.top + i * ED.fGap;
+    const y = TOP + i * ED.fGap;
     page.drawLine({ start: { x: X(ED.left), y: Y(y) }, end: { x: X(ED.right), y: Y(y) }, thickness: (i === 0 && m.traste === 1 ? 3 : 1) * k, color: black });
   }
-  if (m.traste > 1) text(String(m.traste), X(ED.left - 4), Y(ED.top + ED.fGap * 0.5) - 14 * k * 0.35, 14 * k, F.monoB, "end");
+  if (m.traste > 1) text(String(m.traste), X(ED.left - 4), Y(TOP + ED.fGap * 0.5) - 14 * k * 0.35, 14 * k, F.monoB, "end");
   for (const cj of m.cejillas) {
     const rel = cj.traste - m.traste;
     if (rel < 0 || rel >= m.frets) continue;
-    const yc = ED.top + (rel + 0.5) * ED.fGap;
+    const yc = TOP + (rel + 0.5) * ED.fGap;
     const a = Math.min(cj.desde, cj.hasta) - 1, b = Math.max(cj.desde, cj.hasta) - 1;
     const x1 = ED.left + a * ED.sGap, x2 = ED.left + b * ED.sGap;
     // barra con extremos redondeados
@@ -68,14 +76,14 @@ function drawChord(page, o, H, F, rgb) {
   for (let i = 0; i < 6; i++) {
     const x = ED.left + i * ED.sGap;
     const arr = m.pos[i] || [];
-    if (arr.includes(-1)) text("X", X(x), Y(ED.top - 5), 11 * k, F.mono);
-    else if (arr.includes(0)) page.drawCircle({ x: X(x), y: Y(ED.top - 9), size: 3.5 * k, borderColor: black, borderWidth: k });
+    if (arr.includes(-1)) text("X", X(x), Y(TOP - 4), 11 * k, F.mono);
+    else if (arr.includes(0)) page.drawCircle({ x: X(x), y: Y(TOP - 8), size: 3.5 * k, borderColor: black, borderWidth: k });
     const dot = (fret, hollow) => {
       if (fret <= 0) return;
       if (m.cejillas.some(cj => cj.traste === fret && i + 1 >= Math.min(cj.desde, cj.hasta) && i + 1 <= Math.max(cj.desde, cj.hasta))) return;
       const rel = fret - m.traste;
       if (rel < 0 || rel >= m.frets) return;
-      const cy = ED.top + (rel + 0.5) * ED.fGap;
+      const cy = TOP + (rel + 0.5) * ED.fGap;
       page.drawCircle({ x: X(x), y: Y(cy), size: 5 * k, color: hollow ? white : black, borderColor: black, borderWidth: hollow ? 1.6 * k : 0 });
     };
     arr.forEach(f => dot(f, false));
@@ -92,8 +100,8 @@ function textsOf(o) {
   return [];
 }
 
-export async function exportPiecePdf(piece, getObjEl) {
-  const { PDFDocument, PDFName, PDFString, StandardFonts, rgb, degrees } = window.PDFLib;
+export async function exportPiecePdf(piece) {
+  const { PDFDocument, PDFName, PDFString, StandardFonts, rgb, degrees, LineCapStyle } = window.PDFLib;
   const out = await PDFDocument.create();
   out.setTitle(piece.title);
   out.setProducer("Partituras");
@@ -103,17 +111,19 @@ export async function exportPiecePdf(piece, getObjEl) {
     monoB: await out.embedFont(StandardFonts.CourierBold),
     mono: await out.embedFont(StandardFonts.Courier),
   };
-  let src = null;
-  if (piece.pdfId && piece.pages.some(p => p.src.kind === "pdf")) {
-    src = await PDFDocument.load(await getPdfBytes(piece.pdfId), { ignoreEncryption: true });
-  }
+  const srcs = new Map(); // pdfId -> PDFDocument de pdf-lib (se cargan cuando hacen falta)
+  const getSrc = async (pdfId) => {
+    if (!srcs.has(pdfId)) srcs.set(pdfId, PDFDocument.load(await getPdfBytes(pdfId), { ignoreEncryption: true }));
+    return srcs.get(pdfId);
+  };
   const embedCache = new Map();
   let rasterObjs = 0;
 
   for (const pg of piece.pages) {
     const page = out.addPage([pg.w, pg.h]);
     const H = pg.h;
-    if (pg.src.kind === "pdf" && src) {
+    if (pg.src.kind === "pdf" && piece.pdfId) {
+      const src = await getSrc(piece.pdfId);
       let emb = embedCache.get(pg.src.index);
       if (!emb) {
         const sp = src.getPage(pg.src.index);
@@ -130,16 +140,47 @@ export async function exportPiecePdf(piece, getObjEl) {
     for (const o of pg.objs) {
       const fontFor = o.t === "text" ? (o.font === "mono" ? (o.bold ? F.monoB : F.mono) : (o.bold ? F.sansB : F.sans)) : F.monoB;
       if (!textsOf(o).every(t => !t || canEncode(fontFor, t) && canEncode(F.mono, t))) {
-        if (await rasterObject(out, page, H, getObjEl(pg.id, o.id))) { rasterObjs++; }
+        if (await rasterObject(out, page, H, o)) { rasterObjs++; }
         continue;
       }
       switch (o.t) {
         case "rect":
           page.drawRectangle({ x: o.x, y: H - (o.y + o.h), width: o.w, height: o.h, color: hexToRgb(o.fill, rgb) });
           break;
-        case "line":
-          page.drawLine({ start: { x: o.x1, y: H - o.y1 }, end: { x: o.x2, y: H - o.y2 }, thickness: o.w, color: hexToRgb(o.color, rgb), lineCap: 1 });
+        case "line": {
+          const col = hexToRgb(o.color, rgb);
+          if (o.arrow) {
+            const h = arrowHead(o);
+            page.drawLine({ start: { x: o.x1, y: H - o.y1 }, end: { x: h.base[0], y: H - h.base[1] }, thickness: o.w, color: col });
+            page.drawSvgPath(`M${h.tip[0]} ${h.tip[1]} L${h.a[0]} ${h.a[1]} L${h.b[0]} ${h.b[1]} Z`, { x: 0, y: H, color: col });
+          } else {
+            page.drawLine({ start: { x: o.x1, y: H - o.y1 }, end: { x: o.x2, y: H - o.y2 }, thickness: o.w, color: col, lineCap: LineCapStyle.Round });
+          }
           break;
+        }
+        case "path":
+          page.drawSvgPath(pathD(o.pts), { x: 0, y: H, borderColor: hexToRgb(o.color, rgb), borderWidth: o.w, borderLineCap: LineCapStyle.Round });
+          break;
+        case "ellipse":
+          page.drawEllipse({ x: o.x + o.w / 2, y: H - (o.y + o.h / 2), xScale: o.w / 2, yScale: o.h / 2, borderColor: hexToRgb(o.color, rgb), borderWidth: o.sw });
+          break;
+        case "clip": {
+          const w = o.sw * o.scale, h = o.sh * o.scale;
+          if ((o.src.rotate || 0) === 0) {
+            const src = await getSrc(o.src.pdfId);
+            const [vx1, , , vy2] = o.src.view;
+            const emb = await out.embedPage(src.getPage(o.src.index), { left: vx1 + o.sx, right: vx1 + o.sx + o.sw, top: vy2 - o.sy, bottom: vy2 - o.sy - o.sh });
+            page.drawRectangle({ x: o.x, y: H - (o.y + h), width: w, height: h, color: rgb(1, 1, 1) });
+            page.drawPage(emb, { x: o.x, y: H - (o.y + h), width: w, height: h });
+          } else {
+            // páginas giradas: el recorte va como imagen de alta resolución
+            const url = await clipUrl(o);
+            const png = await out.embedPng(await (await fetch(url)).arrayBuffer());
+            page.drawImage(png, { x: o.x, y: H - (o.y + h), width: w, height: h });
+            rasterObjs++;
+          }
+          break;
+        }
         case "text":
           if (o.text) page.drawText(o.text, { x: o.x, y: H - o.y, size: o.size, font: fontFor, color: hexToRgb(o.color, rgb) });
           break;
