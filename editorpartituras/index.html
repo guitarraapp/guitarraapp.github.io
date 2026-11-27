@@ -1,1 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="theme-color" content="#147d68">
+<title>Partituras</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
 
+<!-- ================= BIBLIOTECA ================= -->
+<section id="view-library" class="view">
+  <header class="bar">
+    <div class="bar-title"><img src="icons/icon-192.png" alt="" class="logo">Partituras <span class="muted small" id="verLabel"></span></div>
+    <div class="bar-actions">
+      <button class="btn primary" id="btnImport" type="button">Importar PDF</button>
+      <input type="file" id="fileImport" accept="application/pdf,.pdf" multiple hidden>
+      <button class="btn" id="btnNewBlank" type="button">Nueva en blanco</button>
+      <button class="btn" id="btnMore" type="button">Más</button>
+    </div>
+  </header>
+  <div id="backupBanner" class="banner" hidden></div>
+  <div class="lib-filters">
+    <input type="search" id="libSearch" placeholder="Buscar por título o etiqueta…">
+    <select id="libSort" title="Orden"><option value="recent">Más recientes</option><option value="title">Título A-Z</option><option value="created">Fecha de creación</option></select>
+    <label class="check"><input type="checkbox" id="libFav"> Solo favoritas ★</label>
+    <span id="libStats" class="muted small"></span>
+  </div>
+  <div id="libTags" class="lib-tags"></div>
+  <div id="libGrid" class="lib-grid"></div>
+</section>
+
+<!-- ================= EDITOR ================= -->
+<section id="view-editor" class="view" hidden>
+  <div class="ed-head">
+  <header class="bar ed-bar">
+    <div class="bar-left">
+      <button class="btn" id="edBack" type="button" title="Volver a la biblioteca">← Biblioteca</button>
+      <button class="title-btn" id="edTitle" type="button" title="Cambiar el título"></button>
+      <span id="edSave" class="muted small"></span>
+    </div>
+    <div class="bar-actions">
+      <button class="btn icon" id="zoomOut" type="button" title="Alejar (Ctrl −)">−</button>
+      <span id="zoomLabel" class="zoom-label">100%</span>
+      <button class="btn icon" id="zoomIn" type="button" title="Acercar (Ctrl +)">+</button>
+      <button class="btn" id="zoomFit" type="button" title="Ajustar al ancho">Ajustar</button>
+      <button class="btn" id="edPages" type="button" title="Organizar hojas: reordenar, añadir, duplicar, borrar, separar en piezas">📑 Hojas</button>
+      <button class="btn" id="lockBtn" type="button" title="Bloquear: solo ver (los toques no editan)">🔓 Editando</button>
+      <button class="btn icon edit-only" id="undoBtn" type="button" title="Deshacer (Ctrl+Z)">↶</button>
+      <button class="btn icon edit-only" id="redoBtn" type="button" title="Rehacer (Ctrl+Y)">↷</button>
+      <button class="btn" id="edVideo" type="button" title="Vídeo de la pieza para las etiquetas de bucle">Vídeo</button>
+      <button class="btn primary" id="edExport" type="button">Exportar PDF</button>
+    </div>
+  </header>
+  <div class="toolbar edit-only" id="edTools">
+    <div class="group">
+      <button class="btn tool active" data-tool="select" type="button" title="Seleccionar, mover y redimensionar (V). Arrastra en vacío para seleccionar varios; Mayús+clic añade o quita.">↖ Selec.</button>
+      <button class="btn tool" data-tool="text" type="button" title="Texto (T)">T Texto</button>
+      <button class="btn tool" data-tool="pen" type="button" title="Lápiz a mano alzada (P)">✎ Lápiz</button>
+      <button class="btn tool" data-tool="line" type="button" title="Línea (L). Mayús = recta">╱ Línea</button>
+      <button class="btn tool" data-tool="arrow" type="button" title="Flecha (F). Mayús = recta">➚ Flecha</button>
+      <button class="btn tool" data-tool="ellipse" type="button" title="Elipse para rodear (O). Mayús = círculo">◯ Elipse</button>
+    </div>
+    <div class="group">
+      <button class="btn tool" data-tool="rect" type="button" title="Tapar con un rectángulo (R)">▭ Tapar</button>
+      <button class="btn tool" data-tool="eraser" type="button" title="Borrador como el de Paint (B): pinta del color de «Tapar»">⌫ Borrador</button>
+      <button class="btn tool" data-tool="cutzone" type="button" title="Cortar una zona de la partitura para moverla (X)">✂ Cortar zona</button>
+      <button class="btn tool" data-tool="copyzone" type="button" title="Copiar una zona de la partitura sin quitarla (C)">⧉ Copiar zona</button>
+    </div>
+    <div class="group">
+      <button class="btn" id="btnPasteAny" type="button" title="Pegar lo último que copiaste: dentro de la app, o una imagen o texto de otra web, PDF o captura (Ctrl+V)">📋 Pegar</button>
+      <button class="btn" id="btnImage" type="button" title="Añadir una imagen desde un archivo (también puedes arrastrarla sobre la hoja)">🖼 Imagen</button>
+      <input type="file" id="fileImage" accept="image/*" multiple hidden>
+    </div>
+    <div class="group">
+      <button class="btn" id="btnChords" type="button">Acordes ▾</button>
+      <button class="btn" id="btnNewChord" type="button">Nuevo acorde</button>
+      <span class="group-label">Dedo</span>
+      <button class="btn finger" data-finger="1" type="button">1</button>
+      <button class="btn finger" data-finger="2" type="button">2</button>
+      <button class="btn finger" data-finger="3" type="button">3</button>
+      <button class="btn finger" data-finger="4" type="button">4</button>
+      <button class="btn" id="btnLoop" type="button" title="Etiqueta de bucle (L23)">Bucle</button>
+      <select id="techSelect" title="Símbolos y marcas">
+        <option value="">Técnica ▾</option>
+        <option>H</option><option>P</option><option>sl.</option><option>~~~</option>
+        <option>Arm.</option><option>↓</option><option>↑</option>
+        <option>C.II</option><option>C.V</option><option>C.VII</option>
+        <option>Intro</option><option>Estrofa</option><option>Estribillo</option><option>Solo</option>
+      </select>
+    </div>
+    <div class="group" id="styleGroup">
+      <label title="Tamaño del texto (pt)">Texto <input type="number" id="setFont" min="4" max="120" step="1"></label>
+      <label title="Grosor de lápiz, línea, flecha y elipse (pt)">Grosor <input type="number" id="setLine" min="0.2" max="20" step="0.5"></label>
+      <label title="Color de texto, lápiz, línea, flecha y elipse">Color <input type="color" id="setColor"></label>
+      <label title="Color de «Tapar» y del borrador">Tapar <input type="color" id="setPatch"></label>
+      <label title="Tamaño del borrador (pt)">Borrador <input type="number" id="setEraser" min="2" max="80" step="1"></label>
+    </div>
+  </div>
+  </div>
+  <div id="ctxBar" class="ctx-bar edit-only" hidden>
+    <span class="group-label" id="selCount"></span>
+    <span class="sel-actions">
+      <button class="btn small" id="selEdit" type="button" title="Editar (Enter o doble clic)">Editar</button>
+      <button class="btn small" id="selDup" type="button" title="Duplicar (Ctrl+D)">Duplicar</button>
+      <button class="btn small" id="selCopy" type="button" title="Copiar (Ctrl+C)">Copiar</button>
+      <button class="btn small" id="selCut" type="button" title="Cortar (Ctrl+X)">Cortar</button>
+      <button class="btn small" id="selMove" type="button" title="Llevar lo seleccionado a otra hoja (o a una nueva)">Mover a hoja…</button>
+      <button class="btn small" id="selFront" type="button" title="Traer al frente">Al frente</button>
+      <button class="btn small" id="selBack" type="button" title="Enviar al fondo">Al fondo</button>
+      <button class="btn small danger" id="selDel" type="button" title="Eliminar (Supr)">Eliminar</button>
+    </span>
+    <button class="btn small" id="btnPaste" type="button" title="Pegar (Ctrl+V) en la hoja que estás viendo" hidden>📋 Pegar</button>
+  </div>
+  <div id="chordPanel" class="floating" hidden>
+    <div class="floating-head">
+      <input type="search" id="chordSearch" placeholder="Buscar acorde…">
+      <button class="btn small" id="chordPanelClose" type="button">Cerrar</button>
+    </div>
+    <div id="chordList" class="chord-list"></div>
+    <p class="muted small">Toca un acorde y luego la página donde quieras colocarlo.</p>
+  </div>
+  <div id="pages" class="pages"></div>
+</section>
+
+<!-- ================= MÁS ================= -->
+<section id="view-more" class="view" hidden>
+  <header class="bar">
+    <div class="bar-left">
+      <button class="btn" id="moreBack" type="button">← Biblioteca</button>
+      <div class="bar-title">Más</div>
+    </div>
+  </header>
+  <nav class="tabs">
+    <button class="tab active" data-tab="backup" type="button">Copias</button>
+    <button class="tab" data-tab="settings" type="button">Ajustes</button>
+    <button class="tab" data-tab="ideas" type="button">Ideas de mejora</button>
+    <button class="tab" data-tab="help" type="button">Ayuda</button>
+  </nav>
+  <div class="more-body">
+    <div class="tab-panel" id="tab-backup"></div>
+    <div class="tab-panel" id="tab-settings" hidden></div>
+    <div class="tab-panel" id="tab-ideas" hidden></div>
+    <div class="tab-panel" id="tab-help" hidden></div>
+  </div>
+</section>
+
+<div id="updateBanner" class="banner update" hidden>Hay una versión nueva. <button class="btn small primary" id="btnReload" type="button">Actualizar</button></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="vendor/pdf-lib.min.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
