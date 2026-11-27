@@ -1,5 +1,5 @@
 // Service worker de Partituras. Solo toca sus propias cachés (prefijo + carpeta).
-const VER = "11.2.0-f2-1";
+const VER = "11.2.1-f2"; // debe coincidir con APP_VERSION de js/util.js
 const SCOPE_KEY = new URL(self.registration.scope).pathname.replace(/[^a-z0-9]+/gi, "_");
 const PREFIX = `partituras-app-${SCOPE_KEY}-`;
 const CACHE = PREFIX + VER;
@@ -13,7 +13,17 @@ const CORE = [
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)));
+  // cache:"reload" = pedir cada archivo al servidor, sin pasar por la caché del navegador.
+  // Sin esto, GitHub Pages (que deja cada archivo 10 min en esa caché) podía colar archivos
+  // de la versión anterior en la nueva: versión antigua, botones sin funcionar, pegar que no pega…
+  e.waitUntil((async () => {
+    const c = await caches.open(CACHE);
+    await Promise.all(CORE.map(async (u) => {
+      const res = await fetch(new Request(u, { cache: "reload" }));
+      if (!res.ok) throw new Error(`${u}: ${res.status}`);
+      await c.put(u, res);
+    }));
+  })());
 });
 self.addEventListener("activate", (e) => {
   e.waitUntil((async () => {
@@ -22,7 +32,10 @@ self.addEventListener("activate", (e) => {
     await self.clients.claim();
   })());
 });
-self.addEventListener("message", (e) => { if (e.data === "skipWaiting") self.skipWaiting(); });
+self.addEventListener("message", (e) => {
+  if (e.data === "skipWaiting") self.skipWaiting();
+  if (e.data === "version") e.source?.postMessage({ swVersion: VER });
+});
 
 self.addEventListener("fetch", (e) => {
   const req = e.request;

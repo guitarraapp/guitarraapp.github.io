@@ -236,7 +236,9 @@ async function renderSettingsTab() {
       numField("fontSize", "Texto", 4, 120)),
     el("section", { class: "panel" },
       el("h3", { text: "Versión" }),
-      el("p", { text: `Partituras ${APP_VERSION}` })),
+      el("p", { text: `Partituras ${APP_VERSION}` }),
+      el("p", { class: "muted small", text: "Si después de subir una versión nueva ves la antigua o algo no responde, pulsa aquí. Se vuelven a descargar los archivos de la app; tus piezas, copias e ideas no se tocan." }),
+      el("button", { class: "btn", type: "button", text: "Forzar actualización", onclick: repairApp })),
   );
 }
 
@@ -303,6 +305,39 @@ function registerSw() {
   }).catch(err => console.warn("SW", err));
   let reloaded = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => { if (!reloaded) { reloaded = true; location.reload(); } });
+  // Comprobación: la versión del service worker debe ser la misma que la de los archivos que se están usando.
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    const v = e.data?.swVersion;
+    if (v && v !== APP_VERSION) showRepairBanner(v);
+  });
+  navigator.serviceWorker.ready.then(() => navigator.serviceWorker.controller?.postMessage("version")).catch(() => {});
+}
+
+function showRepairBanner(swVersion) {
+  const b = $("#updateBanner");
+  b.innerHTML = "";
+  b.append(el("span", { text: `La actualización se quedó a medias (archivos ${APP_VERSION}, versión publicada ${swVersion}). ` }),
+    el("button", { class: "btn small primary", type: "button", text: "Reparar ahora", onclick: repairApp }));
+  b.hidden = false;
+}
+
+// Borra solo las cachés de esta app y su service worker, y recarga pidiendo todo al servidor.
+// No toca la base de datos (piezas, imágenes, ideas, ajustes).
+async function repairApp() {
+  try {
+    if (editorActive()) await closeEditor();
+    toast("Descargando de nuevo la app…", 8000);
+    const scope = new URL("./", location.href).pathname.replace(/[^a-z0-9]+/gi, "_");
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k.startsWith(`partituras-app-${scope}-`)).map(k => caches.delete(k)));
+    // refresca también la caché del navegador, para que la recarga no traiga archivos antiguos
+    const files = ["index.html", "manifest.webmanifest", "css/app.css", "sw.js",
+      ...["app", "util", "db", "pdfjs", "model", "chords", "objects", "clips", "editor", "exportpdf", "backup", "ideas", "help", "images", "thumbs", "split", "organizer"].map(n => `js/${n}.js`)];
+    await Promise.all(files.map(f => fetch(f, { cache: "reload" }).catch(() => {})));
+    const reg = await navigator.serviceWorker?.getRegistration();
+    await reg?.unregister();
+  } catch (e) { console.warn("reparar", e); }
+  location.replace(location.pathname + "?r=" + Date.now());
 }
 
 init().catch(e => { console.error(e); toast("Error al iniciar: " + e.message, 8000); });

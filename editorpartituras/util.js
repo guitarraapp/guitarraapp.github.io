@@ -1,5 +1,5 @@
 // Utilidades comunes
-export const APP_VERSION = "11.2.0-f2";
+export const APP_VERSION = "11.2.1-f2";
 export const NS = "http://www.w3.org/2000/svg";
 
 export function uid(prefix = "id") {

@@ -1,7 +1,7 @@
 # Partituras: plan de desarrollo por fases
 
 Cada fase termina en una versión que puedes usar y probar, con su guía de pruebas (`PRUEBAS_FASEn.md`).
-Estado a 27 de noviembre de 2026 · versión actual **11.2.0-f2**.
+Estado a 27 de noviembre de 2026 · versión actual **11.2.1-f2**.
 
 | Fase | Nombre | Estado |
 |---|---|---|

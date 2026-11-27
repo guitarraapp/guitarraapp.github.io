@@ -827,7 +827,14 @@ function copySelected(cut = false) {
   const objs = selObjs(); if (!objs.length) return;
   clipboard = { objs: clone(objs), pageId: S.sel.pageId, pieceId: S.piece.id, mark: `${MARK}${uid("c")}` };
   // así, si luego copias algo fuera de la app, Ctrl+V pegará eso y no esto
-  try { navigator.clipboard?.writeText?.(clipboard.mark).catch(() => { clipboard.noMark = true; }); } catch { clipboard.noMark = true; }
+  // Con Ctrl+C / Ctrl+X la marca la escribe el evento «copy» (más fiable); con los botones, writeText.
+  const cb = clipboard; cb.at = Date.now();
+  const writeMark = () => {
+    if (cb.markWritten || clipboard !== cb) return;
+    try { navigator.clipboard?.writeText?.(cb.mark).then(() => { cb.markWritten = true; }, () => { cb.noMark = true; }); } catch { cb.noMark = true; }
+  };
+  if (S.keyCopy) setTimeout(writeMark, 0); // por si el navegador no lanza el evento «copy»
+  else writeMark();
   if (cut) deleteSelected();
   updateSelUi();
   toast(`${objs.length} elemento(s) ${cut ? "cortado(s)" : "copiado(s)"}. Pega con Ctrl+V en cualquier hoja o pieza.`);
@@ -914,7 +921,9 @@ function insertText(text) {
 }
 // Decide qué pegar: lo copiado DENTRO de la app (si es lo último que copiaste) o lo de fuera (imagen o texto)
 async function pasteFrom(files, text) {
-  const mine = !!clipboard && (text === clipboard.mark || clipboard.noMark); // lo último que copiaste fue de la app
+  // ¿Lo último que copiaste fue de la app? Sí si el portapapeles trae nuestra marca.
+  // Si no se pudo dejar la marca, una imagen o un texto de fuera ganan siempre (antes ganaba lo de la app y no se podían pegar capturas).
+  const mine = !!clipboard && (text === clipboard.mark || (clipboard.noMark && !files.length && (!text.trim() || text.startsWith(MARK))));
   if (mine) { paste(); return; }
   if (files.length) { for (const f of files) await insertImageBlob(f); return; }
   if (text.trim() && !text.startsWith(MARK)) { insertText(text); return; }
@@ -1083,6 +1092,16 @@ export function wireEditorUi() {
   $("#btnPasteAny").addEventListener("click", pasteButton);
   $("#selMove").addEventListener("click", moveToPageDialog);
   document.addEventListener("paste", onPasteEvent);
+  const onCopyEvent = (e) => {
+    if (!S.piece || !clipboard || clipboard.markWritten || Date.now() - (clipboard.at || 0) > 1000) return;
+    const t = e.target;
+    if (t instanceof HTMLElement && (t.isContentEditable || ["INPUT", "TEXTAREA"].includes(t.tagName))) return;
+    if (window.getSelection()?.toString()) return; // copiando texto de la página: lo normal
+    try { e.clipboardData.setData("text/plain", clipboard.mark); e.preventDefault(); clipboard.markWritten = true; }
+    catch { clipboard.noMark = true; }
+  };
+  document.addEventListener("copy", onCopyEvent);
+  document.addEventListener("cut", onCopyEvent);
   // arrastrar imágenes (desde el escritorio o desde otra web) sobre una hoja
   $("#pages").addEventListener("dragover", (e) => { if (S.piece && !S.locked && [...(e.dataTransfer?.types || [])].includes("Files")) e.preventDefault(); });
   $("#pages").addEventListener("drop", async (e) => {
@@ -1200,8 +1219,9 @@ function onKey(e) {
   if (mod && k === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
   if (mod && (k === "y" || (k === "z" && e.shiftKey))) { e.preventDefault(); redo(); return; }
   if (mod && k === "d") { e.preventDefault(); duplicateSelected(); return; }
-  if (mod && k === "c") { if (S.sel) { e.preventDefault(); copySelected(false); } return; }
-  if (mod && k === "x") { if (S.sel) { e.preventDefault(); copySelected(true); } return; }
+  // Ctrl+C / Ctrl+X: no se cancela la tecla, así llega el evento «copy» y deja la marca en el portapapeles
+  if (mod && k === "c") { if (S.sel) { S.keyCopy = true; copySelected(false); S.keyCopy = false; } return; }
+  if (mod && k === "x") { if (S.sel) { S.keyCopy = true; copySelected(true); S.keyCopy = false; } return; }
   // Ctrl+V: lo resuelve el evento «paste» (puede traer una imagen o un texto de fuera); si no llega, se pega lo interno
   if (mod && k === "v") { const t0 = Date.now(); setTimeout(() => { if (S.pastedAt < t0 && clipboard && S.piece) paste(); }, 180); return; }
   if (mod && k === "a") {

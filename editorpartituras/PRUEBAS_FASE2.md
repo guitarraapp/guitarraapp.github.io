@@ -1,11 +1,26 @@
-# Partituras 11.2 · Fase 2 (hojas y biblioteca): qué hay nuevo y cómo probarlo
+# Partituras 11.2.1 · Fase 2 (hojas y biblioteca): qué hay nuevo y cómo probarlo
+
+## 0. Corrección 11.2.1 (lo que falló con la 11.2.0)
+- **Causa**: al actualizar, la app recogía sus archivos a través de la caché del navegador. GitHub Pages deja cada archivo 10 minutos en esa caché, así que se colaban archivos de la fase 1 en la fase 2.
+  - Se veía la versión antigua.
+  - «🖼 Imagen» no hacía nada.
+  - Ctrl+V no pegaba capturas ni imágenes de webs.
+- **Arreglo**: ahora cada archivo se pide siempre al servidor al actualizar.
+  - Además, si alguna vez la versión instalada no coincide con la publicada, sale **«La actualización se quedó a medias → Reparar ahora»**.
+  - En **Más → Ajustes → Versión** hay un botón **«Forzar actualización»**. Vuelve a descargar la app sin tocar tus piezas.
+- **Pegar**: si copiabas algo dentro de la app y el navegador no dejaba marcarlo, desde ese momento Ctrl+V pegaba siempre lo de la app y nunca la captura. Ahora una imagen o un texto de fuera ganan siempre en ese caso.
+- Comprobado en Chrome simulando tu caso: fase 1 → fase 2 a medias → 11.2.1. Termina en 11.2.1 con todo funcionando.
+
 
 ## 1. Instalación (sustituye la fase 1)
 1. Descomprime el zip.
 2. En GitHub, entra en tu carpeta de pruebas y arrastra **todo el contenido** de la carpeta descomprimida. Se sustituyen los archivos que se llamen igual.
    - Archivos nuevos: `js/images.js`, `js/thumbs.js`, `js/split.js` y `js/organizer.js`.
    - Puedes borrar `PRUEBAS_FASE1.md`.
-3. Abre la app. Abajo aparecerá **«Hay una versión nueva → Actualizar»**. Púlsalo; si no aparece, recarga con Ctrl+F5.
+3. Abre la app. Abajo aparecerá **«Hay una versión nueva → Actualizar»**. Púlsalo.
+   - Si no aparece, recarga con Ctrl+F5 y vuelve a recargar normal.
+   - Comprueba que arriba, junto a «Partituras», pone **11.2.1-f2**.
+   - Si no, ve a **Más → Ajustes → Forzar actualización**.
    - Si la app está abierta en **otra pestaña**, ciérrala antes: la base de datos se amplía (para las imágenes) y no puede hacerlo con dos pestañas abiertas.
 4. Tus piezas de la fase 1 siguen igual. Está comprobado: se instaló la fase 1 con datos, se publicó la 2 encima y todo quedó idéntico.
 5. Recomendado: antes de empezar, en **Más → Copias** descarga una copia completa.
