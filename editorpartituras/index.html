@@ -27,9 +27,11 @@
   <div id="backupBanner" class="banner" hidden></div>
   <div class="lib-filters">
     <input type="search" id="libSearch" placeholder="Buscar por título o etiqueta…">
+    <select id="libSort" title="Orden"><option value="recent">Más recientes</option><option value="title">Título A-Z</option><option value="created">Fecha de creación</option></select>
     <label class="check"><input type="checkbox" id="libFav"> Solo favoritas ★</label>
     <span id="libStats" class="muted small"></span>
   </div>
+  <div id="libTags" class="lib-tags"></div>
   <div id="libGrid" class="lib-grid"></div>
 </section>
 
@@ -47,6 +49,7 @@
       <span id="zoomLabel" class="zoom-label">100%</span>
       <button class="btn icon" id="zoomIn" type="button" title="Acercar (Ctrl +)">+</button>
       <button class="btn" id="zoomFit" type="button" title="Ajustar al ancho">Ajustar</button>
+      <button class="btn" id="edPages" type="button" title="Organizar hojas: reordenar, añadir, duplicar, borrar, separar en piezas">📑 Hojas</button>
       <button class="btn" id="lockBtn" type="button" title="Bloquear: solo ver (los toques no editan)">🔓 Editando</button>
       <button class="btn icon edit-only" id="undoBtn" type="button" title="Deshacer (Ctrl+Z)">↶</button>
       <button class="btn icon edit-only" id="redoBtn" type="button" title="Rehacer (Ctrl+Y)">↷</button>
@@ -68,6 +71,11 @@
       <button class="btn tool" data-tool="eraser" type="button" title="Borrador como el de Paint (B): pinta del color de «Tapar»">⌫ Borrador</button>
       <button class="btn tool" data-tool="cutzone" type="button" title="Cortar una zona de la partitura para moverla (X)">✂ Cortar zona</button>
       <button class="btn tool" data-tool="copyzone" type="button" title="Copiar una zona de la partitura sin quitarla (C)">⧉ Copiar zona</button>
+    </div>
+    <div class="group">
+      <button class="btn" id="btnPasteAny" type="button" title="Pegar lo último que copiaste: dentro de la app, o una imagen o texto de otra web, PDF o captura (Ctrl+V)">📋 Pegar</button>
+      <button class="btn" id="btnImage" type="button" title="Añadir una imagen desde un archivo (también puedes arrastrarla sobre la hoja)">🖼 Imagen</button>
+      <input type="file" id="fileImage" accept="image/*" multiple hidden>
     </div>
     <div class="group">
       <button class="btn" id="btnChords" type="button">Acordes ▾</button>
@@ -102,6 +110,7 @@
       <button class="btn small" id="selDup" type="button" title="Duplicar (Ctrl+D)">Duplicar</button>
       <button class="btn small" id="selCopy" type="button" title="Copiar (Ctrl+C)">Copiar</button>
       <button class="btn small" id="selCut" type="button" title="Cortar (Ctrl+X)">Cortar</button>
+      <button class="btn small" id="selMove" type="button" title="Llevar lo seleccionado a otra hoja (o a una nueva)">Mover a hoja…</button>
       <button class="btn small" id="selFront" type="button" title="Traer al frente">Al frente</button>
       <button class="btn small" id="selBack" type="button" title="Enviar al fondo">Al fondo</button>
       <button class="btn small danger" id="selDel" type="button" title="Eliminar (Supr)">Eliminar</button>
